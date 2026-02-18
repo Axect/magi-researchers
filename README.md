@@ -10,7 +10,7 @@ Add this repository as a marketplace, then install the plugin:
 
 ```
 /plugin marketplace add Axect/claude_researchers
-/plugin install claude-researchers@claude_researchers
+/plugin install claude-researchers@claude-researchers-marketplace
 ```
 
 ### Option 2: Local Plugin Directory (Development)

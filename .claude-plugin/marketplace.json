@@ -1,10 +1,14 @@
 {
+  "name": "claude-researchers-marketplace",
+  "owner": {
+    "name": "axect"
+  },
   "plugins": [
     {
       "name": "claude-researchers",
+      "source": ".",
       "version": "0.1.0",
-      "description": "Multi-model research workflow for Physics, AI/ML, and scientific domains",
-      "path": "."
+      "description": "Multi-model research workflow for Physics, AI/ML, and scientific domains"
     }
   ]
 }
