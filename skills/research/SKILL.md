@@ -15,6 +15,7 @@ Runs the complete research pipeline: Brainstorming → Planning → Implementati
 
 ### MCP Tool Rules
 - **Gemini**: Always pass `model: "gemini-3-pro-preview"` explicitly. Never omit or use other model IDs.
+- **Codex**: Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review.
 - **Context7**: Use `mcp__plugin_context7_context7__query-docs` for library documentation lookups during implementation.
 - **Visualization**: Use `matplotlib` with `scienceplots` (`['science', 'nature']` style). Save plots as PNG (300 dpi) and PDF.
 

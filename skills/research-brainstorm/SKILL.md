@@ -15,6 +15,7 @@ Generates and cross-validates research ideas using Gemini and Codex in parallel,
 
 ### MCP Tool Rules
 - **Gemini**: Always pass `model: "gemini-3-pro-preview"` explicitly. Never omit or use other model IDs.
+- **Codex**: Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review.
 
 When this skill is invoked, follow these steps exactly:
 
@@ -45,9 +46,8 @@ mcp__gemini-cli__brainstorm(
 
 **Codex Brainstorming:**
 ```
-mcp__gemini-cli__brainstorm(
+mcp__codex-cli__brainstorm(
   prompt: "{topic} — Generate implementation-focused research ideas. Consider feasibility, existing tools/libraries, computational requirements, and step-by-step approaches.",
-  model: "gemini-3-pro-preview",
   domain: "{domain}",
   methodology: "auto",
   ideaCount: 12,
@@ -56,7 +56,7 @@ mcp__gemini-cli__brainstorm(
 )
 ```
 
-> Note: If Codex MCP is unavailable, use a second Gemini call with implementation-focused framing as the Codex alternative.
+> Note: If Codex MCP is unavailable, fall back to `mcp__gemini-cli__brainstorm` with `model: "gemini-3-pro-preview"` and implementation-focused framing.
 
 Save results to:
 - `brainstorm/gemini_ideas.md` — Gemini's raw output with header noting source and timestamp
@@ -75,10 +75,13 @@ mcp__gemini-cli__ask-gemini(
 ```
 
 **Codex reviews Gemini ideas:**
-Use `mcp__gemini-cli__ask-gemini` (or Codex equivalent) to review Gemini's ideas:
 ```
-"Review the following research ideas for implementation feasibility, computational practicality, available tools/datasets, and timeline realism. Identify strengths, weaknesses, and suggest improvements for each idea.\n\n{gemini_ideas content}"
+mcp__codex-cli__ask-codex(
+  prompt: "Review the following research ideas for implementation feasibility, computational practicality, available tools/datasets, and timeline realism. Identify strengths, weaknesses, and suggest improvements for each idea.\n\n{gemini_ideas content}"
+)
 ```
+
+> Note: If Codex MCP is unavailable, fall back to `mcp__gemini-cli__ask-gemini` with `model: "gemini-3-pro-preview"`.
 
 Save results to:
 - `brainstorm/gemini_review_of_codex.md`
