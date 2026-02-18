@@ -75,10 +75,10 @@ This runs the complete pipeline:
 
 ## Output Structure
 
-All outputs are saved to `outputs/{topic_YYYYMMDD}/`:
+All outputs are saved to `outputs/{topic_YYYYMMDD_vN}/`:
 
 ```
-outputs/{topic_YYYYMMDD}/
+outputs/{topic_YYYYMMDD_vN}/
 ├── brainstorm/          # Phase 1: 5 brainstorm documents
 ├── plan/                # Phase 2: research plan
 ├── src/                 # Phase 3: implementation code

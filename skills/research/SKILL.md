@@ -30,7 +30,7 @@ When this skill is invoked, execute the full research pipeline below. **Always p
    - Extract domain if `--domain` is specified; otherwise infer from topic keywords
 2. Create the output directory structure:
    ```
-   outputs/{sanitized_topic}_{YYYYMMDD}/
+   outputs/{sanitized_topic}_{YYYYMMDD}_v{N}/
    ├── brainstorm/
    ├── plan/
    ├── src/
@@ -39,6 +39,7 @@ When this skill is invoked, execute the full research pipeline below. **Always p
    ```
    - Sanitize topic: lowercase, spaces→underscores, remove special chars, max 50 chars
    - Date format: YYYYMMDD (today's date)
+   - Version: Glob for `outputs/{sanitized_topic}_{YYYYMMDD}_v*/` and set N = max existing + 1 (start at v1)
 3. If the domain has a template in `${CLAUDE_PLUGIN_ROOT}/templates/domains/`, read it as context.
 4. Announce to the user: topic, domain, output directory.
 

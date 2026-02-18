@@ -22,9 +22,10 @@ When this skill is invoked, follow these steps exactly:
 ### Step 0: Setup
 
 1. Parse the research topic from `$ARGUMENTS`. If a `--domain` flag is provided, note the domain (physics, ai_ml). Otherwise, infer the domain from the topic.
-2. Create the output directory: `outputs/{sanitized_topic}_{YYYYMMDD}/brainstorm/`
+2. Create the output directory: `outputs/{sanitized_topic}_{YYYYMMDD}_v{N}/brainstorm/`
    - Sanitize the topic: lowercase, replace spaces with underscores, remove special characters, truncate to 50 chars.
    - Use today's date in YYYYMMDD format.
+   - Version: Glob for `outputs/{sanitized_topic}_{YYYYMMDD}_v*/` and set N = max existing + 1 (start at v1).
 3. If a domain template exists at `${CLAUDE_PLUGIN_ROOT}/templates/domains/{domain}.md`, read it for context.
 
 ### Step 1a: Parallel Independent Brainstorming
