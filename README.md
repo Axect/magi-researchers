@@ -4,23 +4,26 @@ A Claude Code plugin providing a multi-model research workflow for Physics, AI/M
 
 ## Installation
 
-### Option 1: Plugin Install (Recommended)
+### Option 1: Marketplace Install (Recommended)
 
-```bash
-claude plugin install axect/claude_researchers
+Add this repository as a marketplace, then install the plugin:
+
+```
+/plugin marketplace add Axect/claude_researchers
+/plugin install claude-researchers@claude_researchers
 ```
 
-### Option 2: Local Plugin Directory
+### Option 2: Local Plugin Directory (Development)
 
 ```bash
-git clone https://github.com/axect/claude_researchers.git
+git clone https://github.com/Axect/claude_researchers.git
 claude --plugin-dir /path/to/claude_researchers
 ```
 
 ### Option 3: Clone into Workspace
 
 ```bash
-git clone https://github.com/axect/claude_researchers.git
+git clone https://github.com/Axect/claude_researchers.git
 cd claude_researchers
 claude  # Plugin auto-detected from .claude-plugin/plugin.json
 ```
