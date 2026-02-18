@@ -125,10 +125,14 @@ Add to your project's `.claude/settings.local.json`:
     "allow": [
       "Bash(uv:*)",
       "Bash(uv run:*)",
+      "Bash(uv run python3:*)",
       "Bash(uv add:*)",
+      "Bash(uv sync:*)",
       "Bash(mkdir:*)",
       "mcp__gemini-cli__ask-gemini",
       "mcp__gemini-cli__brainstorm",
+      "mcp__codex-cli__ask-codex",
+      "mcp__codex-cli__brainstorm",
       "mcp__plugin_context7_context7__resolve-library-id",
       "mcp__plugin_context7_context7__query-docs"
     ]
