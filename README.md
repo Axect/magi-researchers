@@ -18,30 +18,7 @@
 
 ## Architecture
 
-```
-          ┌──────────────────────────────────────────────┐
-          │              MAGI SYSTEM                      │
-          │                                               │
-          │  MELCHIOR (Claude)    — Synthesis & Planning   │
-          │  BALTHASAR (Gemini)   — Creative Brainstorming │
-          │  CASPAR (Codex)       — Independent Analysis   │
-          │                                               │
-          └────────────┬────────────┬────────────┬────────┘
-                       │            │            │
-                       ▼            ▼            ▼
-               ┌─────────────────────────────────────┐
-               │          Cross-Verification          │
-               │  Gemini reviews Codex's ideas        │
-               │  Codex reviews Gemini's ideas        │
-               │  Claude synthesizes all perspectives  │
-               └──────────────────┬──────────────────┘
-                                  │
-                                  ▼
-               ┌─────────────────────────────────────┐
-               │        Unified Research Output       │
-               │  Plan → Code → Tests → Plots → Report│
-               └─────────────────────────────────────┘
-```
+![MAGI Architecture](MAGI.drawio.png)
 
 ## Installation
 
