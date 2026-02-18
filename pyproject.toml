@@ -1,0 +1,17 @@
+[project]
+name = "claude-researchers"
+version = "0.1.0"
+description = "Research agent workflow for Physics, AI/ML, and other domains"
+requires-python = ">=3.11"
+dependencies = [
+    "matplotlib>=3.8",
+    "SciencePlots>=2.1",
+    "numpy>=1.26",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["claude_researchers"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
