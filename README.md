@@ -114,6 +114,29 @@ All plots use `matplotlib` + [`scienceplots`](https://github.com/garrettj403/Sci
 
 **No other tool does this.** MAGI includes domain-specific templates that recommend journals/conferences for your research and provide tailored submission strategies.
 
+### How to Use
+
+Journal strategy templates are automatically loaded as context when you run the research pipeline with a `--domain` flag. All three models (Claude, Gemini, Codex) receive the strategy context during brainstorming, planning, and report generation.
+
+```
+/magi-researchers:research "your research topic" --domain physics
+```
+
+The `--domain` flag selects both the **research methodology template** (e.g., `physics.md`) and the corresponding **journal strategy template** (e.g., `journal_strategy_physics.md`). This means the models will:
+
+1. **Brainstorm** with venue-awareness — ideas are shaped with publication targets in mind
+2. **Plan** with submission strategy — the research plan considers framing for target journals
+3. **Report** with journal fit — the final report includes venue recommendations
+
+You can also reference the strategy templates directly in conversation:
+
+```
+Read templates/domains/journal_strategy_physics.md and help me choose
+the best journal for my paper on dark matter detection via ML.
+```
+
+### Available Templates
+
 ### Particle Physics Phenomenology
 
 Covers PRL, PRD, PRX, JHEP, PLB, EPJC, NPB, JCAP, PRE, CPC, PRX Quantum with:
@@ -160,6 +183,12 @@ Covers Nature Communications, MLST, PRX Intelligence, PRX Life, PRX Energy, Phys
 ```
 /plugin marketplace add Axect/magi-researchers
 /plugin install magi-researchers@magi-researchers-marketplace
+```
+
+### Updating
+
+```
+/plugin update magi-researchers@magi-researchers-marketplace
 ```
 
 ### Option 2: Local Development
