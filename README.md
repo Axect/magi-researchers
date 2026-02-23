@@ -187,9 +187,9 @@ Covers Nature Communications, MLST, PRX Intelligence, PRX Life, PRX Energy, Phys
 
 ### Updating
 
-```
-/plugin update magi-researchers@magi-researchers-marketplace
-```
+1. Open the **Plugin page** in Claude Code
+2. Go to **Marketplaces** tab
+3. Click **Update** on `magi-researchers-marketplace`
 
 ### Option 2: Local Development
 
