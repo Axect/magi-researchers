@@ -33,8 +33,12 @@ Before selecting a journal, establish the research profile:
 | QCD / Perturbative | JHEP, PRD | PRL (new technique) | JHEP preferred for multi-loop calculations |
 | EFT / SMEFT | JHEP, PRD | PRL (if model-independent breakthrough) | Present model-independent results first |
 | Cosmological Implications | PRD, JCAP | PRL (if cross-disciplinary impact) | Consider JCAP for pure cosmo |
+| Astroparticle Physics | JCAP, PRD | PRL, PLB | JCAP is the natural home |
 | Formal / Amplitudes | JHEP, NPB | PRL (elegant result) | NPB for mathematical depth |
-| Machine Learning in HEP | PRD, JHEP | Machine Learning: Science and Technology | Growing sub-field, consider specialized venues |
+| Computational / Numerical | CPC, PRD | PRE, JHEP | CPC if releasing code/tool |
+| Statistical Mechanics (HEP) | PRE, PRD | JHEP, NPB | PRE for lattice stat-mech crossover |
+| Quantum Information in HEP | PRX Quantum, PRL | PRD, PRX | PRX Quantum for quantum-native work |
+| Machine Learning in HEP | PRD, JHEP | MLST, CPC | CPC if tool-oriented; MLST if ML-method-focused |
 
 ### Career Mode
 - **"High-Upside" Mode** (Tenured / Established): Target PRL/PRX first. Accept longer review cycles. Optimize for citation impact.
@@ -109,6 +113,49 @@ Before selecting a journal, establish the research profile:
 - **Scope**: HEP phenomenology, theory, experiment, mathematical physics, statistical physics
 - **Strengths**: Welcomes mathematically rigorous formal theory work
 - **Best For**: Formal QFT, amplitudes, mathematical methods in physics, solvable models
+
+### JCAP (Journal of Cosmology and Astroparticle Physics)
+- **Publisher**: IOP/SISSA | **IF**: ~5.9 | **OA**: SCOAP3
+- **Length**: No strict limit
+- **Scope**: Theoretical, observational, experimental, and computational cosmology and astroparticle physics. Covers dark matter/energy theory and detection, CMB, gravitational waves, baryogenesis, inflation, neutrino cosmology, and high-energy astrophysics.
+- **Strengths**: The dedicated venue for cosmology and astroparticle physics. Strong overlap with HEP phenomenology when cosmological implications are central.
+- **What Editors Look For**: Clear observational/experimental predictions or confrontation with data (Planck, LHC, direct detection experiments)
+- **Best For**: Dark matter relic density calculations, baryogenesis models, gravitational wave signatures from phase transitions, CMB constraints on BSM physics, astroparticle detection prospects
+- **Common Rejection Reasons**: "Purely theoretical with no observational consequence", overlap with existing PRD/JHEP work without cosmological focus
+
+### PRE (Physical Review E)
+- **Publisher**: APS | **IF**: ~2.4 | **OA**: Hybrid
+- **Length**: No strict limit
+- **Scope**: Statistical, nonlinear, biological, and soft matter physics. Includes computational physics, complex systems, fluid dynamics, plasma physics, networks, and chaos.
+- **Strengths**: Broad scope covering computational and statistical physics. Good venue for lattice/Monte Carlo methods, phase transitions, and complex systems with physics connections.
+- **What Editors Look For**: Physical insight from computational or statistical methods. Clear connection to physical phenomena.
+- **Best For**: Monte Carlo methods applied to physical systems, network/complex systems in physics, statistical mechanics of gauge theories, computational fluid dynamics, nonlinear dynamics in physical systems
+- **Common Rejection Reasons**: "Better suited for PRD" (if too HEP-specific), "insufficient physical insight" (if purely computational)
+- **Note**: Consider PRE when your work bridges particle physics with statistical mechanics or computational methods
+
+### CPC (Computer Physics Communications)
+- **Publisher**: Elsevier | **IF**: ~8.2 | **OA**: Hybrid
+- **Length**: Flexible (research papers) or program descriptions (with mandatory code submission)
+- **Scope**: Computational methods and techniques in physics and physical chemistry. Publishes both research papers on algorithms/methods and computer program descriptions with source code.
+- **Strengths**: The premier venue for physics software and computational tools. Very high IF for a methods journal. Requires code submission for program papers.
+- **What Editors Look For**: Novel computational methods with clear physics applications. For program papers: well-documented, publicly available code with installation instructions, test cases, and benchmarks.
+- **Best For**: Monte Carlo event generators (MadGraph, Sherpa extensions), numerical solvers for physics problems, HEP analysis frameworks, symbolic computation tools, Feynman diagram calculators, parameter scanning tools
+- **Mandatory for Program Papers**:
+  - Source code submission
+  - README with installation and execution instructions
+  - Sample input/output for test runs
+  - User manual (where appropriate)
+- **Common Rejection Reasons**: "Code not submitted or not runnable", "insufficient documentation", "method lacks novelty over existing tools"
+
+### PRX Quantum
+- **Publisher**: APS | **IF**: ~11.0 | **OA**: Full open access
+- **Length**: Flexible
+- **Scope**: Core quantum information science and technology — quantum computing, quantum communication, quantum sensing, quantum simulation, and quantum error correction. Emphasizes milestone achievements with lasting impact.
+- **Strengths**: Very high impact for quantum-specific work. Selective like PRX but focused on quantum. Open access.
+- **What Editors Look For**: Significant advances in quantum science. Papers that will be cited across quantum computing, quantum physics, and quantum engineering communities.
+- **Best For**: Quantum algorithms for HEP simulations, quantum error correction advances, quantum sensing for fundamental physics, quantum simulation of lattice gauge theories, entanglement in quantum field theory
+- **Common Rejection Reasons**: "Incremental improvement", "too application-specific without broad quantum insight", "better suited for PRA or PRResearch"
+- **Note**: High APC (~$2,700). Consider if the work genuinely advances quantum science, not just applies quantum methods.
 
 ---
 
@@ -280,6 +327,18 @@ JHEP ──rejected──┬── "scope mismatch"    ──→ PRD or EPJC
 RAPID PATH:
 PLB ──rejected──┬── "needs more detail"  ──→ PRD
                 └── "insufficient novelty"──→ EPJC or NPB
+
+COSMO/ASTROPARTICLE PATH:
+JCAP ──rejected──┬── "too HEP-focused"     ──→ PRD or JHEP
+                 └── "insufficient data"    ──→ PRD (add more phenomenology)
+
+COMPUTATIONAL / TOOL PATH:
+CPC ──rejected──┬── "method not novel"     ──→ PRD or JHEP (reframe as physics paper)
+                └── "code insufficient"    ──→ Fix code, resubmit CPC or try PRE
+
+QUANTUM PATH:
+PRX Quantum ──rejected──┬── "not quantum enough"  ──→ PRL or PRD
+                        └── "incremental"          ──→ PRA or Phys. Rev. Research
 ```
 
 ### Transfer Mechanisms
@@ -295,6 +354,10 @@ PLB ──rejected──┬── "needs more detail"  ──→ PRD
 | PRX → PRL | Remove interdisciplinary framing, sharpen specialist narrative |
 | JHEP → EPJC | Minimal: adjust style file, reframe for broader particle physics audience |
 | JHEP → PRD | Adjust style file, minor framing changes |
+| JCAP → PRD | Reduce cosmological focus, expand particle physics analysis |
+| CPC → PRD/JHEP | Remove code-submission focus, reframe as physics result |
+| PRX Quantum → PRL | Condense, broaden narrative beyond quantum community |
+| PRX Quantum → PRA | Lower bar, keep quantum focus, add more technical detail |
 
 ---
 

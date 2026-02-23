@@ -116,7 +116,7 @@ All plots use `matplotlib` + [`scienceplots`](https://github.com/garrettj403/Sci
 
 ### Particle Physics Phenomenology
 
-Covers PRL, PRD, PRX, JHEP, PLB, EPJC, NPB with:
+Covers PRL, PRD, PRX, JHEP, PLB, EPJC, NPB, JCAP, PRE, CPC, PRX Quantum with:
 
 - **Journal-fit classifier** — Match your paper type and sub-field to the best venue
 - **Framing switchboard** — Same result, different framing for PRL vs PRD vs JHEP
@@ -125,7 +125,7 @@ Covers PRL, PRD, PRX, JHEP, PLB, EPJC, NPB with:
 - **Cascade submission roadmap** — Pre-planned fallback paths (PRL → PLB/PRD)
 - **ArXiv timing strategy** — Category selection, cross-listing, posting schedule
 
-[`journal_strategy.md`](templates/domains/journal_strategy.md)
+[`journal_strategy_physics.md`](templates/domains/journal_strategy_physics.md)
 
 ### AI/ML Conferences & Journals
 
@@ -138,7 +138,20 @@ Covers NeurIPS, ICML, ICLR, AAAI, CVPR, AISTATS, JMLR, TMLR, Nature MI, IEEE TPA
 - **ArXiv anonymity manager** — Venue-specific safe posting windows
 - **Conference-to-journal pipeline** — Extension thresholds for JMLR/TPAMI
 
-[`venue_strategy_ai_ml.md`](templates/domains/venue_strategy_ai_ml.md)
+[`journal_strategy_ai_ml.md`](templates/domains/journal_strategy_ai_ml.md)
+
+### Interdisciplinary Science (ML + Natural Sciences)
+
+Covers Nature Communications, MLST, PRX Intelligence, PRX Life, PRX Energy, Physical Review Research, SciPost Physics, Science Advances, iScience with:
+
+- **Dual-impact matrix** — 2x2 classifier (ML Novelty vs Domain Significance) for venue selection
+- **Sub-field routing** — Physics-informed ML, ML for simulation, scientific discovery, and more
+- **Framing switchboard** — Same result framed for Nature Comms vs MLST vs PRX Intelligence vs SciPost
+- **Dual rigor checklist** — ML reproducibility + domain validity + interdisciplinary bridge checks
+- **Adversarial persona simulation** — Pre-test against ML Purist, Domain Gatekeeper, and Methods Pedant reviewers
+- **Figure-first protocol** — Bridge figure requirements for cross-disciplinary readability
+
+[`journal_strategy_interdisciplinary.md`](templates/domains/journal_strategy_interdisciplinary.md)
 
 ## Installation
 
@@ -256,8 +269,9 @@ outputs/{topic_YYYYMMDD_vN}/
 
 - [x] Multi-model brainstorming with cross-verification
 - [x] Domain templates (Physics, AI/ML, Statistics, Mathematics, Paper)
-- [x] Journal strategy template (Particle Phenomenology)
-- [x] Venue strategy template (AI/ML Conferences)
+- [x] Journal strategy template (Particle Phenomenology — 11 journals)
+- [x] Venue strategy template (AI/ML Conferences & Journals)
+- [x] Journal strategy template (Interdisciplinary Science — ML + Natural Sciences)
 - [ ] Journal strategy templates for more domains (Mathematics, Statistics)
 - [ ] Example artifact gallery (real generated reports and plots)
 - [ ] Terminal demo GIF
