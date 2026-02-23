@@ -1,66 +1,189 @@
-# MAGI Researchers
+<p align="center">
+  <img src="MAGI.drawio.png" width="600" alt="MAGI Architecture" />
+</p>
 
-**Three AI models. One synthesis.**
+<h1 align="center">MAGI Researchers</h1>
 
-> *Like the MAGI system in Evangelion — three supercomputers cross-verifying each other to reach a unified decision — this plugin orchestrates Claude, Gemini, and Codex to conduct rigorous, multi-perspective research.*
+<p align="center">
+  <strong>Three AI models. One synthesis.</strong><br/>
+  <em>Multi-model research pipeline for Claude Code — orchestrating Claude, Gemini, and Codex</em>
+</p>
 
-![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
-![License: MIT](https://img.shields.io/badge/license-MIT-green)
-![Claude Code](https://img.shields.io/badge/claude--code-plugin-blueviolet)
+<p align="center">
+  <a href="https://github.com/Axect/magi-researchers/stargazers"><img src="https://img.shields.io/github/stars/Axect/magi-researchers?style=social" alt="GitHub Stars" /></a>&nbsp;
+  <img src="https://img.shields.io/badge/claude--code-plugin-blueviolet" alt="Claude Code Plugin" />&nbsp;
+  <img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python 3.11+" />&nbsp;
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT" />&nbsp;
+  <img src="https://img.shields.io/github/last-commit/Axect/magi-researchers" alt="Last Commit" />&nbsp;
+  <a href="https://github.com/Axect/magi-researchers/issues"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome" /></a>
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick Start</a> &bull;
+  <a href="#why-magi">Why MAGI?</a> &bull;
+  <a href="#features">Features</a> &bull;
+  <a href="#journal--venue-strategy">Journal Strategy</a> &bull;
+  <a href="#installation">Installation</a> &bull;
+  <a href="#usage">Usage</a> &bull;
+  <a href="#roadmap">Roadmap</a>
+</p>
 
 ---
 
+> *Like the MAGI system in Evangelion — three supercomputers (MELCHIOR, BALTHASAR, CASPER) cross-verifying each other to reach a unified decision — this plugin orchestrates Claude, Gemini, and Codex to conduct rigorous, multi-perspective research.*
+
+## Quick Start
+
+**1. Install the plugin** (inside Claude Code):
+```
+/plugin marketplace add Axect/magi-researchers
+/plugin install magi-researchers@magi-researchers-marketplace
+```
+
+**2. Set up MCP servers** (one-time):
+```bash
+claude mcp add -s user gemini-cli -- npx -y gemini-mcp-tool
+claude mcp add -s user codex-cli -- npx -y @cexll/codex-mcp-server
+claude mcp add -s user context7 -- npx -y @upstash/context7-mcp@latest
+```
+
+**3. Run your first research:**
+```
+/magi-researchers:research "your research topic" --domain physics
+```
+
+You'll get: cross-verified hypotheses, a research plan, implementation code, publication-quality plots, and a structured report — all in one pipeline.
+
 ## Why MAGI?
 
-- **Cross-verification by design** — Three independent AI models brainstorm, review each other's work, and synthesize results. No single-model blind spots.
-- **Publication-ready outputs** — Structured reports, test suites, and `scienceplots`-styled figures in one pipeline.
-- **Domain-aware** — Built-in templates for physics, AI/ML, statistics, mathematics, and paper writing — extensible to any scientific domain.
+Single-model research has blind spots. One model hallucinates a citation, invents a non-existent theorem, or misses a critical constraint — and nobody catches it.
 
-## Architecture
+**MAGI fixes this with cross-verification by design:**
 
-![MAGI Architecture](MAGI.drawio.png)
+| | Single Model | MAGI (3 Models) |
+|:---|:---|:---|
+| **Brainstorming** | One perspective | Three independent perspectives |
+| **Verification** | Self-review (unreliable) | Cross-model peer review |
+| **Blind spots** | Undetected | Caught by competing models |
+| **Output** | Raw text | Structured report with consensus & divergence analysis |
+| **Venue strategy** | None | Journal/conference recommendations with submission templates |
+
+### The MAGI Council
+
+Each model plays a distinct role — like the three MAGI supercomputers:
+
+- **Claude (MELCHIOR)** — *The Scientist.* Primary synthesis, planning, implementation, and report generation. The coordinator.
+- **Gemini (BALTHASAR)** — *The Critic.* Creative brainstorming, cross-verification, broad knowledge retrieval. Challenges assumptions.
+- **Codex (CASPER)** — *The Builder.* Implementation-focused ideation, feasibility analysis, code-oriented review. Grounds ideas in reality.
+
+The human researcher acts as **Commander** — reviewing, approving, and steering at every checkpoint.
+
+## Features
+
+### End-to-End Research Pipeline
+
+```
+/magi-researchers:research "topic" --domain physics
+```
+
+| Phase | What Happens | Output |
+|:---|:---|:---|
+| **1. Brainstorm** | Gemini + Codex independently generate ideas, then cross-review each other | 5 brainstorm documents |
+| **2. Plan** | Claude synthesizes into a concrete research plan | `research_plan.md` |
+| **3. Implement** | Claude Code writes the code with Context7 library lookups | `src/` directory |
+| **4. Test & Visualize** | Collaborative test design + `scienceplots`-styled figures | `tests/` + `plots/` |
+| **5. Report** | Structured markdown report of the entire process | `report.md` |
+
+### Domain-Aware Templates
+
+Built-in context templates that guide all three models:
+
+| Domain | Focus Areas | Template |
+|:---|:---|:---|
+| **Physics** | Physical intuition, dimensional analysis, conservation laws, symmetry | [`physics.md`](templates/domains/physics.md) |
+| **AI/ML** | Reproducibility, baselines, ablation studies, compute budgets | [`ai_ml.md`](templates/domains/ai_ml.md) |
+| **Statistics** | Inference vs prediction, assumption checking, effect sizes, Bayesian methods | [`statistics.md`](templates/domains/statistics.md) |
+| **Mathematics** | Logical rigor, proof structure, conjecture-verify cycles | [`mathematics.md`](templates/domains/mathematics.md) |
+| **Paper Writing** | Claim-evidence structure, audience awareness, citation integrity | [`paper.md`](templates/domains/paper.md) |
+
+### Publication-Quality Visualization
+
+All plots use `matplotlib` + [`scienceplots`](https://github.com/garrettj403/SciencePlots) (`science` + `nature` themes), saved as both PNG (300 dpi) and vector PDF.
+
+## Journal & Venue Strategy
+
+**No other tool does this.** MAGI includes domain-specific templates that recommend journals/conferences for your research and provide tailored submission strategies.
+
+### Particle Physics Phenomenology
+
+Covers PRL, PRD, PRX, JHEP, PLB, EPJC, NPB with:
+
+- **Journal-fit classifier** — Match your paper type and sub-field to the best venue
+- **Framing switchboard** — Same result, different framing for PRL vs PRD vs JHEP
+- **Referee defense checklist** — Gauge invariance, unitarity, EW precision, vacuum stability...
+- **Cover letter templates** — Per-journal templates with acceptance-criteria mapping
+- **Cascade submission roadmap** — Pre-planned fallback paths (PRL → PLB/PRD)
+- **ArXiv timing strategy** — Category selection, cross-listing, posting schedule
+
+[`journal_strategy.md`](templates/domains/journal_strategy.md)
+
+### AI/ML Conferences & Journals
+
+Covers NeurIPS, ICML, ICLR, AAAI, CVPR, AISTATS, JMLR, TMLR, Nature MI, IEEE TPAMI with:
+
+- **Conference framing switchboard** — NeurIPS (breadth) vs ICML (rigor) vs ICLR (clarity)
+- **Pre-submission pipeline** — Desk-rejection firewall + reproducibility gate + baseline audit
+- **Rebuttal defense system** — Pre-buttal during writing + triage template for reviews
+- **Conference cycle planner** — Annual deadline calendar + rejection cascade paths
+- **ArXiv anonymity manager** — Venue-specific safe posting windows
+- **Conference-to-journal pipeline** — Extension thresholds for JMLR/TPAMI
+
+[`venue_strategy_ai_ml.md`](templates/domains/venue_strategy_ai_ml.md)
 
 ## Installation
 
-### Option 1: Marketplace Install (Recommended)
-
-Run these commands inside Claude Code (no manual clone needed):
+### Option 1: Marketplace (Recommended)
 
 ```
 /plugin marketplace add Axect/magi-researchers
 /plugin install magi-researchers@magi-researchers-marketplace
 ```
 
-### Option 2: Local Plugin Directory (Development)
-
-For plugin development or testing:
+### Option 2: Local Development
 
 ```bash
 git clone https://github.com/Axect/magi-researchers.git
 claude --plugin-dir /path/to/magi-researchers
 ```
 
-## Prerequisites
+### Prerequisites
 
-- **Python >= 3.11**
-- **[uv](https://docs.astral.sh/uv/)** — Python package manager
-- **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** — Anthropic CLI
+- **Python >= 3.11** + **[uv](https://docs.astral.sh/uv/)**
+- **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)**
 
-### MCP Servers (Required)
+### MCP Servers
 
-This plugin requires three MCP servers configured in your Claude Code environment:
+<details>
+<summary><strong>Project Scope</strong> (isolated per project)</summary>
 
 ```bash
-# Gemini CLI — cross-model brainstorming and review
 claude mcp add gemini-cli -- npx -y gemini-mcp-tool
-
-# Codex CLI — independent analysis and ideation
 claude mcp add codex-cli -- npx -y @cexll/codex-mcp-server
-
-# Context7 — library documentation lookup
 claude mcp add context7 -- npx -y @upstash/context7-mcp@latest
 ```
 
+</details>
+
+<details>
+<summary><strong>User Scope</strong> (available across all projects)</summary>
+
+```bash
+claude mcp add -s user gemini-cli -- npx -y gemini-mcp-tool
+claude mcp add -s user codex-cli -- npx -y @cexll/codex-mcp-server
+claude mcp add -s user context7 -- npx -y @upstash/context7-mcp@latest
+```
+
+</details>
 ### Python Dependencies
 
 ```bash
@@ -69,58 +192,42 @@ uv add matplotlib SciencePlots numpy
 
 ## Usage
 
-### Full Research Pipeline
+### Full Pipeline
 
 ```
 /magi-researchers:research "your research topic" --domain physics
 ```
 
-This runs the complete pipeline:
-1. **Brainstorming** — Gemini and Codex independently generate ideas, then cross-check each other
-2. **Planning** — Claude synthesizes inputs into a concrete research plan
-3. **Implementation** — Claude Code writes the research code
-4. **Testing & Visualization** — Tests designed collaboratively; publication-quality plots
-5. **Reporting** — Structured markdown report of the entire process
+### Individual Phases
 
-### Individual Phase Skills
+| Command | Description |
+|:---|:---|
+| `/magi-researchers:research-brainstorm "topic"` | Brainstorming with cross-verification |
+| `/magi-researchers:research-implement` | Implementation (needs existing plan) |
+| `/magi-researchers:research-test` | Testing & visualization |
+| `/magi-researchers:research-report` | Report generation |
 
-```
-/magi-researchers:research-brainstorm "topic"   # Brainstorming only
-/magi-researchers:research-implement             # Implementation (needs existing plan)
-/magi-researchers:research-test                  # Testing & visualization
-/magi-researchers:research-report                # Report generation
-```
-
-## Output Structure
-
-All outputs are saved to `outputs/{topic_YYYYMMDD_vN}/`:
+### Output Structure
 
 ```
 outputs/{topic_YYYYMMDD_vN}/
-├── brainstorm/          # Phase 1: 5 brainstorm documents
-├── plan/                # Phase 2: research plan
-├── src/                 # Phase 3: implementation code
-├── tests/               # Phase 4: test code
-├── plots/               # Phase 4: PNG (300 dpi) + PDF plots
-└── report.md            # Phase 5: final report
+├── brainstorm/          # 5 cross-verified brainstorm documents
+│   ├── gemini_ideas.md
+│   ├── codex_ideas.md
+│   ├── gemini_review_of_codex.md
+│   ├── codex_review_of_gemini.md
+│   └── synthesis.md
+├── plan/                # Research plan
+├── src/                 # Implementation
+├── tests/               # Test suite
+├── plots/               # PNG (300 dpi) + PDF
+└── report.md            # Final structured report
 ```
 
-## Visualization
+### Recommended Permissions
 
-Plots use `matplotlib` with `scienceplots` for publication-quality styling (`science` + `nature` themes). All plots are saved as both PNG (300 dpi) and PDF.
-
-## Domain Templates
-
-Domain-specific context templates guide the AI models:
-- `templates/domains/physics.md` — Physical intuition, dimensional analysis, conservation laws
-- `templates/domains/ai_ml.md` — Benchmarks, ablation studies, reproducibility
-- `templates/domains/statistics.md` — Statistical inference, assumption checking, effect sizes
-- `templates/domains/mathematics.md` — Logical rigor, proof structure, symbolic computation
-- `templates/domains/paper.md` — Academic writing, claim-evidence structure, citation integrity
-
-## Recommended Permissions
-
-Add to your project's `.claude/settings.local.json`:
+<details>
+<summary>Add to <code>.claude/settings.local.json</code></summary>
 
 ```json
 {
@@ -143,10 +250,35 @@ Add to your project's `.claude/settings.local.json`:
 }
 ```
 
+</details>
+
+## Roadmap
+
+- [x] Multi-model brainstorming with cross-verification
+- [x] Domain templates (Physics, AI/ML, Statistics, Mathematics, Paper)
+- [x] Journal strategy template (Particle Phenomenology)
+- [x] Venue strategy template (AI/ML Conferences)
+- [ ] Journal strategy templates for more domains (Mathematics, Statistics)
+- [ ] Example artifact gallery (real generated reports and plots)
+- [ ] Terminal demo GIF
+- [ ] "Researched with MAGI" badge for user projects
+- [ ] Additional MCP model integrations
+
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on contributing domain templates, reporting bugs, and submitting pull requests.
+We welcome contributions — especially new domain templates. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+**Quick contribution ideas:**
+- Add a domain template for your field (Biology, Chemistry, Economics, ...)
+- Add a journal/venue strategy template for your discipline
+- Report bugs or suggest features via [Issues](https://github.com/Axect/magi-researchers/issues)
 
 ## License
 
-MIT
+[MIT](LICENSE)
+
+---
+
+<p align="center">
+  <sub>If MAGI helped your research, consider giving it a star — it helps other researchers discover the tool.</sub>
+</p>
