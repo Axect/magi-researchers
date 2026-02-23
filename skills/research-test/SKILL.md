@@ -95,3 +95,6 @@ Present to the user:
 - If scienceplots is not installed, run `uv add SciencePlots` first.
 - For physics: include comparison with analytical/theoretical results in plots.
 - For AI/ML: include learning curves, comparison charts, and metric tables.
+- For statistics: include residual diagnostics, Q-Q plots, forest plots, and posterior densities.
+- For mathematics: include proof dependency DAGs, phase portraits, and parameter space plots.
+- For paper: include argument maps, figure placement plans, and citation network diagrams.
