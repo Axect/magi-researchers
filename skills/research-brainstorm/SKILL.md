@@ -5,7 +5,7 @@ Generates and cross-validates research ideas using Gemini and Codex in parallel,
 
 ## Usage
 ```
-/research-brainstorm "research topic" [--domain physics|ai_ml]
+/research-brainstorm "research topic" [--domain physics|ai_ml|statistics|mathematics|paper]
 ```
 
 ## Arguments
@@ -21,7 +21,7 @@ When this skill is invoked, follow these steps exactly:
 
 ### Step 0: Setup
 
-1. Parse the research topic from `$ARGUMENTS`. If a `--domain` flag is provided, note the domain (physics, ai_ml). Otherwise, infer the domain from the topic.
+1. Parse the research topic from `$ARGUMENTS`. If a `--domain` flag is provided, note the domain (physics, ai_ml, statistics, mathematics, paper). Otherwise, infer the domain from the topic.
 2. Create the output directory: `outputs/{sanitized_topic}_{YYYYMMDD}_v{N}/brainstorm/`
    - Sanitize the topic: lowercase, replace spaces with underscores, remove special characters, truncate to 50 chars.
    - Use today's date in YYYYMMDD format.

@@ -32,7 +32,7 @@ One of the most impactful contributions is adding domain templates. Create a new
 templates/domains/your_domain.md
 ```
 
-Follow the structure of existing templates (`physics.md`, `ai_ml.md`) — include domain-specific guidance for brainstorming, implementation, and evaluation.
+Follow the structure of existing templates (`physics.md`, `ai_ml.md`, `statistics.md`, `mathematics.md`, `paper.md`) — include domain-specific guidance for brainstorming, implementation, and evaluation.
 
 ### Bug Reports
 

@@ -5,7 +5,7 @@ Runs the complete research pipeline: Brainstorming → Planning → Implementati
 
 ## Usage
 ```
-/research "research topic" [--domain physics|ai_ml]
+/research "research topic" [--domain physics|ai_ml|statistics|mathematics|paper]
 ```
 
 ## Arguments
