@@ -14,7 +14,7 @@
 
 - **Cross-verification by design** — Three independent AI models brainstorm, review each other's work, and synthesize results. No single-model blind spots.
 - **Publication-ready outputs** — Structured reports, test suites, and `scienceplots`-styled figures in one pipeline.
-- **Domain-aware** — Built-in templates for physics, AI/ML, and extensible to any scientific domain.
+- **Domain-aware** — Built-in templates for physics, AI/ML, statistics, mathematics, and paper writing — extensible to any scientific domain.
 
 ## Architecture
 
@@ -135,6 +135,9 @@ Plots use `matplotlib` with `scienceplots` for publication-quality styling (`sci
 Domain-specific context templates guide the AI models:
 - `templates/domains/physics.md` — Physical intuition, dimensional analysis, conservation laws
 - `templates/domains/ai_ml.md` — Benchmarks, ablation studies, reproducibility
+- `templates/domains/statistics.md` — Statistical inference, assumption checking, effect sizes
+- `templates/domains/mathematics.md` — Logical rigor, proof structure, symbolic computation
+- `templates/domains/paper.md` — Academic writing, claim-evidence structure, citation integrity
 
 ## Recommended Permissions
 
