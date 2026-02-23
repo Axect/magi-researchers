@@ -48,7 +48,11 @@ claude --plugin-dir /path/to/magi-researchers
 
 ### MCP Servers (Required)
 
-This plugin requires three MCP servers configured in your Claude Code environment:
+This plugin requires three MCP servers configured in your Claude Code environment.
+
+#### Project Scope (default)
+
+Servers are stored in the current project's `.mcp.json` and available only within that project:
 
 ```bash
 # Gemini CLI — cross-model brainstorming and review
@@ -60,6 +64,23 @@ claude mcp add codex-cli -- npx -y @cexll/codex-mcp-server
 # Context7 — library documentation lookup
 claude mcp add context7 -- npx -y @upstash/context7-mcp@latest
 ```
+
+#### User Scope
+
+Servers are stored in `~/.claude/settings.json` and available across **all** your projects:
+
+```bash
+# Gemini CLI — cross-model brainstorming and review
+claude mcp add -s user gemini-cli -- npx -y gemini-mcp-tool
+
+# Codex CLI — independent analysis and ideation
+claude mcp add -s user codex-cli -- npx -y @cexll/codex-mcp-server
+
+# Context7 — library documentation lookup
+claude mcp add -s user context7 -- npx -y @upstash/context7-mcp@latest
+```
+
+> **Tip:** Use user scope (`-s user`) if you plan to use MAGI across multiple projects. Use project scope (default) if you want to keep MCP configurations isolated per project.
 
 ### Python Dependencies
 
