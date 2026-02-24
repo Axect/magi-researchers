@@ -91,8 +91,8 @@ The human researcher acts as **Commander** — reviewing, approving, and steerin
 | **1. Brainstorm** | Gemini + Codex independently generate ideas, then cross-review each other | 5 brainstorm documents |
 | **2. Plan** | Claude synthesizes into a concrete research plan | `research_plan.md` |
 | **3. Implement** | Claude Code writes the code with Context7 library lookups | `src/` directory |
-| **4. Test & Visualize** | Collaborative test design + `scienceplots`-styled figures | `tests/` + `plots/` |
-| **5. Report** | Structured markdown report of the entire process | `report.md` |
+| **4. Test & Visualize** | Collaborative test design + `scienceplots`-styled figures + plot manifest | `tests/` + `plots/` + `plot_manifest.json` |
+| **5. Report** | Manifest-driven report with gap detection loop + MAGI traceability review | `report.md` |
 
 ### Domain-Aware Templates
 
@@ -109,6 +109,18 @@ Built-in context templates that guide all three models:
 ### Publication-Quality Visualization
 
 All plots use `matplotlib` + [`scienceplots`](https://github.com/garrettj403/SciencePlots) (`science` + `nature` themes), saved as both PNG (300 dpi) and vector PDF.
+
+### Plot Manifest & Report Integration
+
+Phase 4 generates a structured `plot_manifest.json` for every plot — including metadata, section hints, and publication-ready captions. Phase 5 uses this manifest to:
+
+- **Actively embed** plots into the correct report sections with quantitative narratives
+- **Detect gaps** — identify claims without supporting figures and generate new plots on the fly (max 2 iterations)
+- **MAGI Traceability Review** — Gemini (BALTHASAR) adversarially reviews the final draft for orphaned claims and orphaned plots
+
+### Gemini Model Fallback Chain
+
+All Gemini calls use a resilient 3-tier fallback: `gemini-3.1-pro-preview` → `gemini-3-pro-preview` → `gemini-2.5-pro`.
 
 ## Journal & Venue Strategy
 
@@ -264,6 +276,7 @@ outputs/{topic_YYYYMMDD_vN}/
 ├── src/                 # Implementation
 ├── tests/               # Test suite
 ├── plots/               # PNG (300 dpi) + PDF
+│   └── plot_manifest.json  # Structured plot registry
 └── report.md            # Final structured report
 ```
 
@@ -302,6 +315,10 @@ outputs/{topic_YYYYMMDD_vN}/
 - [x] Journal strategy template (Particle Phenomenology — 11 journals)
 - [x] Venue strategy template (AI/ML Conferences & Journals)
 - [x] Journal strategy template (Interdisciplinary Science — ML + Natural Sciences)
+- [x] Plot manifest with structured metadata and report integration
+- [x] Report gap detection & iterative plot generation loop
+- [x] MAGI traceability review (orphaned claims/plots detection)
+- [x] Gemini model fallback chain (3.1-pro → 3-pro → 2.5-pro)
 - [ ] Journal strategy templates for more domains (Mathematics, Statistics)
 - [ ] Example artifact gallery (real generated reports and plots)
 - [ ] Terminal demo GIF
