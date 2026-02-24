@@ -14,7 +14,10 @@ Runs the complete research pipeline: Brainstorming → Planning → Implementati
 ## Instructions
 
 ### MCP Tool Rules
-- **Gemini**: Always pass `model: "gemini-3-pro-preview"` explicitly. Never omit or use other model IDs.
+- **Gemini**: Use the following model fallback chain. Try each model in order; if a call fails (error, timeout, or model-not-found), retry with the next model:
+  1. `model: "gemini-3.1-pro-preview"` (preferred)
+  2. `model: "gemini-3-pro-preview"` (fallback)
+  3. `model: "gemini-2.5-pro"` (last resort)
 - **Codex**: Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review.
 - **Context7**: Use `mcp__plugin_context7_context7__query-docs` for library documentation lookups during implementation.
 - **Visualization**: Use `matplotlib` with `scienceplots` (`['science', 'nature']` style). Save plots as PNG (300 dpi) and PDF.
@@ -50,7 +53,7 @@ When this skill is invoked, execute the full research pipeline below. **Always p
 Execute the `/magi-researchers:research-brainstorm` workflow:
 
 **Step 1a — Parallel Brainstorming:**
-- Call `mcp__gemini-cli__brainstorm` with `model: "gemini-3-pro-preview"` for creative/theoretical ideas
+- Call `mcp__gemini-cli__brainstorm` with `model: "gemini-3.1-pro-preview"` (apply fallback chain if it fails) for creative/theoretical ideas
 - Simultaneously call a second brainstorm (Codex or Gemini with implementation focus) for practical ideas
 - Save to `brainstorm/gemini_ideas.md` and `brainstorm/codex_ideas.md`
 
@@ -112,6 +115,10 @@ Execute the `/magi-researchers:research-test` workflow:
 - Generate plots using matplotlib + scienceplots (`['science', 'nature']` style)
 - Save as PNG (300 dpi) and PDF in `plots/`
 
+**Step 4d — Plot Manifest:**
+- Generate `plots/plot_manifest.json` with metadata for every plot: plot_id, file paths, description, section_hint, publication-ready caption, and markdown snippet
+- This manifest is the primary input for Phase 5's plot integration
+
 **>>> USER CHECKPOINT: Review test results and visualizations <<<**
 
 ---
@@ -120,10 +127,32 @@ Execute the `/magi-researchers:research-test` workflow:
 
 Execute the `/magi-researchers:research-report` workflow:
 
-1. Gather all phase outputs
-2. Generate `report.md` using `${CLAUDE_PLUGIN_ROOT}/templates/report_template.md` structure
-3. Include all sections: Background, Brainstorming, Methodology, Implementation, Results, Testing, Conclusion
-4. Present report summary to user
+**Step 0 — Gather & Health Check:**
+- Inventory all phase outputs
+- Read `plots/plot_manifest.json` (create if missing but plots exist)
+- Verify all plot files are present and valid
+
+**Step 1 — Content Assembly & Plot Mapping:**
+- Read all phase artifacts
+- Map manifest plots to report sections using `section_hint` tags
+
+**Step 2 — Report Draft with Integrated Plots:**
+- Generate `report.md` using `${CLAUDE_PLUGIN_ROOT}/templates/report_template.md` structure
+- Actively embed plots from the manifest with contextualizing paragraphs and quantitative observations
+- Include all sections: Background, Brainstorming, Methodology, Implementation, Results, Testing, Conclusion
+
+**Step 3 — Gap Detection & Plot Generation Loop (max 2 iterations):**
+- Identify claims without supporting figures or results needing visualization
+- Generate new plots (write matplotlib code → execute → save to `plots/` → update manifest)
+- Re-draft affected sections with newly generated plots
+
+**Step 4 — MAGI Traceability Review:**
+- Gemini (BALTHASAR) reviews the draft for orphaned claims (text without supporting figures), orphaned plots (figures without discussion), and weak claim-evidence links
+- Claude revises the report based on review feedback
+
+**Step 5 — Write Final Report:**
+- Save finalized `report.md`
+- Present summary with plot integration statistics
 
 **>>> USER CHECKPOINT: Review and finalize report <<<**
 
