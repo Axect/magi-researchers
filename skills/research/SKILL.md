@@ -21,6 +21,13 @@ Runs the complete research pipeline: Brainstorming → Planning → Implementati
 - **Codex**: Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review.
 - **Context7**: Use `mcp__plugin_context7_context7__query-docs` for library documentation lookups during implementation.
 - **Visualization**: Use `matplotlib` with `scienceplots` (`['science', 'nature']` style). Save plots as PNG (300 dpi) and PDF.
+- **LaTeX**: Use LaTeX for all mathematical expressions in output documents. Inline: `$...$`. Display equations: `$$` on its own line with the equation on a separate line:
+  ```
+  $$
+  equation
+  $$
+  ```
+  Never write display equations on a single line as `$$..equation..$$`.
 
 When this skill is invoked, execute the full research pipeline below. **Always pause for user confirmation between phases.**
 
