@@ -14,7 +14,10 @@ Generates and cross-validates research ideas using Gemini and Codex in parallel,
 ## Instructions
 
 ### MCP Tool Rules
-- **Gemini**: Always pass `model: "gemini-3-pro-preview"` explicitly. Never omit or use other model IDs.
+- **Gemini**: Use the following model fallback chain. Try each model in order; if a call fails (error, timeout, or model-not-found), retry with the next model:
+  1. `model: "gemini-3.1-pro-preview"` (preferred)
+  2. `model: "gemini-3-pro-preview"` (fallback)
+  3. `model: "gemini-2.5-pro"` (last resort)
 - **Codex**: Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review.
 
 When this skill is invoked, follow these steps exactly:
@@ -36,7 +39,7 @@ Execute these two calls **simultaneously** (in the same message):
 ```
 mcp__gemini-cli__brainstorm(
   prompt: "{topic} — Generate diverse, creative research ideas. Consider theoretical foundations, practical applications, novel approaches, and potential breakthroughs.",
-  model: "gemini-3-pro-preview",
+  model: "gemini-3.1-pro-preview",  // fallback: "gemini-3-pro-preview" → "gemini-2.5-pro"
   domain: "{domain}",
   methodology: "auto",
   ideaCount: 12,
@@ -57,7 +60,7 @@ mcp__codex-cli__brainstorm(
 )
 ```
 
-> Note: If Codex MCP is unavailable, fall back to `mcp__gemini-cli__brainstorm` with `model: "gemini-3-pro-preview"` and implementation-focused framing.
+> Note: If Codex MCP is unavailable, fall back to `mcp__gemini-cli__brainstorm` with the Gemini fallback chain and implementation-focused framing.
 
 Save results to:
 - `brainstorm/gemini_ideas.md` — Gemini's raw output with header noting source and timestamp
@@ -71,7 +74,7 @@ After both brainstorming results are saved, execute these two calls **simultaneo
 ```
 mcp__gemini-cli__ask-gemini(
   prompt: "Review the following research ideas for technical feasibility, scientific rigor, novelty, and potential impact. Identify strengths, weaknesses, and suggest improvements for each idea.\n\n{codex_ideas content}",
-  model: "gemini-3-pro-preview"
+  model: "gemini-3.1-pro-preview"  // fallback: "gemini-3-pro-preview" → "gemini-2.5-pro"
 )
 ```
 
@@ -82,7 +85,7 @@ mcp__codex-cli__ask-codex(
 )
 ```
 
-> Note: If Codex MCP is unavailable, fall back to `mcp__gemini-cli__ask-gemini` with `model: "gemini-3-pro-preview"`.
+> Note: If Codex MCP is unavailable, fall back to `mcp__gemini-cli__ask-gemini` with the Gemini fallback chain.
 
 Save results to:
 - `brainstorm/gemini_review_of_codex.md`

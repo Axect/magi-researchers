@@ -14,7 +14,10 @@ Creates tests for research code and generates publication-quality visualizations
 ## Instructions
 
 ### MCP Tool Rules
-- **Gemini**: Always pass `model: "gemini-3-pro-preview"` explicitly. Never omit or use other model IDs.
+- **Gemini**: Use the following model fallback chain. Try each model in order; if a call fails (error, timeout, or model-not-found), retry with the next model:
+  1. `model: "gemini-3.1-pro-preview"` (preferred)
+  2. `model: "gemini-3-pro-preview"` (fallback)
+  3. `model: "gemini-2.5-pro"` (last resort)
 - **Visualization**: Use `matplotlib` with `scienceplots` (`['science', 'nature']` style). Save plots as PNG (300 dpi) and PDF.
 
 ### Step 0: Locate Implementation
@@ -32,7 +35,7 @@ Creates tests for research code and generates publication-quality visualizations
 ```
 mcp__gemini-cli__ask-gemini(
   prompt: "Given the following research implementation, suggest comprehensive test cases. Include unit tests, integration tests, and validation tests against known results.\n\n{code summary and key functions}",
-  model: "gemini-3-pro-preview"
+  model: "gemini-3.1-pro-preview"  // fallback: "gemini-3-pro-preview" → "gemini-2.5-pro"
 )
 ```
 
@@ -82,6 +85,47 @@ plt.style.use(['science', 'nature'])
    - [ ] Appropriate scale (linear, log, etc.)
    - [ ] Color-blind friendly palette (scienceplots default handles this)
    - [ ] Saved as both PNG and PDF
+
+### Step 4d: Plot Manifest Generation
+
+After all plots are generated, create `plots/plot_manifest.json` — a structured registry of every plot for use by the report phase.
+
+1. For **each** plot generated in Step 4c, collect the following metadata:
+   ```json
+   {
+     "plot_id": "descriptive_snake_case_name",
+     "files": {
+       "png": "plots/{name}.png",
+       "pdf": "plots/{name}.pdf"
+     },
+     "description": "One-sentence description of what the plot shows",
+     "section_hint": "results | methodology | validation | comparison | testing",
+     "caption": "Publication-ready figure caption (2-3 sentences). Include key quantitative findings visible in the plot.",
+     "markdown_snippet": "![Caption text](plots/{name}.png)",
+     "source_context": "Brief note on what code/data generated this plot"
+   }
+   ```
+
+2. Write the complete manifest as a JSON array to `plots/plot_manifest.json`:
+   ```json
+   {
+     "generated_at": "YYYY-MM-DD HH:MM",
+     "total_plots": N,
+     "plots": [ ...entries... ]
+   }
+   ```
+
+3. **Section hint values** (controlled vocabulary):
+   - `results` — Key findings, main experimental outcomes
+   - `methodology` — Algorithmic diagrams, data pipeline illustrations
+   - `validation` — Comparison with known/expected values, error analysis
+   - `comparison` — Baseline vs. proposed method, ablation studies
+   - `testing` — Test coverage, pass/fail distributions, edge case behavior
+
+4. **Caption guidelines**:
+   - First sentence: what the plot shows (e.g., "Training loss over 100 epochs for three model variants.")
+   - Second sentence: key observation (e.g., "The proposed method converges 2.3x faster than the baseline.")
+   - Third sentence (optional): implication or context.
 
 ### Step 5: Summary
 
