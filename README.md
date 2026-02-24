@@ -14,25 +14,24 @@
   <img src="https://img.shields.io/badge/claude--code-plugin-blueviolet" alt="Claude Code Plugin" />&nbsp;
   <img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python 3.11+" />&nbsp;
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT" />&nbsp;
-  <img src="https://img.shields.io/github/last-commit/Axect/magi-researchers" alt="Last Commit" />&nbsp;
   <a href="https://github.com/Axect/magi-researchers/issues"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome" /></a>
 </p>
 
 <p align="center">
-  <a href="#quick-start">Quick Start</a> &bull;
+  <a href="#get-started">Get Started</a> &bull;
   <a href="#why-magi">Why MAGI?</a> &bull;
   <a href="#features">Features</a> &bull;
-  <a href="#journal--venue-strategy">Journal Strategy</a> &bull;
-  <a href="#installation">Installation</a> &bull;
   <a href="#usage">Usage</a> &bull;
   <a href="#roadmap">Roadmap</a>
 </p>
 
 ---
 
-> *Like the MAGI system in Evangelion — three supercomputers (MELCHIOR, BALTHASAR, CASPER) cross-verifying each other to reach a unified decision — this plugin orchestrates Claude, Gemini, and Codex to conduct rigorous, multi-perspective research.*
+> *Like the MAGI system in Evangelion — three supercomputers cross-verifying each other — this plugin orchestrates Claude, Gemini, and Codex for rigorous, multi-perspective research.*
 
-## Quick Start
+## Get Started
+
+**Prerequisites:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code) + Python 3.11+ with [uv](https://docs.astral.sh/uv/)
 
 **1. Install the plugin** (inside Claude Code):
 ```
@@ -52,221 +51,68 @@ claude mcp add -s user context7 -- npx -y @upstash/context7-mcp@latest
 /magi-researchers:research "your research topic" --domain physics
 ```
 
-You'll get: cross-verified hypotheses, a research plan, implementation code, publication-quality plots, and a structured report — all in one pipeline.
+MAGI generates cross-verified hypotheses, writes implementation code, renders publication-quality plots, and synthesizes a structured report — all saved to `outputs/{topic}/`.
+
+<details>
+<summary><strong>Alternative: Local Development</strong></summary>
+
+```bash
+git clone https://github.com/Axect/magi-researchers.git
+claude --plugin-dir /path/to/magi-researchers
+uv add matplotlib SciencePlots numpy
+```
+</details>
 
 ## Why MAGI?
 
-Single-model research has blind spots. One model hallucinates a citation, invents a non-existent theorem, or misses a critical constraint — and nobody catches it.
+Single-model research has blind spots. One model hallucinates a citation or misses a critical constraint — and nobody catches it.
 
-**MAGI fixes this with cross-verification by design:**
-
-| | Single Model | MAGI (3 Models) |
+| | **Single Model** | **MAGI (3 Models)** |
 |:---|:---|:---|
 | **Brainstorming** | One perspective | Three independent perspectives |
 | **Verification** | Self-review (unreliable) | Cross-model peer review |
 | **Blind spots** | Undetected | Caught by competing models |
 | **Output** | Raw text | Structured report with consensus & divergence analysis |
-| **Venue strategy** | None | Journal/conference recommendations with submission templates |
 
-### The MAGI Council
-
-Each model plays a distinct role — like the three MAGI supercomputers:
-
-- **Claude (MELCHIOR)** — *The Scientist.* Primary synthesis, planning, implementation, and report generation. The coordinator.
-- **Gemini (BALTHASAR)** — *The Critic.* Creative brainstorming, cross-verification, broad knowledge retrieval. Challenges assumptions.
-- **Codex (CASPER)** — *The Builder.* Implementation-focused ideation, feasibility analysis, code-oriented review. Grounds ideas in reality.
-
-The human researcher acts as **Commander** — reviewing, approving, and steering at every checkpoint.
+- **Claude (MELCHIOR)** — *The Scientist.* Synthesis, planning, implementation, report generation.
+- **Gemini (BALTHASAR)** — *The Critic.* Creative brainstorming, cross-verification, broad knowledge.
+- **Codex (CASPER)** — *The Builder.* Feasibility analysis, code review, implementation focus.
 
 ## Features
 
-### End-to-End Research Pipeline
-
-```
-/magi-researchers:research "topic" --domain physics
-```
+### Research Pipeline
 
 | Phase | What Happens | Output |
 |:---|:---|:---|
-| **1. Brainstorm** | Gemini + Codex independently generate ideas, then cross-review each other | 5 brainstorm documents |
+| **1. Brainstorm** | Gemini + Codex independently generate ideas, then cross-review | 5 brainstorm documents |
 | **2. Plan** | Claude synthesizes into a concrete research plan | `research_plan.md` |
-| **3. Implement** | Claude Code writes the code with Context7 library lookups | `src/` directory |
-| **4. Test & Visualize** | Collaborative test design + `scienceplots`-styled figures + plot manifest | `tests/` + `plots/` + `plot_manifest.json` |
-| **5. Report** | Manifest-driven report with gap detection loop + MAGI traceability review | `report.md` |
+| **3. Implement** | Claude writes code with Context7 library lookups | `src/` |
+| **4. Test & Visualize** | Collaborative test design + publication-quality plots | `tests/` + `plots/` |
+| **5. Report** | Manifest-driven report with MAGI traceability review | `report.md` |
 
-### Domain-Aware Templates
+### Key Capabilities
 
-Built-in context templates that guide all three models:
-
-| Domain | Focus Areas | Template |
-|:---|:---|:---|
-| **Physics** | Physical intuition, dimensional analysis, conservation laws, symmetry | [`physics.md`](templates/domains/physics.md) |
-| **AI/ML** | Reproducibility, baselines, ablation studies, compute budgets | [`ai_ml.md`](templates/domains/ai_ml.md) |
-| **Statistics** | Inference vs prediction, assumption checking, effect sizes, Bayesian methods | [`statistics.md`](templates/domains/statistics.md) |
-| **Mathematics** | Logical rigor, proof structure, conjecture-verify cycles | [`mathematics.md`](templates/domains/mathematics.md) |
-| **Paper Writing** | Claim-evidence structure, audience awareness, citation integrity | [`paper.md`](templates/domains/paper.md) |
-
-### Publication-Quality Visualization
-
-All plots use `matplotlib` + [`scienceplots`](https://github.com/garrettj403/SciencePlots) (`science` + `nature` themes), saved as both PNG (300 dpi) and vector PDF.
-
-### Plot Manifest & Report Integration
-
-Phase 4 generates a structured `plot_manifest.json` for every plot — including metadata, section hints, and publication-ready captions. Phase 5 uses this manifest to:
-
-- **Actively embed** plots into the correct report sections with quantitative narratives
-- **Detect gaps** — identify claims without supporting figures and generate new plots on the fly (max 2 iterations)
-- **MAGI Traceability Review** — Gemini (BALTHASAR) adversarially reviews the final draft for orphaned claims and orphaned plots
-
-### LaTeX Math Formatting
-
-All output documents (brainstorm, synthesis, reports) use proper LaTeX for mathematical expressions — inline `$...$` and display equations with line-separated `$$`:
-
-```
-$$
-\mathcal{L} = -\frac{1}{4} F_{\mu\nu} F^{\mu\nu} + \bar{\psi}(i\gamma^\mu D_\mu - m)\psi
-$$
-```
-
-### Gemini Model Fallback Chain
-
-All Gemini calls use a resilient 3-tier fallback: `gemini-3.1-pro-preview` → `gemini-3-pro-preview` → `gemini-2.5-pro`.
-
-## Journal & Venue Strategy
-
-**No other tool does this.** MAGI includes domain-specific templates that recommend journals/conferences for your research and provide tailored submission strategies.
-
-### How to Use
-
-Journal strategy templates are automatically loaded as context when you run the research pipeline with a `--domain` flag. All three models (Claude, Gemini, Codex) receive the strategy context during brainstorming, planning, and report generation.
-
-```
-/magi-researchers:research "your research topic" --domain physics
-```
-
-The `--domain` flag selects both the **research methodology template** (e.g., `physics.md`) and the corresponding **journal strategy template** (e.g., `journal_strategy_physics.md`). This means the models will:
-
-1. **Brainstorm** with venue-awareness — ideas are shaped with publication targets in mind
-2. **Plan** with submission strategy — the research plan considers framing for target journals
-3. **Report** with journal fit — the final report includes venue recommendations
-
-You can also reference the strategy templates directly in conversation:
-
-```
-Read templates/domains/journal_strategy_physics.md and help me choose
-the best journal for my paper on dark matter detection via ML.
-```
-
-### Available Templates
-
-### Particle Physics Phenomenology
-
-Covers PRL, PRD, PRX, JHEP, PLB, EPJC, NPB, JCAP, PRE, CPC, PRX Quantum with:
-
-- **Journal-fit classifier** — Match your paper type and sub-field to the best venue
-- **Framing switchboard** — Same result, different framing for PRL vs PRD vs JHEP
-- **Referee defense checklist** — Gauge invariance, unitarity, EW precision, vacuum stability...
-- **Cover letter templates** — Per-journal templates with acceptance-criteria mapping
-- **Cascade submission roadmap** — Pre-planned fallback paths (PRL → PLB/PRD)
-- **ArXiv timing strategy** — Category selection, cross-listing, posting schedule
-
-[`journal_strategy_physics.md`](templates/domains/journal_strategy_physics.md)
-
-### AI/ML Conferences & Journals
-
-Covers NeurIPS, ICML, ICLR, AAAI, CVPR, AISTATS, JMLR, TMLR, Nature MI, IEEE TPAMI with:
-
-- **Conference framing switchboard** — NeurIPS (breadth) vs ICML (rigor) vs ICLR (clarity)
-- **Pre-submission pipeline** — Desk-rejection firewall + reproducibility gate + baseline audit
-- **Rebuttal defense system** — Pre-buttal during writing + triage template for reviews
-- **Conference cycle planner** — Annual deadline calendar + rejection cascade paths
-- **ArXiv anonymity manager** — Venue-specific safe posting windows
-- **Conference-to-journal pipeline** — Extension thresholds for JMLR/TPAMI
-
-[`journal_strategy_ai_ml.md`](templates/domains/journal_strategy_ai_ml.md)
-
-### Interdisciplinary Science (ML + Natural Sciences)
-
-Covers Nature Communications, MLST, PRX Intelligence, PRX Life, PRX Energy, Physical Review Research, SciPost Physics, Science Advances, iScience with:
-
-- **Dual-impact matrix** — 2x2 classifier (ML Novelty vs Domain Significance) for venue selection
-- **Sub-field routing** — Physics-informed ML, ML for simulation, scientific discovery, and more
-- **Framing switchboard** — Same result framed for Nature Comms vs MLST vs PRX Intelligence vs SciPost
-- **Dual rigor checklist** — ML reproducibility + domain validity + interdisciplinary bridge checks
-- **Adversarial persona simulation** — Pre-test against ML Purist, Domain Gatekeeper, and Methods Pedant reviewers
-- **Figure-first protocol** — Bridge figure requirements for cross-disciplinary readability
-
-[`journal_strategy_interdisciplinary.md`](templates/domains/journal_strategy_interdisciplinary.md)
-
-## Installation
-
-### Option 1: Marketplace (Recommended)
-
-```
-/plugin marketplace add Axect/magi-researchers
-/plugin install magi-researchers@magi-researchers-marketplace
-```
-
-### Updating
-
-1. Open the **Plugin page** in Claude Code
-2. Go to **Marketplaces** tab
-3. Click **Update** on `magi-researchers-marketplace`
-
-### Option 2: Local Development
-
-```bash
-git clone https://github.com/Axect/magi-researchers.git
-claude --plugin-dir /path/to/magi-researchers
-```
-
-### Prerequisites
-
-- **Python >= 3.11** + **[uv](https://docs.astral.sh/uv/)**
-- **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)**
-
-### MCP Servers
+- **Publication-quality plots** — `matplotlib` + `scienceplots` (`science` + `nature` themes), saved as PNG (300 dpi) + vector PDF
+- **LaTeX math formatting** — Proper inline `$...$` and display equations in all output documents
+- **Report gap detection** — Identifies claims without supporting figures, generates new plots on the fly
+- **MAGI traceability review** — All three models cross-verify the final report for orphaned claims/plots
+- **Domain templates** — Built-in context for Physics, AI/ML, Statistics, Mathematics, and Paper Writing
+- **Journal strategy** — Venue recommendations for [Physics](docs/journal-strategies.md#particle-physics-phenomenology), [AI/ML](docs/journal-strategies.md#aiml-conferences--journals), and [Interdisciplinary](docs/journal-strategies.md#interdisciplinary-science-ml--natural-sciences) research
 
 <details>
-<summary><strong>Project Scope</strong> (isolated per project)</summary>
+<summary><strong>Under the hood</strong></summary>
 
-```bash
-claude mcp add gemini-cli -- npx -y gemini-mcp-tool
-claude mcp add codex-cli -- npx -y @cexll/codex-mcp-server
-claude mcp add context7 -- npx -y @upstash/context7-mcp@latest
-```
+- **Plot manifest** — Structured `plot_manifest.json` with metadata, section hints, and captions for automated report integration
+- **Gemini fallback chain** — Resilient 3-tier model fallback: `gemini-3.1-pro-preview` → `gemini-3-pro-preview` → `gemini-2.5-pro`
+- **Cross-phase artifact contracts** — Each phase validates incoming artifacts before running
 
 </details>
-
-<details>
-<summary><strong>User Scope</strong> (available across all projects)</summary>
-
-```bash
-claude mcp add -s user gemini-cli -- npx -y gemini-mcp-tool
-claude mcp add -s user codex-cli -- npx -y @cexll/codex-mcp-server
-claude mcp add -s user context7 -- npx -y @upstash/context7-mcp@latest
-```
-
-</details>
-
-### Python Dependencies
-
-```bash
-uv add matplotlib SciencePlots numpy
-```
 
 ## Usage
 
-### Full Pipeline
-
-```
-/magi-researchers:research "your research topic" --domain physics
-```
-
-### Individual Phases
-
 | Command | Description |
 |:---|:---|
+| `/magi-researchers:research "topic"` | Full pipeline (all 5 phases) |
 | `/magi-researchers:research-brainstorm "topic"` | Brainstorming with cross-verification |
 | `/magi-researchers:research-implement` | Implementation (needs existing plan) |
 | `/magi-researchers:research-test` | Testing & visualization |
@@ -277,23 +123,17 @@ uv add matplotlib SciencePlots numpy
 ```
 outputs/{topic_YYYYMMDD_vN}/
 ├── brainstorm/          # 5 cross-verified brainstorm documents
-│   ├── gemini_ideas.md
-│   ├── codex_ideas.md
-│   ├── gemini_review_of_codex.md
-│   ├── codex_review_of_gemini.md
-│   └── synthesis.md
 ├── plan/                # Research plan
 ├── src/                 # Implementation
 ├── tests/               # Test suite
-├── plots/               # PNG (300 dpi) + PDF
-│   └── plot_manifest.json  # Structured plot registry
+├── plots/               # PNG + PDF + plot_manifest.json
 └── report.md            # Final structured report
 ```
 
-### Recommended Permissions
-
 <details>
-<summary>Add to <code>.claude/settings.local.json</code></summary>
+<summary><strong>Recommended Permissions</strong></summary>
+
+Add to `.claude/settings.local.json`:
 
 ```json
 {
@@ -321,36 +161,17 @@ outputs/{topic_YYYYMMDD_vN}/
 ## Roadmap
 
 - [x] Multi-model brainstorming with cross-verification
-- [x] Domain templates (Physics, AI/ML, Statistics, Mathematics, Paper)
-- [x] Journal strategy template (Particle Phenomenology — 11 journals)
-- [x] Venue strategy template (AI/ML Conferences & Journals)
-- [x] Journal strategy template (Interdisciplinary Science — ML + Natural Sciences)
-- [x] Plot manifest with structured metadata and report integration
-- [x] Report gap detection & iterative plot generation loop
-- [x] MAGI traceability review (orphaned claims/plots detection)
-- [x] Gemini model fallback chain (3.1-pro → 3-pro → 2.5-pro)
-- [x] LaTeX math formatting (inline + display equations)
-- [ ] Journal strategy templates for more domains (Mathematics, Statistics)
-- [ ] Example artifact gallery (real generated reports and plots)
+- [x] Domain templates & journal strategy templates
+- [x] Plot manifest, report gap detection & MAGI traceability review
+- [x] LaTeX math formatting & Gemini fallback chain
+- [ ] Example artifact gallery
 - [ ] Terminal demo GIF
-- [ ] "Researched with MAGI" badge for user projects
-- [ ] Additional MCP model integrations
+- [ ] More domain & journal strategy templates
 
 ## Contributing
 
-We welcome contributions — especially new domain templates. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-**Quick contribution ideas:**
-- Add a domain template for your field (Biology, Chemistry, Economics, ...)
-- Add a journal/venue strategy template for your discipline
-- Report bugs or suggest features via [Issues](https://github.com/Axect/magi-researchers/issues)
+Contributions welcome — especially new domain templates. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
 [MIT](LICENSE)
-
----
-
-<p align="center">
-  <sub>If MAGI helped your research, consider giving it a star — it helps other researchers discover the tool.</sub>
-</p>
