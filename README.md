@@ -118,6 +118,16 @@ Phase 4 generates a structured `plot_manifest.json` for every plot — including
 - **Detect gaps** — identify claims without supporting figures and generate new plots on the fly (max 2 iterations)
 - **MAGI Traceability Review** — Gemini (BALTHASAR) adversarially reviews the final draft for orphaned claims and orphaned plots
 
+### LaTeX Math Formatting
+
+All output documents (brainstorm, synthesis, reports) use proper LaTeX for mathematical expressions — inline `$...$` and display equations with line-separated `$$`:
+
+```
+$$
+\mathcal{L} = -\frac{1}{4} F_{\mu\nu} F^{\mu\nu} + \bar{\psi}(i\gamma^\mu D_\mu - m)\psi
+$$
+```
+
 ### Gemini Model Fallback Chain
 
 All Gemini calls use a resilient 3-tier fallback: `gemini-3.1-pro-preview` → `gemini-3-pro-preview` → `gemini-2.5-pro`.
@@ -319,6 +329,7 @@ outputs/{topic_YYYYMMDD_vN}/
 - [x] Report gap detection & iterative plot generation loop
 - [x] MAGI traceability review (orphaned claims/plots detection)
 - [x] Gemini model fallback chain (3.1-pro → 3-pro → 2.5-pro)
+- [x] LaTeX math formatting (inline + display equations)
 - [ ] Journal strategy templates for more domains (Mathematics, Statistics)
 - [ ] Example artifact gallery (real generated reports and plots)
 - [ ] Terminal demo GIF
