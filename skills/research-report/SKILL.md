@@ -186,6 +186,19 @@ After both reviews are received, synthesize the feedback:
 - Offer to regenerate specific sections with different emphasis
 - Offer to generate additional visualizations for specific findings
 
+### LaTeX Formatting Rules
+When writing the report, use LaTeX for all mathematical expressions:
+- **Inline math**: Use `$...$` for short expressions within a sentence (e.g., `$\alpha = 0.05$`, `$O(n \log n)$`)
+- **Display equations**: Use `$$` on its own line, with the equation on a separate line:
+  ```
+  $$
+  \hat{\theta}_{\text{MLE}} = \arg\max_\theta \prod_{i=1}^{n} f(x_i \mid \theta)
+  $$
+  ```
+- Never write display equations inline as `$$..equation..$$` on a single line — always use line breaks between `$$` and the equation
+- Use display equations for: key formulas, derivations, loss functions, objective functions, main results
+- Use inline math for: variable names, parameter values, complexity notation, short expressions in running text
+
 ## Notes
 - Write in clear, academic-but-accessible style
 - Use markdown formatting effectively (headers, lists, code blocks, tables)

@@ -20,6 +20,18 @@ Generates and cross-validates research ideas using Gemini and Codex in parallel,
   3. `model: "gemini-2.5-pro"` (last resort)
 - **Codex**: Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review.
 
+### LaTeX Formatting Rules
+When writing mathematical expressions in any output document (brainstorm ideas, synthesis, etc.):
+- **Inline math**: Use `$...$` for short expressions within a sentence (e.g., `$x^2 + y^2 = r^2$`)
+- **Display equations**: Use `$$` on its own line, with the equation on a separate line:
+  ```
+  $$
+  \mathcal{L} = -\frac{1}{4} F_{\mu\nu} F^{\mu\nu} + \bar{\psi}(i\gamma^\mu D_\mu - m)\psi
+  $$
+  ```
+- Never write display equations inline as `$$..equation..$$` on a single line — always use line breaks
+- Include this formatting instruction in prompts to Gemini and Codex when the topic involves mathematical content
+
 When this skill is invoked, follow these steps exactly:
 
 ### Step 0: Setup
