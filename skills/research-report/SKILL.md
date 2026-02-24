@@ -138,20 +138,37 @@ After completing the initial draft, perform a gap analysis:
 
 ### Step 4: MAGI Traceability Review
 
-Invoke Gemini (BALTHASAR) for an adversarial review of the report draft:
+Execute these two review calls **simultaneously** (in the same message):
 
+**Gemini (BALTHASAR) — Scientific Rigor Review:**
 ```
 mcp__gemini-cli__ask-gemini(
-  prompt: "You are a scientific reviewer. Analyze this research report for claim-evidence integrity. Identify:\n\n1. **Orphaned claims**: Text assertions that lack a supporting figure, table, or data reference\n2. **Orphaned plots**: Figures that are embedded but never discussed or interpreted in the text\n3. **Weak links**: Claims that reference a figure but the figure doesn't clearly support the claim\n\nFor each issue found, specify the section, the problematic text or figure, and a concrete fix.\n\nReport draft:\n{report_content}\n\nPlot manifest:\n{manifest_content}",
+  prompt: "You are a scientific reviewer. Analyze this research report for claim-evidence integrity. Identify:\n\n1. **Orphaned claims**: Text assertions that lack a supporting figure, table, or data reference\n2. **Orphaned plots**: Figures that are embedded but never discussed or interpreted in the text\n3. **Weak links**: Claims that reference a figure but the figure doesn't clearly support the claim\n4. **Caption quality**: Are figure captions precise, quantitative, and publication-ready?\n\nFor each issue found, specify the section, the problematic text or figure, and a concrete fix.\n\nReport draft:\n{report_content}\n\nPlot manifest:\n{manifest_content}",
   model: "gemini-3.1-pro-preview"  // fallback: "gemini-3-pro-preview" → "gemini-2.5-pro"
 )
 ```
 
-**Process the review:**
-- For each **orphaned claim**: Either add a supporting visualization (if within loop budget) or add an explicit caveat ("This observation requires further visual analysis.")
-- For each **orphaned plot**: Add discussion text around the embedded figure
-- For each **weak link**: Strengthen the connecting narrative or replace with a more appropriate figure reference
-- If revisions are made, update the report draft accordingly
+**Codex (CASPER) — Visualization Quality Review:**
+```
+mcp__codex-cli__ask-codex(
+  prompt: "You are a data visualization reviewer. Analyze this research report for visualization quality and completeness. Identify:\n\n1. **Missing visualizations**: Quantitative results or comparisons described in text that would benefit from a chart/plot but have none\n2. **Plot-narrative mismatch**: Figures whose captions or surrounding text don't accurately describe what the plot shows\n3. **Visualization improvements**: Existing plots that could use better chart types, scales, or encodings for clarity\n4. **Reproducibility gaps**: Plots that lack source context or data references needed to regenerate them\n\nFor each issue found, specify the section, the problematic text or figure, and a concrete fix.\n\nReport draft:\n{report_content}\n\nPlot manifest:\n{manifest_content}"
+)
+```
+
+> Note: If Codex MCP is unavailable, fall back to `mcp__gemini-cli__ask-gemini` with the Gemini fallback chain and visualization-focused framing.
+
+**Claude (MELCHIOR) — Synthesis & Revision:**
+
+After both reviews are received, synthesize the feedback:
+
+1. Identify **consensus issues** (flagged by both models) — these are high-priority fixes
+2. Identify **divergent suggestions** — evaluate each on merit and apply where appropriate
+3. Apply revisions:
+   - For each **orphaned claim**: Add a supporting visualization (if within loop budget) or add an explicit caveat ("This observation requires further visual analysis.")
+   - For each **orphaned plot**: Add discussion text around the embedded figure
+   - For each **weak link**: Strengthen the connecting narrative or replace with a more appropriate figure reference
+   - For each **visualization improvement**: Generate updated plot code if the fix is straightforward (e.g., scale change, label fix)
+4. Update the report draft with all revisions
 
 ### Step 5: Write Final Report
 
