@@ -146,9 +146,10 @@ Execute the `/magi-researchers:research-report` workflow:
 - Generate new plots (write matplotlib code → execute → save to `plots/` → update manifest)
 - Re-draft affected sections with newly generated plots
 
-**Step 4 — MAGI Traceability Review:**
-- Gemini (BALTHASAR) reviews the draft for orphaned claims (text without supporting figures), orphaned plots (figures without discussion), and weak claim-evidence links
-- Claude revises the report based on review feedback
+**Step 4 — MAGI Traceability Review (parallel cross-verification):**
+- Gemini (BALTHASAR) reviews for scientific rigor: orphaned claims, orphaned plots, weak claim-evidence links, caption quality
+- Codex (CASPER) reviews for visualization quality: missing visualizations, plot-narrative mismatch, encoding improvements, reproducibility gaps
+- Claude (MELCHIOR) synthesizes both reviews — consensus issues are high-priority fixes, divergent suggestions evaluated on merit
 
 **Step 5 — Write Final Report:**
 - Save finalized `report.md`
