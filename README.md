@@ -5,7 +5,7 @@
 <h1 align="center">MAGI Researchers</h1>
 
 <p align="center">
-  <strong>Three AI models. One synthesis.</strong><br/>
+  <strong>Three AI models. One synthesis. Zero lost progress.</strong><br/>
   <em>Multi-model research pipeline for Claude Code — orchestrating Claude, Gemini, and Codex</em>
 </p>
 
@@ -91,7 +91,15 @@ Single-model research has blind spots. One model hallucinates a citation or miss
 | **4. Test & Visualize** | Collaborative test design + publication-quality plots | `tests/` + `plots/` |
 | **5. Report** | Structured report with cross-verified claim-evidence integrity | `report.md` |
 
-### New in v0.3.0
+### Never Lose Your Work (v0.4.0)
+
+Long research sessions crash. Context windows expire. Networks drop. Now you can pick up right where you left off:
+
+- **`--resume`** — Interrupted mid-pipeline? Just pass `--resume <output_dir>` and MAGI detects your progress from existing files. No manual bookkeeping, no fragile state files — your artifacts *are* the checkpoints.
+- **Artifact contracts** — Before each phase, MAGI verifies that all required upstream files actually exist and aren't empty. Catches silent failures before they cascade into garbage outputs.
+- **Standalone phase gates** — Every sub-skill (`/research-implement`, `/research-test`) now generates its own quality gate, even when run independently outside the main pipeline.
+
+### Stress-Tested by Design (v0.3.0)
 
 - **Weighted direction scoring** — Rank research ideas by novelty, feasibility, impact, rigor, and scalability with domain-tuned or custom weights
 - **Dynamic persona casting** — Each model gets a topic-specific expert identity (e.g., *"Bayesian statistician with causal inference expertise"*), sharpening ideation
@@ -114,7 +122,7 @@ Single-model research has blind spots. One model hallucinates a citation or miss
 
 - **Plot manifest** — Structured `plot_manifest.json` with metadata, section hints, and captions for automated report integration
 - **Gemini fallback chain** — Resilient 3-tier model fallback: `gemini-3.1-pro-preview` → `gemini-3-pro-preview` → `gemini-2.5-pro`
-- **Cross-phase artifact contracts** — Each phase validates incoming artifacts before running
+- **Cross-phase artifact contracts** — Each phase validates incoming artifacts before running (tool-based Glob/Read, not LLM guesswork)
 - **Depth-controlled token budget** — `--depth low` skips cross-review for fast/cheap runs; `--depth high` enables full adversarial debate
 
 </details>
@@ -136,6 +144,7 @@ Single-model research has blind spots. One model hallucinates a citation or miss
 | `--domain` | `physics` `ai_ml` `statistics` `mathematics` `paper` | auto-inferred | Research domain for context and weight defaults |
 | `--weights` | JSON object | domain default | Custom scoring weights (keys: `novelty`, `feasibility`, `impact`, `rigor`, `scalability`) |
 | `--depth` | `low` `medium` `high` | `medium` | Review thoroughness — controls cross-review and adversarial debate |
+| `--resume` | `<output_dir>` | — | Resume an interrupted pipeline from the last completed phase |
 
 ```bash
 # Quick brainstorm with default settings
@@ -143,6 +152,9 @@ Single-model research has blind spots. One model hallucinates a citation or miss
 
 # Deep analysis with custom weights and adversarial debate
 /magi-researchers:research "causal inference in observational studies" --domain statistics --depth high --weights '{"novelty":0.2,"rigor":0.4,"feasibility":0.2,"impact":0.15,"scalability":0.05}'
+
+# Resume a crashed session — MAGI picks up where you left off
+/magi-researchers:research "neural ODE solvers" --resume outputs/neural_ode_solvers_20260225_v1
 
 # Fast ideation only (no cross-review, lowest cost)
 /magi-researchers:research-brainstorm "transformer alternatives for long sequences" --domain ai_ml --depth low
@@ -154,11 +166,13 @@ Single-model research has blind spots. One model hallucinates a citation or miss
 outputs/{topic_YYYYMMDD_vN}/
 ├── brainstorm/       # Personas, ideas, cross-reviews, debate, synthesis
 ├── plan/             # Research plan, murder board, mitigations, phase gate
-├── src/              # Implementation
-├── tests/            # Test suite
+├── src/              # Implementation + phase gate
+├── tests/            # Test suite + phase gate
 ├── plots/            # PNG + PDF + plot_manifest.json
 └── report.md         # Final structured report
 ```
+
+Each phase produces artifacts that double as resume checkpoints — just pass `--resume` to continue from where you left off.
 
 <details>
 <summary><strong>Full artifact tree</strong></summary>
@@ -180,6 +194,14 @@ plan/
 ├── murder_board.md           # Plan stress-test
 ├── mitigations.md            # Flaw mitigations
 └── phase_gate.md             # Plan quality gate
+
+src/
+├── *.py                      # Research implementation
+└── phase_gate.md             # Implementation quality gate
+
+tests/
+├── test_*.py                 # Test suite
+└── phase_gate.md             # Test quality gate
 ```
 
 </details>
@@ -214,13 +236,14 @@ Add to `.claude/settings.local.json`:
 
 ## Roadmap
 
-**Shipped:**&ensp; Multi-model brainstorming & cross-verification &bull; Domain & journal strategy templates &bull; Plot manifest & gap detection &bull; MAGI traceability review &bull; LaTeX math & Gemini fallback chain &bull; Weighted scoring & dynamic personas &bull; Adversarial debate &bull; Murder board & phase gates &bull; Depth-controlled token budget
+**Shipped:**&ensp; Multi-model brainstorming & cross-verification &bull; Domain & journal strategy templates &bull; Plot manifest & gap detection &bull; MAGI traceability review &bull; LaTeX math & Gemini fallback chain &bull; Weighted scoring & dynamic personas &bull; Adversarial debate &bull; Murder board & phase gates &bull; Depth-controlled token budget &bull; Session resume (`--resume`) &bull; Artifact contract validation &bull; Standalone phase gates for all sub-skills
 
 **Up next:**
 - [ ] Example artifact gallery — real research outputs to showcase the pipeline
 - [ ] Terminal demo GIF — one-command walkthrough
 - [ ] More domain & journal strategy templates
-- [ ] Session resume — pick up interrupted pipelines mid-phase
+- [ ] Ubiquitous Context7 — live doc lookups during testing and report writing, not just implementation
+- [ ] Conditional variance enforcement — smart error-bar policy that catches missing uncertainty without blocking exploratory runs
 - [ ] Cost estimation — token budget preview before execution
 
 ## Contributing

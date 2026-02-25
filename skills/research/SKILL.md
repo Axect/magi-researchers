@@ -5,7 +5,7 @@ Runs the complete research pipeline: Brainstorming → Planning → Implementati
 
 ## Usage
 ```
-/research "research topic" [--domain physics|ai_ml|statistics|mathematics|paper] [--weights '{"novelty":0.4,"feasibility":0.3,"impact":0.3}'] [--depth low|medium|high]
+/research "research topic" [--domain physics|ai_ml|statistics|mathematics|paper] [--weights '{"novelty":0.4,"feasibility":0.3,"impact":0.3}'] [--depth low|medium|high] [--resume <output_dir>]
 ```
 
 ## Arguments
@@ -16,6 +16,7 @@ Runs the complete research pipeline: Brainstorming → Planning → Implementati
     - `low` — Skip cross-review, go directly to synthesis (fastest, lowest cost)
     - `medium` — Standard one-shot cross-review (default)
     - `high` — Cross-review + adversarial debate (most thorough, highest cost)
+  - `--resume <output_dir>` — Resume an interrupted pipeline from a previous output directory. See **Resume Protocol** below.
 
 ## Instructions
 
@@ -67,11 +68,58 @@ Phase gates are lightweight quality checkpoints inserted **before** each USER CH
 
 ---
 
+### Resume Protocol
+
+When `--resume <output_dir>` is provided, the pipeline skips initialization and infers the current phase from the **presence of key artifact files** in the output directory. This avoids requiring the LLM to maintain a separate state file — the artifacts themselves serve as checkpoints.
+
+**Phase inference rules** (evaluated top-down; first match wins):
+
+| Condition | Inference | Action |
+|:----------|:----------|:-------|
+| `report.md` exists | Pipeline complete | Inform user; offer to re-run specific phases |
+| `plots/plot_manifest.json` exists | Phase 4 complete | Resume from Phase 5 (Reporting) |
+| `src/` contains at least one `.py` file | Phase 3 complete | Resume from Phase 4 (Testing) |
+| `plan/research_plan.md` exists | Phase 2 complete | Resume from Phase 3 (Implementation) |
+| `brainstorm/synthesis.md` exists | Phase 1 complete | Resume from Phase 2 (Planning) |
+| None of the above | No phase complete | Start from Phase 1 (Brainstorming) |
+
+**Resume procedure:**
+1. Use the `Glob` tool to check for each artifact in the order above.
+2. Read the first few lines of the matched artifact to confirm it is non-empty.
+3. Announce to the user: detected phase, output directory, and which phase will be resumed.
+4. Read the domain template if `brainstorm/personas.md` or `brainstorm/weights.json` exist (to restore context).
+5. Continue the pipeline from the inferred phase, skipping all prior phases.
+
+> **Important**: On resume, do NOT re-create the output directory or overwrite existing artifacts. Append or create only the artifacts for the resumed phase and beyond.
+
+---
+
+### Artifact Contract Protocol
+
+Before starting each phase (2 through 5), verify that the required predecessor artifacts exist and are non-empty. Use the `Glob` and `Read` tools for deterministic, tool-based validation — do not rely on memory or assumptions.
+
+**Required artifacts per phase:**
+
+| Phase | Required Artifacts | Validation Method |
+|:------|:-------------------|:------------------|
+| **Phase 2** (Plan) | `brainstorm/synthesis.md` | Glob + Read first 3 lines (non-empty) |
+| **Phase 3** (Implement) | `plan/research_plan.md` | Glob + Read first 3 lines (non-empty) |
+| **Phase 4** (Test) | At least one `.py` file in `src/`, `plan/research_plan.md` | Glob for `src/**/*.py` + Glob for plan |
+| **Phase 5** (Report) | `brainstorm/synthesis.md`, `plan/research_plan.md`, at least one `.py` in `src/`, `plots/plot_manifest.json` | Glob for each path |
+
+**On validation failure:**
+1. List the missing or empty artifacts with specific file paths.
+2. Ask the user: "The following artifacts are missing: [list]. Would you like to (a) go back and generate them, or (b) proceed anyway?"
+3. If the user chooses to proceed, continue with a warning note in the phase gate.
+
+---
+
 ### Phase 0: Initialization
 
 1. Parse `$ARGUMENTS`:
    - Extract the research topic (everything before flags or the entire string)
    - Extract domain if `--domain` is specified; otherwise infer from topic keywords
+   - **Parse `--resume <output_dir>`**: If provided, skip steps 2-6 and execute the **Resume Protocol** above. The pipeline will jump directly to the inferred phase.
 2. Create the output directory structure:
    ```
    outputs/{sanitized_topic}_{YYYYMMDD}_v{N}/
@@ -124,6 +172,8 @@ Execute the `/magi-researchers:research-brainstorm` workflow, **forwarding all f
 
 ### Phase 2: Research Planning
 
+**Artifact Contract**: Verify `brainstorm/synthesis.md` exists and is non-empty (Glob + Read first 3 lines). On failure, follow the Artifact Contract Protocol above.
+
 **Step 2a — Plan Drafting:**
 1. Based on user-confirmed direction from Phase 1:
    - Define specific research objectives
@@ -166,6 +216,8 @@ Present to user: plan summary, murder board highlights, mitigations, and gate re
 
 ### Phase 3: Implementation
 
+**Artifact Contract**: Verify `plan/research_plan.md` exists and is non-empty (Glob + Read first 3 lines). On failure, follow the Artifact Contract Protocol above.
+
 Execute the `/magi-researchers:research-implement` workflow:
 
 1. Follow `research_plan.md` to implement code in `src/`
@@ -182,23 +234,25 @@ Execute the `/magi-researchers:research-implement` workflow:
 
 ### Phase 4: Testing & Visualization
 
+**Artifact Contract**: Verify at least one `.py` file exists in `src/` (Glob `src/**/*.py`) and `plan/research_plan.md` exists. On failure, follow the Artifact Contract Protocol above.
+
 Execute the `/magi-researchers:research-test` workflow:
 
-**Step 4a — Test Design:**
+**Step 1 — Test Design:**
 - Consult Gemini for test case suggestions
 - Claude synthesizes test strategy
 - Present to user for approval
 
-**Step 4b — Test Execution:**
+**Step 2 — Test Execution:**
 - Write tests in `tests/`
 - Run with `uv run pytest tests/ -v`
 - Report results
 
-**Step 4c — Visualization:**
+**Step 3 — Visualization:**
 - Generate plots using matplotlib + scienceplots (`['science', 'nature']` style)
 - Save as PNG (300 dpi) and PDF in `plots/`
 
-**Step 4d — Plot Manifest:**
+**Step 4 — Plot Manifest:**
 - Generate `plots/plot_manifest.json` with metadata for every plot: plot_id, file paths, description, section_hint, publication-ready caption, and markdown snippet
 - This manifest is the primary input for Phase 5's plot integration
 
@@ -209,6 +263,8 @@ Execute the `/magi-researchers:research-test` workflow:
 ---
 
 ### Phase 5: Reporting
+
+**Artifact Contract**: Verify all of the following exist (Glob for each): `brainstorm/synthesis.md`, `plan/research_plan.md`, at least one `.py` in `src/`, and `plots/plot_manifest.json`. On failure, follow the Artifact Contract Protocol above.
 
 Execute the `/magi-researchers:research-report` workflow:
 
@@ -255,5 +311,5 @@ Announce completion with:
 ## Notes
 - If any phase fails, stop and inform the user with clear error context
 - User can skip phases by saying "skip" at any checkpoint
-- The workflow state is maintained through files — it can be resumed if interrupted
+- The workflow state is maintained through artifact files — use `--resume <output_dir>` to resume an interrupted pipeline from the last completed phase
 - Each phase skill can also be run independently outside this pipeline

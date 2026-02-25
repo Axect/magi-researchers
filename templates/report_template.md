@@ -74,5 +74,5 @@
 - [Murder Board](plan/murder_board.md)
 - [Mitigations](plan/mitigations.md)
 - [Plan Phase Gate](plan/phase_gate.md)
-- [Implementation Phase Gate](src/phase_gate.md) *(if available)*
-- [Test Phase Gate](tests/phase_gate.md) *(if available)*
+- [Implementation Phase Gate](src/phase_gate.md)
+- [Test Phase Gate](tests/phase_gate.md)
