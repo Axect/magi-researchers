@@ -5,6 +5,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.4.0] — 2026-02-25
+
+A stabilization release focused on pipeline resilience, session resume, and quality gate standardization.
+
+### Added
+- **Resume protocol** — `--resume <output_dir>` flag for `/research` that infers the current pipeline phase from artifact file presence and continues from the last completed phase
+- **Artifact contract protocol** — Tool-based (Glob/Read) validation of required predecessor artifacts before each phase, with user-facing "Override or retry?" on failure
+- **Standalone phase gates** — `/research-implement` and `/research-test` now generate `phase_gate.md` independently (previously only emitted by the orchestrator)
+- Implementation phase gate checklist: code correctness, plan alignment, error handling, dependency management
+- Test phase gate checklist: coverage adequacy, edge case handling, visualization quality, result reproducibility
+
+### Changed
+- **Step renumbering** in `/research-test`: `4a` → `1`, `4b` → `2`, `4c` → `3`, `4d` → `4`, `5` → `6` (with new Step 5 for phase gate)
+- Report template Appendix F: `src/phase_gate.md` and `tests/phase_gate.md` no longer marked "if available" (now always generated)
+- `/research` Phase 4 references updated to match new step numbers
+- Notes section updated to reference `--resume` flag for interrupted pipeline recovery
+
+---
+
 ## [0.3.0] — 2026-02-25
 
 A major feature release introducing weighted scoring, expert personas, adversarial debate, plan stress-testing, and automated quality gates.
@@ -78,7 +97,8 @@ Initial release.
 
 ---
 
-[0.3.0]: https://github.com/Axect/magi-researchers/compare/v0.2.3...main
+[0.4.0]: https://github.com/Axect/magi-researchers/compare/v0.3.0...main
+[0.3.0]: https://github.com/Axect/magi-researchers/compare/v0.2.3...v0.3.0
 [0.2.3]: https://github.com/Axect/magi-researchers/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/Axect/magi-researchers/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/Axect/magi-researchers/compare/v0.2.0...v0.2.1

@@ -34,9 +34,9 @@ Generates a structured markdown research report from all previous phase outputs.
    - `plan/mitigations.md` (murder board mitigations)
    - `plan/phase_gate.md` (plan phase gate report)
    - `src/` contents
-   - `src/phase_gate.md` (implementation phase gate report, if exists)
+   - `src/phase_gate.md` (implementation phase gate report)
    - `tests/` and test results
-   - `tests/phase_gate.md` (test phase gate report, if exists)
+   - `tests/phase_gate.md` (test phase gate report)
    - `plots/` visualizations
 3. **Read the plot manifest** (`plots/plot_manifest.json`):
    - If the manifest exists, parse it as the primary source of plot information.
@@ -60,9 +60,9 @@ Read all available materials:
 - `plan/mitigations.md` — for Methodology section (mitigation strategies)
 - `plan/phase_gate.md` — for Appendix F (Quality Assurance)
 - All files in `src/` — for Implementation section
-- `src/phase_gate.md` — for Appendix F (if exists)
+- `src/phase_gate.md` — for Appendix F
 - Test results and `tests/` — for Testing section
-- `tests/phase_gate.md` — for Appendix F (if exists)
+- `tests/phase_gate.md` — for Appendix F
 - `plots/plot_manifest.json` — for Results & Visualization section
 
 **Plot-to-Section Mapping:**

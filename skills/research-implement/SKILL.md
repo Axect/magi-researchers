@@ -58,11 +58,43 @@ Implements research code based on an existing research plan. Requires a `researc
    - Any deviations from the research plan and why
    - Known limitations or TODOs
 
-### Step 4: User Review
+### Step 4: Phase Gate
+
+Before presenting to the user, execute a lightweight quality checkpoint:
+
+1. **Self-assessment**: Evaluate the implementation against the following checklist and assign a confidence level (`High`, `Medium`, or `Low`):
+
+| Checklist Item | Criteria |
+|:---------------|:---------|
+| Code correctness | All files are syntactically valid; key functions produce expected output types |
+| Alignment with plan | Implementation matches the research plan's specification; deviations are documented |
+| Error handling | Edge cases and invalid inputs are handled gracefully |
+| Dependency management | All required libraries are listed; no undeclared imports |
+
+2. **Conditional MAGI mini-review** (if confidence is `Medium` or `Low`):
+   - Send the implementation summary + source code to Codex for a focused review targeting the low-scoring checklist items:
+   ```
+   mcp__codex-cli__ask-codex(
+     prompt: "Review this research implementation for correctness, plan alignment, error handling, and dependency management. Focus on: {low_scoring_items}\n\n{implementation_summary_and_code}"
+   )
+   ```
+
+3. **Go/No-Go synthesis**: Write a brief gate report with:
+   - Confidence level and justification
+   - Checklist scores (pass/partial/fail for each item)
+   - Issues found (if any) and applied fixes
+   - Go/No-Go decision
+
+4. Save to `src/phase_gate.md`.
+
+> If the gate returns **No-Go**, fix the identified issues before presenting to the user. Maximum 1 fix iteration.
+
+### Step 5: User Review
 
 Present the implementation for user review:
 - Highlight key design decisions
 - Note any areas where alternative approaches were considered
+- Include the phase gate result summary
 - Ask if modifications are needed before proceeding to testing
 
 ## Notes

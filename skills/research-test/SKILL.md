@@ -27,7 +27,7 @@ Creates tests for research code and generates publication-quality visualizations
 3. Read the research plan (`plan/research_plan.md`) for test strategy guidance.
 4. Read all source files to understand what needs testing.
 
-### Step 4a: Test Strategy Discussion
+### Step 1: Test Strategy Discussion
 
 1. Prepare a summary of the implemented code (key functions, expected behaviors, edge cases).
 
@@ -47,7 +47,7 @@ mcp__gemini-cli__ask-gemini(
 
 4. Present the test plan to the user for approval/modifications.
 
-### Step 4b: Test Implementation
+### Step 2: Test Implementation
 
 1. Create `tests/` directory if it doesn't exist.
 2. Write test code using `pytest`:
@@ -57,7 +57,7 @@ mcp__gemini-cli__ask-gemini(
 3. Run tests with `uv run pytest tests/ -v` and report results.
 4. Fix any failing tests (or flag them for user attention if the fix isn't clear).
 
-### Step 4c: Visualization
+### Step 3: Visualization
 
 1. Create `plots/` directory if it doesn't exist.
 2. Generate visualizations using matplotlib + scienceplots:
@@ -86,11 +86,11 @@ plt.style.use(['science', 'nature'])
    - [ ] Color-blind friendly palette (scienceplots default handles this)
    - [ ] Saved as both PNG and PDF
 
-### Step 4d: Plot Manifest Generation
+### Step 4: Plot Manifest Generation
 
 After all plots are generated, create `plots/plot_manifest.json` — a structured registry of every plot for use by the report phase.
 
-1. For **each** plot generated in Step 4c, collect the following metadata:
+1. For **each** plot generated in Step 3, collect the following metadata:
    ```json
    {
      "plot_id": "descriptive_snake_case_name",
@@ -127,11 +127,43 @@ After all plots are generated, create `plots/plot_manifest.json` — a structure
    - Second sentence: key observation (e.g., "The proposed method converges 2.3x faster than the baseline.")
    - Third sentence (optional): implication or context.
 
-### Step 5: Summary
+### Step 5: Phase Gate
+
+Before presenting to the user, execute a lightweight quality checkpoint:
+
+1. **Self-assessment**: Evaluate the test and visualization outputs against the following checklist and assign a confidence level (`High`, `Medium`, or `Low`):
+
+| Checklist Item | Criteria |
+|:---------------|:---------|
+| Coverage adequacy | Key functions and components have corresponding tests; no major gaps |
+| Edge case handling | Boundary conditions, degenerate inputs, and error paths are tested |
+| Visualization quality | Plots follow scienceplots style, axes labeled, legends present, saved as PNG+PDF |
+| Result reproducibility | Tests are deterministic or use fixed seeds; results are consistent across runs |
+
+2. **Conditional MAGI mini-review** (if confidence is `Medium` or `Low`):
+   - Send the test results + plot summaries to Codex for a focused review targeting the low-scoring checklist items:
+   ```
+   mcp__codex-cli__ask-codex(
+     prompt: "Review these research tests and visualizations for coverage, edge cases, visualization quality, and reproducibility. Focus on: {low_scoring_items}\n\n{test_results_and_plot_summaries}"
+   )
+   ```
+
+3. **Go/No-Go synthesis**: Write a brief gate report with:
+   - Confidence level and justification
+   - Checklist scores (pass/partial/fail for each item)
+   - Issues found (if any) and applied fixes
+   - Go/No-Go decision
+
+4. Save to `tests/phase_gate.md`.
+
+> If the gate returns **No-Go**, fix the identified issues before presenting to the user. Maximum 1 fix iteration.
+
+### Step 6: Summary
 
 Present to the user:
 - Test results summary (passed/failed/skipped)
 - List of generated plots with descriptions
+- Phase gate result summary
 - Any issues found during testing
 - Suggestions for additional tests or visualizations
 
