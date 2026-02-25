@@ -22,7 +22,8 @@
   <a href="#why-magi">Why MAGI?</a> &bull;
   <a href="#features">Features</a> &bull;
   <a href="#usage">Usage</a> &bull;
-  <a href="#roadmap">Roadmap</a>
+  <a href="#roadmap">Roadmap</a> &bull;
+  <a href="CHANGELOG.md">Changelog</a>
 </p>
 
 ---
