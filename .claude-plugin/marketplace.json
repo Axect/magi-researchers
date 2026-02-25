@@ -9,7 +9,7 @@
       "name": "magi-researchers",
       "source": "./",
       "description": "Three AI models, one synthesis — multi-model research workflow for scientific domains",
-      "version": "0.2.3"
+      "version": "0.3.0"
     }
   ]
 }
