@@ -84,20 +84,29 @@ Single-model research has blind spots. One model hallucinates a citation or miss
 
 | Phase | What Happens | Output |
 |:---|:---|:---|
-| **1. Brainstorm** | Gemini + Codex independently generate ideas, then cross-review | 5 brainstorm documents |
-| **2. Plan** | Claude synthesizes into a concrete research plan | `research_plan.md` |
-| **3. Implement** | Claude writes code with Context7 library lookups | `src/` |
+| **1. Brainstorm** | Three models generate and cross-review ideas with expert personas | `brainstorm/` |
+| **2. Plan** | Concrete research plan, stress-tested by a hostile reviewer | `plan/` |
+| **3. Implement** | Claude writes code with live library doc lookups | `src/` |
 | **4. Test & Visualize** | Collaborative test design + publication-quality plots | `tests/` + `plots/` |
-| **5. Report** | Manifest-driven report with MAGI traceability review | `report.md` |
+| **5. Report** | Structured report with cross-verified claim-evidence integrity | `report.md` |
 
-### Key Capabilities
+### New in v0.3.0
 
-- **Publication-quality plots** — `matplotlib` + `scienceplots` (`science` + `nature` themes), saved as PNG (300 dpi) + vector PDF
-- **LaTeX math formatting** — Proper inline `$...$` and display equations in all output documents
-- **Report gap detection** — Identifies claims without supporting figures, generates new plots on the fly
-- **MAGI traceability review** — All three models cross-verify the final report for orphaned claims/plots
+- **Weighted direction scoring** — Rank research ideas by novelty, feasibility, impact, rigor, and scalability with domain-tuned or custom weights
+- **Dynamic persona casting** — Each model gets a topic-specific expert identity (e.g., *"Bayesian statistician with causal inference expertise"*), sharpening ideation
+- **Adversarial debate** — At `--depth high`, models defend, concede, or revise on their top disagreements before synthesis
+- **Murder board** — Gemini attacks the research plan as a hostile reviewer; Claude documents mitigations for every flaw found
+- **Phase gates** — Automated quality checkpoints with conditional MAGI mini-review before each user approval step
+- **Depth control** — `--depth low` for fast/cheap runs, `medium` (default) for standard review, `high` for full adversarial analysis
+
+### Core Capabilities
+
+- **Publication-quality plots** — `matplotlib` + `scienceplots` (Nature theme), PNG 300 dpi + vector PDF
+- **MAGI traceability review** — All three models cross-verify the final report for orphaned claims and figures
+- **Report gap detection** — Auto-generates missing visualizations from existing data
 - **Domain templates** — Built-in context for Physics, AI/ML, Statistics, Mathematics, and Paper Writing
 - **Journal strategy** — Venue recommendations for [Physics](docs/journal-strategies.md#particle-physics-phenomenology), [AI/ML](docs/journal-strategies.md#aiml-conferences--journals), and [Interdisciplinary](docs/journal-strategies.md#interdisciplinary-science-ml--natural-sciences) research
+- **LaTeX math** — Proper inline and display equations across all outputs
 
 <details>
 <summary><strong>Under the hood</strong></summary>
@@ -105,6 +114,7 @@ Single-model research has blind spots. One model hallucinates a citation or miss
 - **Plot manifest** — Structured `plot_manifest.json` with metadata, section hints, and captions for automated report integration
 - **Gemini fallback chain** — Resilient 3-tier model fallback: `gemini-3.1-pro-preview` → `gemini-3-pro-preview` → `gemini-2.5-pro`
 - **Cross-phase artifact contracts** — Each phase validates incoming artifacts before running
+- **Depth-controlled token budget** — `--depth low` skips cross-review for fast/cheap runs; `--depth high` enables full adversarial debate
 
 </details>
 
@@ -118,17 +128,60 @@ Single-model research has blind spots. One model hallucinates a citation or miss
 | `/magi-researchers:research-test` | Testing & visualization |
 | `/magi-researchers:research-report` | Report generation |
 
+### Flags
+
+| Flag | Values | Default | Description |
+|:---|:---|:---|:---|
+| `--domain` | `physics` `ai_ml` `statistics` `mathematics` `paper` | auto-inferred | Research domain for context and weight defaults |
+| `--weights` | JSON object | domain default | Custom scoring weights (keys: `novelty`, `feasibility`, `impact`, `rigor`, `scalability`) |
+| `--depth` | `low` `medium` `high` | `medium` | Review thoroughness — controls cross-review and adversarial debate |
+
+```bash
+# Quick brainstorm with default settings
+/magi-researchers:research "neural ODE solvers for stiff systems" --domain physics
+
+# Deep analysis with custom weights and adversarial debate
+/magi-researchers:research "causal inference in observational studies" --domain statistics --depth high --weights '{"novelty":0.2,"rigor":0.4,"feasibility":0.2,"impact":0.15,"scalability":0.05}'
+
+# Fast ideation only (no cross-review, lowest cost)
+/magi-researchers:research-brainstorm "transformer alternatives for long sequences" --domain ai_ml --depth low
+```
+
 ### Output Structure
 
 ```
 outputs/{topic_YYYYMMDD_vN}/
-├── brainstorm/          # 5 cross-verified brainstorm documents
-├── plan/                # Research plan
-├── src/                 # Implementation
-├── tests/               # Test suite
-├── plots/               # PNG + PDF + plot_manifest.json
-└── report.md            # Final structured report
+├── brainstorm/       # Personas, ideas, cross-reviews, debate, synthesis
+├── plan/             # Research plan, murder board, mitigations, phase gate
+├── src/              # Implementation
+├── tests/            # Test suite
+├── plots/            # PNG + PDF + plot_manifest.json
+└── report.md         # Final structured report
 ```
+
+<details>
+<summary><strong>Full artifact tree</strong></summary>
+
+```
+brainstorm/
+├── weights.json              # Scoring weights
+├── personas.md               # Expert personas
+├── gemini_ideas.md           # Gemini brainstorm
+├── codex_ideas.md            # Codex brainstorm
+├── gemini_review_of_codex.md # Cross-review (depth ≥ medium)
+├── codex_review_of_gemini.md # Cross-review (depth ≥ medium)
+├── debate_round2_gemini.md   # Adversarial debate (depth = high)
+├── debate_round2_codex.md    # Adversarial debate (depth = high)
+└── synthesis.md              # Weighted synthesis
+
+plan/
+├── research_plan.md          # Research plan
+├── murder_board.md           # Plan stress-test
+├── mitigations.md            # Flaw mitigations
+└── phase_gate.md             # Plan quality gate
+```
+
+</details>
 
 <details>
 <summary><strong>Recommended Permissions</strong></summary>
@@ -160,13 +213,14 @@ Add to `.claude/settings.local.json`:
 
 ## Roadmap
 
-- [x] Multi-model brainstorming with cross-verification
-- [x] Domain templates & journal strategy templates
-- [x] Plot manifest, report gap detection & MAGI traceability review
-- [x] LaTeX math formatting & Gemini fallback chain
-- [ ] Example artifact gallery
-- [ ] Terminal demo GIF
+**Shipped:**&ensp; Multi-model brainstorming & cross-verification &bull; Domain & journal strategy templates &bull; Plot manifest & gap detection &bull; MAGI traceability review &bull; LaTeX math & Gemini fallback chain &bull; Weighted scoring & dynamic personas &bull; Adversarial debate &bull; Murder board & phase gates &bull; Depth-controlled token budget
+
+**Up next:**
+- [ ] Example artifact gallery — real research outputs to showcase the pipeline
+- [ ] Terminal demo GIF — one-command walkthrough
 - [ ] More domain & journal strategy templates
+- [ ] Session resume — pick up interrupted pipelines mid-phase
+- [ ] Cost estimation — token budget preview before execution
 
 ## Contributing
 

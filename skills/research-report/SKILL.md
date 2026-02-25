@@ -25,9 +25,18 @@ Generates a structured markdown research report from all previous phase outputs.
 1. Find the active research output directory.
 2. Inventory available materials by checking for:
    - `brainstorm/synthesis.md` (and other brainstorm files)
+   - `brainstorm/weights.json` (scoring weights)
+   - `brainstorm/personas.md` (assigned expert personas)
+   - `brainstorm/debate_round2_gemini.md` (adversarial debate, if `--depth high` was used)
+   - `brainstorm/debate_round2_codex.md` (adversarial debate, if `--depth high` was used)
    - `plan/research_plan.md`
+   - `plan/murder_board.md` (plan stress-testing results)
+   - `plan/mitigations.md` (murder board mitigations)
+   - `plan/phase_gate.md` (plan phase gate report)
    - `src/` contents
+   - `src/phase_gate.md` (implementation phase gate report, if exists)
    - `tests/` and test results
+   - `tests/phase_gate.md` (test phase gate report, if exists)
    - `plots/` visualizations
 3. **Read the plot manifest** (`plots/plot_manifest.json`):
    - If the manifest exists, parse it as the primary source of plot information.
@@ -43,9 +52,17 @@ Generates a structured markdown research report from all previous phase outputs.
 
 Read all available materials:
 - `brainstorm/synthesis.md` — for Research Background and Brainstorming Summary sections
+- `brainstorm/weights.json` — for Brainstorming Summary (scoring weights used)
+- `brainstorm/personas.md` — for Brainstorming Summary (expert personas assigned)
+- `brainstorm/debate_round2_*.md` — for Brainstorming Summary (debate resolution, if available)
 - `plan/research_plan.md` — for Methodology section
+- `plan/murder_board.md` — for Methodology section (Plan Stress Testing subsection)
+- `plan/mitigations.md` — for Methodology section (mitigation strategies)
+- `plan/phase_gate.md` — for Appendix F (Quality Assurance)
 - All files in `src/` — for Implementation section
+- `src/phase_gate.md` — for Appendix F (if exists)
 - Test results and `tests/` — for Testing section
+- `tests/phase_gate.md` — for Appendix F (if exists)
 - `plots/plot_manifest.json` — for Results & Visualization section
 
 **Plot-to-Section Mapping:**
@@ -67,13 +84,17 @@ Using the template structure from `${CLAUDE_PLUGIN_ROOT}/templates/report_templa
 
 **Section 2 — Brainstorming Summary:**
 - Key ideas generated during brainstorming
+- **Expert Personas**: Summarize the Gemini and Codex personas assigned and their influence on ideation (from `personas.md`)
+- **Scoring Weights**: Show the weights used for direction ranking (from `weights.json`)
 - Notable points from cross-check reviews
-- Final chosen direction and rationale
+- **Debate Resolution** (if `debate_round2_*.md` exists): Summarize key disagreements and their resolutions
+- Final chosen direction and rationale (with weighted score breakdown)
 
 **Section 3 — Methodology:**
 - Approach description from the research plan
 - Key algorithms or techniques used
 - Assumptions and their justifications
+- **Plan Stress Testing** (if `murder_board.md` exists): Summarize the murder board's critical findings and the mitigations applied (from `mitigations.md`). This demonstrates that the methodology was adversarially tested before implementation.
 - Embed any `methodology`-tagged plots here with their captions
 
 **Section 4 — Implementation:**

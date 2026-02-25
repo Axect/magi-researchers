@@ -63,3 +63,16 @@
 
 ### D. Test Code
 - [Test Directory](tests/)
+
+### E. MAGI Process Artifacts
+- [Scoring Weights](brainstorm/weights.json)
+- [Expert Personas](brainstorm/personas.md)
+- [Gemini Debate Round 2](brainstorm/debate_round2_gemini.md) *(if `--depth high`)*
+- [Codex Debate Round 2](brainstorm/debate_round2_codex.md) *(if `--depth high`)*
+
+### F. Quality Assurance
+- [Murder Board](plan/murder_board.md)
+- [Mitigations](plan/mitigations.md)
+- [Plan Phase Gate](plan/phase_gate.md)
+- [Implementation Phase Gate](src/phase_gate.md) *(if available)*
+- [Test Phase Gate](tests/phase_gate.md) *(if available)*
