@@ -5,22 +5,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-## [0.5.0] — 2026-02-26
-
-First example artifact gallery — a blind evaluation case study comparing MAGI against single-model baselines.
-
-### Added
-- **Damped oscillator case study** — Blind evaluation comparing MAGI vs Claude, Gemini, and Codex on a physics equation discovery problem (`examples/damped_oscillator_comparison/`)
-- Identical prompt, all raw outputs, anonymized blind version, full MAGI synthesis with debate traces
-- **Evaluation report** with experiment nutrition label, environment/baselines table, scoring breakdown, limitations & threats to validity, and reproducibility guide
-- **README case study section** — Hero funnel with results table and collapsible experiment details after "Why MAGI?"
-- README top navigation updated with "Case Study" link
-
-### Changed
-- Roadmap: "Example artifact gallery" marked as shipped
-
----
-
 ## [0.4.0] — 2026-02-25
 
 A stabilization release focused on pipeline resilience, session resume, and quality gate standardization.
@@ -113,7 +97,6 @@ Initial release.
 
 ---
 
-[0.5.0]: https://github.com/Axect/magi-researchers/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Axect/magi-researchers/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Axect/magi-researchers/compare/v0.2.3...v0.3.0
 [0.2.3]: https://github.com/Axect/magi-researchers/compare/v0.2.2...v0.2.3
