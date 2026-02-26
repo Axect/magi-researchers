@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="MAGI.drawio.png" width="600" alt="MAGI Architecture" />
+  <img src="MAGI.drawio.png" width="600" alt="MAGI Architecture: Claude, Gemini, and Codex orchestrating cross-verified research through brainstorm, plan, implement, test, and report phases" />
 </p>
 
 <h1 align="center">MAGI Researchers</h1>
 
 <p align="center">
   <strong>Three AI models. One synthesis. Zero lost progress.</strong><br/>
-  <em>Multi-model research pipeline for Claude Code — orchestrating Claude, Gemini, and Codex</em>
+  <em>Multi-model research pipeline for Claude Code — Claude, Gemini, and Codex debate, cross-verify, and synthesize publication-ready artifacts.</em>
 </p>
 
 <p align="center">
@@ -32,7 +32,7 @@
 
 ## Get Started
 
-**Prerequisites:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code) + Python 3.11+ with [uv](https://docs.astral.sh/uv/)
+**Prerequisites:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code) + Python 3.11+ with [uv](https://docs.astral.sh/uv/) + [Gemini CLI](https://github.com/google-gemini/gemini-cli) + [Codex CLI](https://github.com/openai/codex)
 
 **1. Install the plugin** (inside Claude Code):
 ```
@@ -75,9 +75,9 @@ Single-model research has blind spots. One model hallucinates a citation or miss
 | **Blind spots** | Undetected | Caught by competing models |
 | **Output** | Raw text | Structured report with consensus & divergence analysis |
 
-- **Claude (MELCHIOR)** — *The Scientist.* Synthesis, planning, implementation, report generation.
-- **Gemini (BALTHASAR)** — *The Critic.* Creative brainstorming, cross-verification, broad knowledge.
-- **Codex (CASPER)** — *The Builder.* Feasibility analysis, code review, implementation focus.
+- **Claude** — *The Scientist.* Synthesis, planning, implementation, report generation.
+- **Gemini** — *The Critic.* Creative brainstorming, cross-verification, broad knowledge.
+- **Codex** — *The Builder.* Feasibility analysis, code review, implementation focus.
 
 ## Features
 
@@ -159,6 +159,8 @@ Long research sessions crash. Context windows expire. Networks drop. Now you can
 # Fast ideation only (no cross-review, lowest cost)
 /magi-researchers:research-brainstorm "transformer alternatives for long sequences" --domain ai_ml --depth low
 ```
+
+> If MAGI saves you research time, consider leaving a [star](https://github.com/Axect/magi-researchers/stargazers) so other researchers can find it.
 
 ### Output Structure
 
