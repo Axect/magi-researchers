@@ -20,6 +20,7 @@
 <p align="center">
   <a href="#get-started">Get Started</a> &bull;
   <a href="#why-magi">Why MAGI?</a> &bull;
+  <a href="#case-study-damped-oscillator-equation-discovery">Case Study</a> &bull;
   <a href="#features">Features</a> &bull;
   <a href="#usage">Usage</a> &bull;
   <a href="#roadmap">Roadmap</a> &bull;
@@ -78,6 +79,29 @@ Single-model research has blind spots. One model hallucinates a citation or miss
 - **Claude** — *The Scientist.* Synthesis, planning, implementation, report generation.
 - **Gemini** — *The Critic.* Creative brainstorming, cross-verification, broad knowledge.
 - **Codex** — *The Builder.* Feasibility analysis, code review, implementation focus.
+
+### Case Study: Damped Oscillator Equation Discovery
+
+We gave all three single models and MAGI the same physics problem: *discover an unknown damping function from noisy sensor data*. No single model proposed combining classical diagnostics with modern ML — only MAGI's cross-verification caught that gap.
+
+| Source | Score | Highlight |
+|:-------|------:|:----------|
+| **MAGI** | **90** | Staged pipeline: rapid diagnostics → symbolic discovery → validation → fallback |
+| Claude | 84 | Best code coverage — runnable snippets for every approach |
+| Codex | 80 | Elegant physics-informed neural ODE constraints |
+| Gemini | 67 | Most accessible for general audience |
+
+<details>
+<summary><strong>Experiment details</strong></summary>
+
+- **Task:** Discover $f(\dot{x})$ in $m\ddot{x} + f(\dot{x}) + kx = 0$ from noisy displacement data
+- **Setup:** Identical prompt → 4 sources → anonymized blind evaluation via MAGI
+- **Evaluation:** Two MAGI evaluator personas scored, cross-reviewed, and debated before synthesis
+- **Limitations:** N=1 case study, self-evaluation (MAGI evaluated MAGI), ~7:1 compute ratio
+- **Full report:** [`examples/damped_oscillator_comparison/evaluation_report.md`](examples/damped_oscillator_comparison/evaluation_report.md)
+- **Raw outputs:** [`examples/damped_oscillator_comparison/`](examples/damped_oscillator_comparison/)
+
+</details>
 
 ## Features
 
@@ -241,7 +265,7 @@ Add to `.claude/settings.local.json`:
 **Shipped:**&ensp; Multi-model brainstorming & cross-verification &bull; Domain & journal strategy templates &bull; Plot manifest & gap detection &bull; MAGI traceability review &bull; LaTeX math & Gemini fallback chain &bull; Weighted scoring & dynamic personas &bull; Adversarial debate &bull; Murder board & phase gates &bull; Depth-controlled token budget &bull; Session resume (`--resume`) &bull; Artifact contract validation &bull; Standalone phase gates for all sub-skills
 
 **Up next:**
-- [ ] Example artifact gallery — real research outputs to showcase the pipeline
+- [x] Example artifact gallery — real research outputs to showcase the pipeline
 - [ ] Terminal demo GIF — one-command walkthrough
 - [ ] More domain & journal strategy templates
 - [ ] Ubiquitous Context7 — live doc lookups during testing and report writing, not just implementation
