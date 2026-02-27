@@ -19,6 +19,8 @@ Creates tests for research code and generates publication-quality visualizations
   2. `model: "gemini-3-pro-preview"` (fallback)
   3. `model: "gemini-2.5-pro"` (last resort)
 - **Visualization**: Use `matplotlib` with `scienceplots` (`['science', 'nature']` style). Save plots as PNG (300 dpi) and PDF.
+- **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@plan/research_plan.md`)
+  instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
 
 ### Step 0: Locate Implementation
 
@@ -34,7 +36,7 @@ Creates tests for research code and generates publication-quality visualizations
 2. Consult Gemini for test suggestions:
 ```
 mcp__gemini-cli__ask-gemini(
-  prompt: "Given the following research implementation, suggest comprehensive test cases. Include unit tests, integration tests, and validation tests against known results.\n\n{code summary and key functions}",
+  prompt: "Given the following research plan and implementation, suggest comprehensive test cases. Include unit tests, integration tests, and validation tests against known results.\n\nResearch plan:\n@{output_dir}/plan/research_plan.md\n\nSource files:\n@{output_dir}/src/*.py",
   model: "gemini-3.1-pro-preview"  // fallback: "gemini-3-pro-preview" → "gemini-2.5-pro"
 )
 ```
@@ -144,7 +146,7 @@ Before presenting to the user, execute a lightweight quality checkpoint:
    - Send the test results + plot summaries to Codex for a focused review targeting the low-scoring checklist items:
    ```
    mcp__codex-cli__ask-codex(
-     prompt: "Review these research tests and visualizations for coverage, edge cases, visualization quality, and reproducibility. Focus on: {low_scoring_items}\n\n{test_results_and_plot_summaries}"
+     prompt: "Review these research tests and visualizations for coverage, edge cases, visualization quality, and reproducibility. Focus on: {low_scoring_items}\n\n@{output_dir}/plots/plot_manifest.json\n@{output_dir}/tests/test_*.py"
    )
    ```
 

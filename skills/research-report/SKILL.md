@@ -19,6 +19,8 @@ Generates a structured markdown research report from all previous phase outputs.
   2. `model: "gemini-3-pro-preview"` (fallback)
   3. `model: "gemini-2.5-pro"` (last resort)
 - **Visualization**: Use `matplotlib` with `scienceplots` (`['science', 'nature']` style). Save plots as PNG (300 dpi) and PDF.
+- **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@report.md`)
+  instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
 
 ### Step 0: Gather Materials & Health Check
 
@@ -164,7 +166,7 @@ Execute these two review calls **simultaneously** (in the same message):
 **Gemini (BALTHASAR) — Scientific Rigor Review:**
 ```
 mcp__gemini-cli__ask-gemini(
-  prompt: "You are a scientific reviewer. Analyze this research report for claim-evidence integrity. Identify:\n\n1. **Orphaned claims**: Text assertions that lack a supporting figure, table, or data reference\n2. **Orphaned plots**: Figures that are embedded but never discussed or interpreted in the text\n3. **Weak links**: Claims that reference a figure but the figure doesn't clearly support the claim\n4. **Caption quality**: Are figure captions precise, quantitative, and publication-ready?\n\nFor each issue found, specify the section, the problematic text or figure, and a concrete fix.\n\nReport draft:\n{report_content}\n\nPlot manifest:\n{manifest_content}",
+  prompt: "You are a scientific reviewer. Analyze this research report for claim-evidence integrity. Identify:\n\n1. **Orphaned claims**: Text assertions that lack a supporting figure, table, or data reference\n2. **Orphaned plots**: Figures that are embedded but never discussed or interpreted in the text\n3. **Weak links**: Claims that reference a figure but the figure doesn't clearly support the claim\n4. **Caption quality**: Are figure captions precise, quantitative, and publication-ready?\n\nFor each issue found, specify the section, the problematic text or figure, and a concrete fix.\n\nReport draft:\n@{output_dir}/report.md\n\nPlot manifest:\n@{output_dir}/plots/plot_manifest.json",
   model: "gemini-3.1-pro-preview"  // fallback: "gemini-3-pro-preview" → "gemini-2.5-pro"
 )
 ```
@@ -172,7 +174,7 @@ mcp__gemini-cli__ask-gemini(
 **Codex (CASPER) — Visualization Quality Review:**
 ```
 mcp__codex-cli__ask-codex(
-  prompt: "You are a data visualization reviewer. Analyze this research report for visualization quality and completeness. Identify:\n\n1. **Missing visualizations**: Quantitative results or comparisons described in text that would benefit from a chart/plot but have none\n2. **Plot-narrative mismatch**: Figures whose captions or surrounding text don't accurately describe what the plot shows\n3. **Visualization improvements**: Existing plots that could use better chart types, scales, or encodings for clarity\n4. **Reproducibility gaps**: Plots that lack source context or data references needed to regenerate them\n\nFor each issue found, specify the section, the problematic text or figure, and a concrete fix.\n\nReport draft:\n{report_content}\n\nPlot manifest:\n{manifest_content}"
+  prompt: "You are a data visualization reviewer. Analyze this research report for visualization quality and completeness. Identify:\n\n1. **Missing visualizations**: Quantitative results or comparisons described in text that would benefit from a chart/plot but have none\n2. **Plot-narrative mismatch**: Figures whose captions or surrounding text don't accurately describe what the plot shows\n3. **Visualization improvements**: Existing plots that could use better chart types, scales, or encodings for clarity\n4. **Reproducibility gaps**: Plots that lack source context or data references needed to regenerate them\n\nFor each issue found, specify the section, the problematic text or figure, and a concrete fix.\n\nReport draft:\n@{output_dir}/report.md\n\nPlot manifest:\n@{output_dir}/plots/plot_manifest.json"
 )
 ```
 

@@ -27,6 +27,8 @@ Generates and cross-validates research ideas using Gemini and Codex in parallel,
   2. `model: "gemini-3-pro-preview"` (fallback)
   3. `model: "gemini-2.5-pro"` (last resort)
 - **Codex**: Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review.
+- **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@brainstorm/codex_ideas.md`)
+  instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
 
 ### LaTeX Formatting Rules
 When writing mathematical expressions in any output document (brainstorm ideas, synthesis, etc.):
@@ -100,27 +102,27 @@ Execute these two calls **simultaneously** (in the same message). **Prepend the 
 **Gemini Brainstorming:**
 ```
 mcp__gemini-cli__brainstorm(
-  prompt: "[Persona: {gemini_persona_name} — {gemini_persona_expertise}]\nGuiding question: {gemini_guiding_question}\n\n{topic} — Generate diverse, creative research ideas. Consider theoretical foundations, practical applications, novel approaches, and potential breakthroughs.",
+  prompt: "[Persona: {gemini_persona_name} — {gemini_persona_expertise}]\nGuiding question: {gemini_guiding_question}\n\nDomain context: @{domain_template_path}\n\n{topic} — Generate diverse, creative research ideas. Consider theoretical foundations, practical applications, novel approaches, and potential breakthroughs.",
   model: "gemini-3.1-pro-preview",  // fallback: "gemini-3-pro-preview" → "gemini-2.5-pro"
   domain: "{domain}",
   methodology: "auto",
   ideaCount: 12,
-  includeAnalysis: true,
-  existingContext: "{domain template content if available}"
+  includeAnalysis: true
 )
 ```
+> Note: Omit the `Domain context: @{domain_template_path}` line from the prompt when no domain template exists.
 
 **Codex Brainstorming:**
 ```
 mcp__codex-cli__brainstorm(
-  prompt: "[Persona: {codex_persona_name} — {codex_persona_expertise}]\nGuiding question: {codex_guiding_question}\n\n{topic} — Generate implementation-focused research ideas. Consider feasibility, existing tools/libraries, computational requirements, and step-by-step approaches.",
+  prompt: "[Persona: {codex_persona_name} — {codex_persona_expertise}]\nGuiding question: {codex_guiding_question}\n\nDomain context: @{domain_template_path}\n\n{topic} — Generate implementation-focused research ideas. Consider feasibility, existing tools/libraries, computational requirements, and step-by-step approaches.",
   domain: "{domain}",
   methodology: "auto",
   ideaCount: 12,
-  includeAnalysis: true,
-  existingContext: "{domain template content if available}"
+  includeAnalysis: true
 )
 ```
+> Note: Omit the `Domain context: @{domain_template_path}` line from the prompt when no domain template exists.
 
 > Note: If Codex MCP is unavailable, fall back to `mcp__gemini-cli__brainstorm` with the Gemini fallback chain and implementation-focused framing.
 
@@ -137,7 +139,7 @@ After both brainstorming results are saved, execute these two calls **simultaneo
 **Gemini reviews Codex ideas (Round 1):**
 ```
 mcp__gemini-cli__ask-gemini(
-  prompt: "[Persona: {gemini_persona_name} — {gemini_persona_expertise}]\n\nReview the following research ideas for technical feasibility, scientific rigor, novelty, and potential impact. Identify strengths, weaknesses, and suggest improvements for each idea.\n\n{codex_ideas content}",
+  prompt: "[Persona: {gemini_persona_name} — {gemini_persona_expertise}]\n\nReview the following research ideas for technical feasibility, scientific rigor, novelty, and potential impact. Identify strengths, weaknesses, and suggest improvements for each idea.\n\n@{output_dir}/brainstorm/codex_ideas.md",
   model: "gemini-3.1-pro-preview"  // fallback: "gemini-3-pro-preview" → "gemini-2.5-pro"
 )
 ```
@@ -145,7 +147,7 @@ mcp__gemini-cli__ask-gemini(
 **Codex reviews Gemini ideas (Round 1):**
 ```
 mcp__codex-cli__ask-codex(
-  prompt: "[Persona: {codex_persona_name} — {codex_persona_expertise}]\n\nReview the following research ideas for implementation feasibility, computational practicality, available tools/datasets, and timeline realism. Identify strengths, weaknesses, and suggest improvements for each idea.\n\n{gemini_ideas content}"
+  prompt: "[Persona: {codex_persona_name} — {codex_persona_expertise}]\n\nReview the following research ideas for implementation feasibility, computational practicality, available tools/datasets, and timeline realism. Identify strengths, weaknesses, and suggest improvements for each idea.\n\n@{output_dir}/brainstorm/gemini_ideas.md"
 )
 ```
 
@@ -159,14 +161,14 @@ Save results to:
 
 > **If `--depth low` or `--depth medium`**: Skip this step entirely.
 
-After Round 1 cross-review, Claude identifies the **top 3 points of disagreement** between Gemini and Codex (e.g., conflicting feasibility assessments, divergent novelty ratings, opposing recommendations).
+After Round 1 cross-review, Claude identifies the **top 3 points of disagreement** between Gemini and Codex (e.g., conflicting feasibility assessments, divergent novelty ratings, opposing recommendations). **Save the disagreement summary to `brainstorm/disagreements.md`** before the debate calls.
 
 Execute Round 2 **simultaneously**:
 
 **Gemini Round 2 — Defend/Concede/Revise:**
 ```
 mcp__gemini-cli__ask-gemini(
-  prompt: "[Persona: {gemini_persona_name}]\n\nYou reviewed Codex's ideas and Codex reviewed yours. Here are the top 3 points of disagreement:\n\n{disagreement_summary}\n\nFor each disagreement:\n1. **Defend** your position if you believe it is correct, providing additional evidence or reasoning\n2. **Concede** if the opposing argument is stronger, explaining why\n3. **Revise** your assessment to a new position if appropriate\n\nYour original review:\n{gemini_review_of_codex}\n\nCodex's review of your ideas:\n{codex_review_of_gemini}",
+  prompt: "[Persona: {gemini_persona_name}]\n\nYou reviewed Codex's ideas and Codex reviewed yours. Here are the top 3 points of disagreement:\n\n@{output_dir}/brainstorm/disagreements.md\n\nFor each disagreement:\n1. **Defend** your position if you believe it is correct, providing additional evidence or reasoning\n2. **Concede** if the opposing argument is stronger, explaining why\n3. **Revise** your assessment to a new position if appropriate\n\nYour original review:\n@{output_dir}/brainstorm/gemini_review_of_codex.md\n\nCodex's review of your ideas:\n@{output_dir}/brainstorm/codex_review_of_gemini.md",
   model: "gemini-3.1-pro-preview"  // fallback chain applies
 )
 ```
@@ -174,7 +176,7 @@ mcp__gemini-cli__ask-gemini(
 **Codex Round 2 — Defend/Concede/Revise:**
 ```
 mcp__codex-cli__ask-codex(
-  prompt: "[Persona: {codex_persona_name}]\n\nYou reviewed Gemini's ideas and Gemini reviewed yours. Here are the top 3 points of disagreement:\n\n{disagreement_summary}\n\nFor each disagreement:\n1. **Defend** your position if you believe it is correct, providing additional evidence or reasoning\n2. **Concede** if the opposing argument is stronger, explaining why\n3. **Revise** your assessment to a new position if appropriate\n\nYour original review:\n{codex_review_of_gemini}\n\nGemini's review of your ideas:\n{gemini_review_of_codex}"
+  prompt: "[Persona: {codex_persona_name}]\n\nYou reviewed Gemini's ideas and Gemini reviewed yours. Here are the top 3 points of disagreement:\n\n@{output_dir}/brainstorm/disagreements.md\n\nFor each disagreement:\n1. **Defend** your position if you believe it is correct, providing additional evidence or reasoning\n2. **Concede** if the opposing argument is stronger, explaining why\n3. **Revise** your assessment to a new position if appropriate\n\nYour original review:\n@{output_dir}/brainstorm/codex_review_of_gemini.md\n\nGemini's review of your ideas:\n@{output_dir}/brainstorm/gemini_review_of_codex.md"
 )
 ```
 
@@ -198,8 +200,8 @@ Spawn **N Task subagents simultaneously** (one per persona, `subagent_type: gene
    **B. Codex Brainstorm** — Call `mcp__codex-cli__brainstorm` with the persona's viewpoint. Save to `brainstorm/persona_{i}/codex_ideas.md`.
 
    **C+D. Cross-Review (simultaneous):**
-   - Gemini reviews Codex ideas → `brainstorm/persona_{i}/gemini_review_of_codex.md`
-   - Codex reviews Gemini ideas → `brainstorm/persona_{i}/codex_review_of_gemini.md`
+   - Gemini reviews Codex ideas using `@{output_dir}/brainstorm/persona_{i}/codex_ideas.md` → save to `brainstorm/persona_{i}/gemini_review_of_codex.md`
+   - Codex reviews Gemini ideas using `@{output_dir}/brainstorm/persona_{i}/gemini_ideas.md` → save to `brainstorm/persona_{i}/codex_review_of_gemini.md`
 
    **E. Persona Conclusion** — The subagent synthesizes its top 3 research directions, noting areas of internal agreement and disagreement between the two models. Save to `brainstorm/persona_{i}/conclusion.md`.
 
@@ -224,7 +226,7 @@ Execute simultaneously:
 **Gemini Meta-Review:**
 ```
 mcp__gemini-cli__ask-gemini(
-  prompt: "You are reviewing the outputs of {N} domain-specialist research personas who independently analyzed: {topic}\n\nHere are their conclusions:\n{all N conclusion.md contents}\n\nProvide a meta-review covering:\n1. **Coverage analysis** — Which aspects of the research space are well-covered vs. underexplored?\n2. **Quality assessment** — Rate each persona's conclusions (depth, rigor, creativity) on a 1-10 scale\n3. **Cross-persona synthesis** — What emerges when combining all perspectives that no single persona captured?\n4. **Top 3 disagreements** — Identify the 3 most significant points where personas contradict each other, with specific quotes\n5. **Recommended directions** — Your top 5 research directions considering all perspectives",
+  prompt: "You are reviewing the outputs of {N} domain-specialist research personas who independently analyzed: {topic}\n\nHere are their conclusions:\n@{output_dir}/brainstorm/persona_1/conclusion.md\n@{output_dir}/brainstorm/persona_2/conclusion.md\n...(one @-reference per persona)\n\nProvide a meta-review covering:\n1. **Coverage analysis** — Which aspects of the research space are well-covered vs. underexplored?\n2. **Quality assessment** — Rate each persona's conclusions (depth, rigor, creativity) on a 1-10 scale\n3. **Cross-persona synthesis** — What emerges when combining all perspectives that no single persona captured?\n4. **Top 3 disagreements** — Identify the 3 most significant points where personas contradict each other, with specific quotes\n5. **Recommended directions** — Your top 5 research directions considering all perspectives",
   model: "gemini-3.1-pro-preview"  // fallback chain applies
 )
 ```
@@ -233,20 +235,20 @@ Save to `brainstorm/meta_review_gemini.md`.
 **Codex Meta-Review:**
 ```
 mcp__codex-cli__ask-codex(
-  prompt: "You are reviewing the outputs of {N} domain-specialist research personas who independently analyzed: {topic}\n\nHere are their conclusions:\n{all N conclusion.md contents}\n\nProvide a meta-review covering:\n1. **Coverage analysis** — Which aspects of the research space are well-covered vs. underexplored?\n2. **Quality assessment** — Rate each persona's conclusions (depth, rigor, creativity) on a 1-10 scale\n3. **Cross-persona synthesis** — What emerges when combining all perspectives that no single persona captured?\n4. **Top 3 disagreements** — Identify the 3 most significant points where personas contradict each other, with specific quotes\n5. **Recommended directions** — Your top 5 research directions considering all perspectives"
+  prompt: "You are reviewing the outputs of {N} domain-specialist research personas who independently analyzed: {topic}\n\nHere are their conclusions:\n@{output_dir}/brainstorm/persona_1/conclusion.md\n@{output_dir}/brainstorm/persona_2/conclusion.md\n...(one @-reference per persona)\n\nProvide a meta-review covering:\n1. **Coverage analysis** — Which aspects of the research space are well-covered vs. underexplored?\n2. **Quality assessment** — Rate each persona's conclusions (depth, rigor, creativity) on a 1-10 scale\n3. **Cross-persona synthesis** — What emerges when combining all perspectives that no single persona captured?\n4. **Top 3 disagreements** — Identify the 3 most significant points where personas contradict each other, with specific quotes\n5. **Recommended directions** — Your top 5 research directions considering all perspectives"
 )
 ```
 Save to `brainstorm/meta_review_codex.md`.
 
 **Phase B — Disagreement Extraction:**
 
-Claude reads both meta-reviews and extracts the **top 3 cross-persona disagreements** — prioritizing disagreements identified by both reviewers. For each disagreement, produce a structured summary: the claim, which personas support each side, and the core tension.
+Claude reads both meta-reviews and extracts the **top 3 cross-persona disagreements** — prioritizing disagreements identified by both reviewers. For each disagreement, produce a structured summary: the claim, which personas support each side, and the core tension. **Save the meta-disagreement summary to `brainstorm/meta_disagreements.md`** before the debate calls.
 
 **Phase C — Adversarial Debate (simultaneous):**
 
 ```
 mcp__gemini-cli__ask-gemini(
-  prompt: "[Meta-Reviewer]\n\nYou reviewed {N} persona conclusions and identified these top 3 disagreements:\n\n{disagreement_summary}\n\nCodex's meta-review highlighted:\n{codex_meta_review_summary}\n\nFor each disagreement:\n1. **Defend** your position with additional evidence or reasoning\n2. **Concede** if the opposing argument is stronger, explaining why\n3. **Revise** your assessment to a new synthesized position if appropriate",
+  prompt: "[Meta-Reviewer]\n\nYou reviewed {N} persona conclusions and identified these top 3 disagreements:\n\n@{output_dir}/brainstorm/meta_disagreements.md\n\nCodex's meta-review highlighted:\n@{output_dir}/brainstorm/meta_review_codex.md\n\nFor each disagreement:\n1. **Defend** your position with additional evidence or reasoning\n2. **Concede** if the opposing argument is stronger, explaining why\n3. **Revise** your assessment to a new synthesized position if appropriate",
   model: "gemini-3.1-pro-preview"  // fallback chain applies
 )
 ```
@@ -254,7 +256,7 @@ Save to `brainstorm/meta_debate_gemini.md`.
 
 ```
 mcp__codex-cli__ask-codex(
-  prompt: "[Meta-Reviewer]\n\nYou reviewed {N} persona conclusions and identified these top 3 disagreements:\n\n{disagreement_summary}\n\nGemini's meta-review highlighted:\n{gemini_meta_review_summary}\n\nFor each disagreement:\n1. **Defend** your position with additional evidence or reasoning\n2. **Concede** if the opposing argument is stronger, explaining why\n3. **Revise** your assessment to a new synthesized position if appropriate"
+  prompt: "[Meta-Reviewer]\n\nYou reviewed {N} persona conclusions and identified these top 3 disagreements:\n\n@{output_dir}/brainstorm/meta_disagreements.md\n\nGemini's meta-review highlighted:\n@{output_dir}/brainstorm/meta_review_gemini.md\n\nFor each disagreement:\n1. **Defend** your position with additional evidence or reasoning\n2. **Concede** if the opposing argument is stronger, explaining why\n3. **Revise** your assessment to a new synthesized position if appropriate"
 )
 ```
 Save to `brainstorm/meta_debate_codex.md`.
@@ -326,6 +328,7 @@ brainstorm/
 ├── codex_ideas.md                # Codex brainstorm output (always)
 ├── gemini_review_of_codex.md     # Cross-review (--depth medium|high)
 ├── codex_review_of_gemini.md     # Cross-review (--depth medium|high)
+├── disagreements.md              # Disagreement summary for debate (--depth high only)
 ├── debate_round2_gemini.md       # Adversarial debate (--depth high only)
 ├── debate_round2_codex.md        # Adversarial debate (--depth high only)
 └── synthesis.md                  # Claude synthesis (always)
@@ -348,6 +351,7 @@ brainstorm/
 │   └── ...
 ├── meta_review_gemini.md         # Gemini meta-review of all conclusions
 ├── meta_review_codex.md          # Codex meta-review of all conclusions
+├── meta_disagreements.md         # Meta-disagreement summary for debate
 ├── meta_debate_gemini.md         # Adversarial debate — Gemini
 ├── meta_debate_codex.md          # Adversarial debate — Codex
 └── synthesis.md                  # Enriched final synthesis

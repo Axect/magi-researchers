@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.5.1] — 2026-02-28
+
+Migrate all MCP tool calls to `@filepath` references for reliable artifact delivery.
+
+### Changed
+- All SKILL files updated to use `@filepath` references in MCP prompt parameters instead of inline `{content}` placeholders — prevents context truncation for large artifacts
+- Added "File References" rule to MCP Tool Rules section in all five SKILL files (`research-brainstorm`, `research`, `research-test`, `research-report`, `research-implement`)
+
+### Added
+- `brainstorm/disagreements.md` — persisted disagreement summary used by `--depth high` adversarial debate `@` references
+- `brainstorm/meta_disagreements.md` — persisted meta-disagreement summary used by `--depth max` meta-debate `@` references
+
+---
+
 ## [0.5.0] — 2026-02-28
 
 Hierarchical multi-persona brainstorming — N domain-specialist subagents debate in parallel, then converge through meta-review and adversarial synthesis.
@@ -123,6 +137,8 @@ Initial release.
 
 ---
 
+[0.5.1]: https://github.com/Axect/magi-researchers/compare/v0.5.0...v0.5.1
+[0.5.0]: https://github.com/Axect/magi-researchers/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Axect/magi-researchers/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Axect/magi-researchers/compare/v0.2.3...v0.3.0
 [0.2.3]: https://github.com/Axect/magi-researchers/compare/v0.2.2...v0.2.3
