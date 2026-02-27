@@ -15,6 +15,8 @@ Implements research code based on an existing research plan. Requires a `researc
 
 ### MCP Tool Rules
 - **Context7**: Use `mcp__plugin_context7_context7__query-docs` for library documentation lookups. Call `resolve-library-id` first to get the library ID.
+- **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@plan/research_plan.md`)
+  instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
 
 ### Step 0: Locate Research Plan
 
@@ -75,7 +77,7 @@ Before presenting to the user, execute a lightweight quality checkpoint:
    - Send the implementation summary + source code to Codex for a focused review targeting the low-scoring checklist items:
    ```
    mcp__codex-cli__ask-codex(
-     prompt: "Review this research implementation for correctness, plan alignment, error handling, and dependency management. Focus on: {low_scoring_items}\n\n{implementation_summary_and_code}"
+     prompt: "Review this research implementation for correctness, plan alignment, error handling, and dependency management. Focus on: {low_scoring_items}\n\n@{output_dir}/plan/research_plan.md\n@{output_dir}/src/*.py"
    )
    ```
 

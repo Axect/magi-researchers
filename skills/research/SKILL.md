@@ -28,6 +28,8 @@ Runs the complete research pipeline: Brainstorming → Planning → Implementati
   2. `model: "gemini-3-pro-preview"` (fallback)
   3. `model: "gemini-2.5-pro"` (last resort)
 - **Codex**: Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review.
+- **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@plan/research_plan.md`)
+  instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
 - **Context7**: Use `mcp__plugin_context7_context7__query-docs` for library documentation lookups during implementation.
 - **Visualization**: Use `matplotlib` with `scienceplots` (`['science', 'nature']` style). Save plots as PNG (300 dpi) and PDF.
 - **LaTeX**: Use LaTeX for all mathematical expressions in output documents. Inline: `$...$`. Display equations: `$$` on its own line with the equation on a separate line:
@@ -197,7 +199,7 @@ Submit the research plan to Gemini as a hostile reviewer to stress-test for crit
 
 ```
 mcp__gemini-cli__ask-gemini(
-  prompt: "You are a hostile but fair research reviewer. Your job is to find fatal flaws in this research plan — flaws that would cause the research to fail, produce invalid results, or waste significant effort.\n\nAttack the plan on these dimensions:\n1. **Methodological flaws**: Are there fundamental errors in the proposed approach?\n2. **Missing assumptions**: What unstated assumptions could invalidate results?\n3. **Scalability risks**: Will this approach break on realistic problem sizes?\n4. **Data/resource gaps**: Are required datasets, compute, or libraries actually available?\n5. **Novelty concerns**: Has this exact approach been tried and failed before?\n\nFor each flaw found, rate its severity (Critical/Major/Minor) and explain the likely failure mode.\n\nResearch Plan:\n{research_plan_content}",
+  prompt: "You are a hostile but fair research reviewer. Your job is to find fatal flaws in this research plan — flaws that would cause the research to fail, produce invalid results, or waste significant effort.\n\nAttack the plan on these dimensions:\n1. **Methodological flaws**: Are there fundamental errors in the proposed approach?\n2. **Missing assumptions**: What unstated assumptions could invalidate results?\n3. **Scalability risks**: Will this approach break on realistic problem sizes?\n4. **Data/resource gaps**: Are required datasets, compute, or libraries actually available?\n5. **Novelty concerns**: Has this exact approach been tried and failed before?\n\nFor each flaw found, rate its severity (Critical/Major/Minor) and explain the likely failure mode.\n\nResearch Plan:\n@{output_dir}/plan/research_plan.md",
   model: "gemini-3.1-pro-preview"  // fallback chain applies
 )
 ```
