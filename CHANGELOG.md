@@ -5,6 +5,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.5.0] — 2026-02-28
+
+Hierarchical multi-persona brainstorming — N domain-specialist subagents debate in parallel, then converge through meta-review and adversarial synthesis.
+
+### Added
+- **`--depth max`** — Three-layer MAGI-in-MAGI pipeline:
+  - **Layer 1**: N persona subagents run parallel mini-MAGI pipelines (Gemini brainstorm + Codex brainstorm + cross-review + conclusion)
+  - **Layer 2**: Gemini and Codex meta-review all N conclusions, Claude identifies top 3 cross-persona disagreements, adversarial debate (defend/concede/revise)
+  - **Layer 3**: Claude final synthesis with enriched structure — cross-persona consensus, unique contributions, debate resolution, emergent insights
+- **`--personas N`** flag — Number of Layer 1 subagents for `--depth max` (default: 3, range: 2-5)
+- Enriched `synthesis.md` structure for max depth with per-persona scoring, emergent insights, and MAGI process traceability
+- Per-persona output directories: `brainstorm/persona_{i}/` with 5 artifacts each
+- Meta-layer artifacts: `meta_review_*.md`, `meta_debate_*.md`
+
+### Changed
+- `--depth` flag accepts `max` as fourth option in `/research-brainstorm` and `/research`
+- Step 0b persona casting extended: `max` casts N domain-specific personas (not model-paired)
+- `/research` forwards `--personas` flag to brainstorm sub-skill
+
+### Unchanged
+- `low`, `medium`, `high` depth paths completely unmodified
+- All existing output locations and structures identical
+- Resume protocol, artifact contracts, phase gates unaffected
+
+---
+
 ## [0.4.0] — 2026-02-25
 
 A stabilization release focused on pipeline resilience, session resume, and quality gate standardization.
@@ -97,6 +123,7 @@ Initial release.
 
 ---
 
+[0.5.0]: https://github.com/Axect/magi-researchers/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Axect/magi-researchers/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Axect/magi-researchers/compare/v0.2.3...v0.3.0
 [0.2.3]: https://github.com/Axect/magi-researchers/compare/v0.2.2...v0.2.3
