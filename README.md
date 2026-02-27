@@ -157,6 +157,7 @@ Long research sessions crash. Context windows expire. Networks drop. Now you can
 - **Gemini fallback chain** — Resilient 3-tier model fallback: `gemini-3.1-pro-preview` → `gemini-3-pro-preview` → `gemini-2.5-pro`
 - **Cross-phase artifact contracts** — Each phase validates incoming artifacts before running (tool-based Glob/Read, not LLM guesswork)
 - **Depth-controlled token budget** — `--depth low` skips cross-review for fast/cheap runs; `--depth high` enables full adversarial debate
+- **`@filepath` artifact references** — MCP tool calls use `@filepath` syntax instead of inline content, so large artifacts are read directly from disk with zero truncation
 
 </details>
 
@@ -224,6 +225,7 @@ brainstorm/
 ├── codex_ideas.md            # Codex brainstorm
 ├── gemini_review_of_codex.md # Cross-review (depth ≥ medium)
 ├── codex_review_of_gemini.md # Cross-review (depth ≥ medium)
+├── disagreements.md          # Disagreement summary (depth = high)
 ├── debate_round2_gemini.md   # Adversarial debate (depth = high)
 ├── debate_round2_codex.md    # Adversarial debate (depth = high)
 └── synthesis.md              # Weighted synthesis
@@ -264,6 +266,7 @@ brainstorm/
 │   └── ...
 ├── meta_review_gemini.md     # Gemini meta-review of all conclusions
 ├── meta_review_codex.md      # Codex meta-review of all conclusions
+├── meta_disagreements.md     # Meta-disagreement summary
 ├── meta_debate_gemini.md     # Adversarial debate — Gemini
 ├── meta_debate_codex.md      # Adversarial debate — Codex
 └── synthesis.md              # Enriched final synthesis
@@ -301,7 +304,7 @@ Add to `.claude/settings.local.json`:
 
 ## Roadmap
 
-**Shipped:**&ensp; Multi-model brainstorming & cross-verification &bull; Domain & journal strategy templates &bull; Plot manifest & gap detection &bull; MAGI traceability review &bull; LaTeX math & Gemini fallback chain &bull; Weighted scoring & dynamic personas &bull; Adversarial debate &bull; Murder board & phase gates &bull; Depth-controlled token budget &bull; Session resume (`--resume`) &bull; Artifact contract validation &bull; Standalone phase gates for all sub-skills &bull; MAGI-in-MAGI hierarchical brainstorming
+**Shipped:**&ensp; Multi-model brainstorming & cross-verification &bull; Domain & journal strategy templates &bull; Plot manifest & gap detection &bull; MAGI traceability review &bull; LaTeX math & Gemini fallback chain &bull; Weighted scoring & dynamic personas &bull; Adversarial debate &bull; Murder board & phase gates &bull; Depth-controlled token budget &bull; Session resume (`--resume`) &bull; Artifact contract validation &bull; Standalone phase gates for all sub-skills &bull; MAGI-in-MAGI hierarchical brainstorming &bull; `@filepath` artifact references for zero-truncation MCP calls
 
 **Up next:**
 - [x] Example artifact gallery — real research outputs to showcase the pipeline
