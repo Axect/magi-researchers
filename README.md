@@ -115,6 +115,15 @@ We gave all three single models and MAGI the same physics problem: *discover an 
 | **4. Test & Visualize** | Collaborative test design + publication-quality plots | `tests/` + `plots/` |
 | **5. Report** | Structured report with cross-verified claim-evidence integrity | `report.md` |
 
+### MAGI-in-MAGI (v0.5.0)
+
+Two models aren't enough for deep, multi-faceted research questions. `--depth max` scales to N independent domain specialists:
+
+- **Hierarchical pipeline** — N persona subagents each run a full mini-MAGI brainstorm (Gemini + Codex + cross-review) in parallel, then a meta-layer synthesizes across all perspectives
+- **Adversarial meta-debate** — Gemini and Codex meta-review all N conclusions, Claude extracts the top 3 cross-persona disagreements, and a defend/concede/revise debate resolves them
+- **Enriched synthesis** — Final output includes cross-persona consensus, unique contributions, debate resolutions, emergent insights, and full MAGI process traceability
+- **`--personas N`** — Scale from 2 to 5 domain specialists (default: 3) covering theory, computation, empirics, application, and critique
+
 ### Never Lose Your Work (v0.4.0)
 
 Long research sessions crash. Context windows expire. Networks drop. Now you can pick up right where you left off:
@@ -167,7 +176,8 @@ Long research sessions crash. Context windows expire. Networks drop. Now you can
 |:---|:---|:---|:---|
 | `--domain` | `physics` `ai_ml` `statistics` `mathematics` `paper` | auto-inferred | Research domain for context and weight defaults |
 | `--weights` | JSON object | domain default | Custom scoring weights (keys: `novelty`, `feasibility`, `impact`, `rigor`, `scalability`) |
-| `--depth` | `low` `medium` `high` | `medium` | Review thoroughness — controls cross-review and adversarial debate |
+| `--depth` | `low` `medium` `high` `max` | `medium` | Review thoroughness — `max` enables hierarchical MAGI-in-MAGI pipeline |
+| `--personas` | `2`–`5` | `3` | Number of domain-specialist subagents for `--depth max` |
 | `--resume` | `<output_dir>` | — | Resume an interrupted pipeline from the last completed phase |
 
 ```bash
@@ -179,6 +189,9 @@ Long research sessions crash. Context windows expire. Networks drop. Now you can
 
 # Resume a crashed session — MAGI picks up where you left off
 /magi-researchers:research "neural ODE solvers" --resume outputs/neural_ode_solvers_20260225_v1
+
+# Hierarchical multi-persona analysis (MAGI-in-MAGI)
+/magi-researchers:research "variational inference for Bayesian deep learning" --domain ai_ml --depth max --personas 4
 
 # Fast ideation only (no cross-review, lowest cost)
 /magi-researchers:research-brainstorm "transformer alternatives for long sequences" --domain ai_ml --depth low
@@ -233,6 +246,32 @@ tests/
 </details>
 
 <details>
+<summary><strong>Full artifact tree — <code>--depth max</code></strong></summary>
+
+```
+brainstorm/
+├── weights.json              # Scoring weights
+├── personas.md               # N domain-specialist personas
+├── persona_1/                # Persona 1 mini-MAGI output
+│   ├── gemini_ideas.md
+│   ├── codex_ideas.md
+│   ├── gemini_review_of_codex.md
+│   ├── codex_review_of_gemini.md
+│   └── conclusion.md
+├── persona_2/
+│   └── ...                   # (same 5 files per persona)
+├── persona_N/
+│   └── ...
+├── meta_review_gemini.md     # Gemini meta-review of all conclusions
+├── meta_review_codex.md      # Codex meta-review of all conclusions
+├── meta_debate_gemini.md     # Adversarial debate — Gemini
+├── meta_debate_codex.md      # Adversarial debate — Codex
+└── synthesis.md              # Enriched final synthesis
+```
+
+</details>
+
+<details>
 <summary><strong>Recommended Permissions</strong></summary>
 
 Add to `.claude/settings.local.json`:
@@ -262,7 +301,7 @@ Add to `.claude/settings.local.json`:
 
 ## Roadmap
 
-**Shipped:**&ensp; Multi-model brainstorming & cross-verification &bull; Domain & journal strategy templates &bull; Plot manifest & gap detection &bull; MAGI traceability review &bull; LaTeX math & Gemini fallback chain &bull; Weighted scoring & dynamic personas &bull; Adversarial debate &bull; Murder board & phase gates &bull; Depth-controlled token budget &bull; Session resume (`--resume`) &bull; Artifact contract validation &bull; Standalone phase gates for all sub-skills
+**Shipped:**&ensp; Multi-model brainstorming & cross-verification &bull; Domain & journal strategy templates &bull; Plot manifest & gap detection &bull; MAGI traceability review &bull; LaTeX math & Gemini fallback chain &bull; Weighted scoring & dynamic personas &bull; Adversarial debate &bull; Murder board & phase gates &bull; Depth-controlled token budget &bull; Session resume (`--resume`) &bull; Artifact contract validation &bull; Standalone phase gates for all sub-skills &bull; MAGI-in-MAGI hierarchical brainstorming
 
 **Up next:**
 - [x] Example artifact gallery — real research outputs to showcase the pipeline

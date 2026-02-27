@@ -5,7 +5,7 @@ Runs the complete research pipeline: Brainstorming → Planning → Implementati
 
 ## Usage
 ```
-/research "research topic" [--domain physics|ai_ml|statistics|mathematics|paper] [--weights '{"novelty":0.4,"feasibility":0.3,"impact":0.3}'] [--depth low|medium|high] [--resume <output_dir>]
+/research "research topic" [--domain physics|ai_ml|statistics|mathematics|paper] [--weights '{"novelty":0.4,"feasibility":0.3,"impact":0.3}'] [--depth low|medium|high|max] [--personas N] [--resume <output_dir>]
 ```
 
 ## Arguments
@@ -16,6 +16,8 @@ Runs the complete research pipeline: Brainstorming → Planning → Implementati
     - `low` — Skip cross-review, go directly to synthesis (fastest, lowest cost)
     - `medium` — Standard one-shot cross-review (default)
     - `high` — Cross-review + adversarial debate (most thorough, highest cost)
+    - `max` — Hierarchical MAGI-in-MAGI: N persona subagents run parallel mini-MAGI pipelines, then meta-review + adversarial debate across all perspectives (deepest, highest cost)
+  - `--personas N` — Number of domain-specialist subagents for `--depth max` (default: 3, range: 2-5). Ignored for other depth levels.
   - `--resume <output_dir>` — Resume an interrupted pipeline from a previous output directory. See **Resume Protocol** below.
 
 ## Instructions
@@ -134,14 +136,15 @@ Before starting each phase (2 through 5), verify that the required predecessor a
    - Version: Glob for `outputs/{sanitized_topic}_{YYYYMMDD}_v*/` and set N = max existing + 1 (start at v1)
 3. If the domain has a template in `${CLAUDE_PLUGIN_ROOT}/templates/domains/`, read it as context.
 4. **Parse `--weights`**: If provided, validate and store. If omitted, domain defaults will be used by the brainstorm sub-skill.
-5. **Parse `--depth`**: Accept `low`, `medium` (default), or `high`.
-6. Announce to the user: topic, domain, output directory, **active weights** (user-provided or domain default), and **depth level**.
+5. **Parse `--depth`**: Accept `low`, `medium` (default), `high`, or `max`.
+6. **Parse `--personas N`**: Accept integer 2-5 (default: 3). Only used when `--depth max`; ignored otherwise.
+7. Announce to the user: topic, domain, output directory, **active weights** (user-provided or domain default), **depth level**, and **persona count** (if `max`).
 
 ---
 
 ### Phase 1: Brainstorming
 
-Execute the `/magi-researchers:research-brainstorm` workflow, **forwarding all flags**: `--domain`, `--weights`, `--depth`.
+Execute the `/magi-researchers:research-brainstorm` workflow, **forwarding all flags**: `--domain`, `--weights`, `--depth`, and `--personas` (only when `--depth max`).
 
 **Step 0 & 0b — Setup & Persona Casting:**
 - Brainstorm sub-skill parses weights and depth, assigns expert personas
@@ -160,6 +163,11 @@ Execute the `/magi-researchers:research-brainstorm` workflow, **forwarding all f
 **Step 1b+ — Adversarial Debate (`--depth high` only):**
 - Top 3 disagreements identified → Round 2 defend/concede/revise
 - Outputs: `brainstorm/debate_round2_gemini.md`, `brainstorm/debate_round2_codex.md`
+
+**Steps 1-max-a~d — Hierarchical MAGI-in-MAGI (`--depth max` only):**
+- **Layer 1**: N persona subagents spawned in parallel, each running a mini-MAGI pipeline (Gemini brainstorm + Codex brainstorm + cross-review + conclusion) → `brainstorm/persona_{i}/`
+- **Layer 2**: Gemini and Codex meta-review all N conclusions; Claude extracts top 3 disagreements; adversarial debate (defend/concede/revise) → `brainstorm/meta_review_*.md`, `brainstorm/meta_debate_*.md`
+- **Layer 3**: Claude produces enriched synthesis with cross-persona consensus, unique contributions, debate resolution, and emergent insights → `brainstorm/synthesis.md`
 
 **Step 1c — Synthesis (with weighted scoring):**
 - Claude reads all documents, applies weights from `weights.json` to rank directions
