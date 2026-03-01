@@ -17,7 +17,7 @@ Generates and cross-validates research ideas using Gemini and Codex in parallel,
     - `medium` — Standard one-shot cross-review (current behavior)
     - `high` — Cross-review + adversarial debate round
     - `max` — Hierarchical MAGI-in-MAGI: N persona subagents run parallel mini-MAGI pipelines, then meta-review + adversarial debate across all perspectives
-  - `--personas N` — Number of domain-specialist subagents for `--depth max` (default: 3, range: 2-5). Ignored for other depth levels.
+  - `--personas N|auto` — Number of domain-specialist subagents for `--depth max` (default: `auto`, range: 2-5). When `auto`, Claude analyzes the topic to determine the optimal persona count. Ignored for other depth levels.
 
 ## Instructions
 
@@ -64,7 +64,9 @@ When this skill is invoked, follow these steps exactly:
    - `medium` — Standard one-shot cross-review (current default behavior)
    - `high` — Cross-review + adversarial debate (Step 1b+)
    - `max` — Hierarchical MAGI-in-MAGI pipeline (Steps 1-max-a through 1-max-d replace Steps 1a/1b/1b+/1c)
-6. **Parse `--personas N`**: Accept integer 2-5 (default: 3). Only used when `--depth max`; ignored otherwise.
+6. **Parse `--personas N|auto`**: Accept integer 2-5 or the string `auto` (default: `auto`). Only used when `--depth max`; ignored otherwise.
+   - If `auto`: Defer persona count determination to Step 0b, where Claude analyzes the topic's complexity, number of distinct sub-disciplines, and methodological diversity to select the optimal N (2-5).
+   - If an explicit integer is given: Use that value directly.
 
 ### Step 0b: Dynamic Persona Casting
 
@@ -82,7 +84,19 @@ After setup, Claude analyzes the topic and domain to assign specialist personas:
 **For `--depth max` (N personas):**
 
 1. Analyze the topic's sub-disciplines, methodologies, and key challenges.
-2. Cast **N domain-specialist personas** (model-independent — each persona runs both Gemini and Codex):
+2. **Determine N** (if `--personas auto`):
+   - Evaluate the topic along these dimensions:
+     - **Sub-discipline count**: How many distinct research sub-fields does this topic span?
+     - **Methodological diversity**: Does it require both theoretical and empirical approaches? Simulation? Formal proofs?
+     - **Interdisciplinary breadth**: Does it bridge multiple domains (e.g., physics + ML, statistics + biology)?
+   - Selection heuristic:
+     - **N=2**: Narrow, well-defined topic within a single sub-field (e.g., "optimizing a specific algorithm")
+     - **N=3**: Standard research topic spanning theory and practice (e.g., "novel regularization methods for deep learning")
+     - **N=4**: Broad topic crossing 2+ sub-fields or requiring distinct application perspectives (e.g., "physics-informed neural networks for fluid dynamics")
+     - **N=5**: Highly interdisciplinary or contentious topic where a dedicated critic perspective adds value (e.g., "quantum advantage claims in machine learning")
+   - Announce the chosen N and reasoning to the user before proceeding.
+   - If `--personas` was given as an explicit integer (2-5), use that value directly and skip this analysis.
+3. Cast **N domain-specialist personas** (model-independent — each persona runs both Gemini and Codex):
    - **N=2**: Theory/Concepts, Computation/Implementation
    - **N=3**: Theory/Concepts, Computation/Implementation, Empirical/Validation
    - **N=4**: + Application/Interdisciplinary
