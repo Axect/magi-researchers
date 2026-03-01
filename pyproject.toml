@@ -1,6 +1,6 @@
 [project]
 name = "magi-researchers"
-version = "0.5.1"
+version = "0.5.2"
 description = "Three AI models, one synthesis — multi-model research workflow for scientific domains"
 requires-python = ">=3.11"
 dependencies = [

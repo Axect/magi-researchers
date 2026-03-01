@@ -17,7 +17,7 @@ Runs the complete research pipeline: Brainstorming → Planning → Implementati
     - `medium` — Standard one-shot cross-review (default)
     - `high` — Cross-review + adversarial debate (most thorough, highest cost)
     - `max` — Hierarchical MAGI-in-MAGI: N persona subagents run parallel mini-MAGI pipelines, then meta-review + adversarial debate across all perspectives (deepest, highest cost)
-  - `--personas N` — Number of domain-specialist subagents for `--depth max` (default: 3, range: 2-5). Ignored for other depth levels.
+  - `--personas N|auto` — Number of domain-specialist subagents for `--depth max` (default: `auto`, range: 2-5). When `auto`, Claude analyzes the topic to determine the optimal persona count. Ignored for other depth levels.
   - `--resume <output_dir>` — Resume an interrupted pipeline from a previous output directory. See **Resume Protocol** below.
 
 ## Instructions
@@ -139,8 +139,10 @@ Before starting each phase (2 through 5), verify that the required predecessor a
 3. If the domain has a template in `${CLAUDE_PLUGIN_ROOT}/templates/domains/`, read it as context.
 4. **Parse `--weights`**: If provided, validate and store. If omitted, domain defaults will be used by the brainstorm sub-skill.
 5. **Parse `--depth`**: Accept `low`, `medium` (default), `high`, or `max`.
-6. **Parse `--personas N`**: Accept integer 2-5 (default: 3). Only used when `--depth max`; ignored otherwise.
-7. Announce to the user: topic, domain, output directory, **active weights** (user-provided or domain default), **depth level**, and **persona count** (if `max`).
+6. **Parse `--personas N|auto`**: Accept integer 2-5 or the string `auto` (default: `auto`). Only used when `--depth max`; ignored otherwise.
+   - If `auto`: Defer persona count determination to Phase 1 (brainstorm sub-skill Step 0b), where Claude analyzes the topic to select the optimal N.
+   - If an explicit integer is given: Use that value directly.
+7. Announce to the user: topic, domain, output directory, **active weights** (user-provided or domain default), **depth level**, and **persona count** (if `max`; show `auto` if no explicit `--personas` was given).
 
 ---
 
