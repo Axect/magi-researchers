@@ -11,7 +11,7 @@ Generates and cross-validates research ideas using Gemini and Codex in parallel,
 ## Arguments
 - `$ARGUMENTS` — The research topic and optional flags:
   - `--domain` — Research domain (physics, ai_ml, statistics, mathematics, paper). Auto-inferred if omitted.
-  - `--weights` — JSON object of scoring weights for direction ranking. Keys: `novelty`, `feasibility`, `impact`, `rigor`, `scalability`. Values must sum to 1.0. If omitted, domain-specific defaults are used.
+  - `--weights` — JSON object of scoring weights for direction ranking. Keys: `novelty`, `feasibility`, `impact`, `rigor`, `scalability`. Values must sum to 1.0. If omitted, Claude analyzes the prompt and recommends adaptive weights for user confirmation (see Step 0a).
   - `--depth` — Controls review depth (default: `medium`):
     - `low` — Skip cross-review, go directly to synthesis
     - `medium` — Standard one-shot cross-review (current behavior)
@@ -52,13 +52,24 @@ When this skill is invoked, follow these steps exactly:
    - Use today's date in YYYYMMDD format.
    - Version: Glob for `outputs/{sanitized_topic}_{YYYYMMDD}_v*/` and set N = max existing + 1 (start at v1).
 3. If a domain template exists at `${CLAUDE_PLUGIN_ROOT}/templates/domains/{domain}.md`, read it for context.
-4. **Parse `--weights`**: If provided, validate that keys are a subset of {`novelty`, `feasibility`, `impact`, `rigor`, `scalability`} and values sum to 1.0. If not provided, use domain defaults:
+4. **Parse `--weights`**:
+   - **If `--weights` is explicitly provided**: Validate that keys are a subset of {`novelty`, `feasibility`, `impact`, `rigor`, `scalability`} and values sum to 1.0. Save immediately to `brainstorm/weights.json` with metadata:
+     ```json
+     {
+       "weights": { <user-provided weights> },
+       "_meta": {
+         "method": "explicit",
+         "domain": "<detected domain>"
+       }
+     }
+     ```
+     Skip Step 0a entirely.
+   - **If `--weights` is not provided**: Load domain defaults as a **baseline reference only** (do not save yet — Step 0a will handle saving after user confirmation):
    - `physics`: `{"novelty": 0.30, "feasibility": 0.15, "impact": 0.25, "rigor": 0.20, "scalability": 0.10}`
    - `ai_ml`: `{"novelty": 0.25, "feasibility": 0.25, "impact": 0.25, "rigor": 0.10, "scalability": 0.15}`
    - `statistics`: `{"novelty": 0.25, "feasibility": 0.20, "impact": 0.20, "rigor": 0.25, "scalability": 0.10}`
    - `mathematics`: `{"novelty": 0.35, "feasibility": 0.10, "impact": 0.20, "rigor": 0.30, "scalability": 0.05}`
    - `paper`: `{"novelty": 0.20, "feasibility": 0.25, "impact": 0.30, "rigor": 0.15, "scalability": 0.10}`
-   - Save to `brainstorm/weights.json`.
 5. **Parse `--depth`**: Accept `low`, `medium`, `high`, or `max` (default: `medium`).
    - `low` — Skip Step 1b (cross-review), go directly to Step 1c (synthesis)
    - `medium` — Standard one-shot cross-review (current default behavior)
@@ -67,6 +78,70 @@ When this skill is invoked, follow these steps exactly:
 6. **Parse `--personas N|auto`**: Accept integer 2-5 or the string `auto` (default: `auto`). Only used when `--depth max`; ignored otherwise.
    - If `auto`: Defer persona count determination to Step 0b, where Claude analyzes the topic's complexity, number of distinct sub-disciplines, and methodological diversity to select the optimal N (2-5).
    - If an explicit integer is given: Use that value directly.
+
+### Step 0a: Adaptive Weight Recommendation
+
+> **If `--weights` was explicitly provided**: Skip this step entirely (weights already saved in Step 0).
+
+When `--weights` is omitted, Claude analyzes the research prompt to recommend topic-appropriate weights:
+
+1. **Analyze the research prompt** for research-nature signals:
+
+   | Signal | Example Keywords | Effect |
+   |--------|-----------------|--------|
+   | Theoretical/Formal | proof, formal, theorem, analytical | rigor↑, feasibility↓ |
+   | Experimental/Empirical | experiment, data, empirical, measurement | feasibility↑, rigor↑ |
+   | Applied/Engineering | deploy, production, tool, system | feasibility↑, scalability↑ |
+   | Exploratory/Innovative | novel, first, unexplored, new paradigm | novelty↑, feasibility↓ |
+   | Practicality emphasis | practical, real-world, industry | feasibility↑, scalability↑ |
+   | Rigor emphasis | rigorous, convergence, guarantee | rigor↑ |
+   | Impact emphasis | breakthrough, paradigm, transformative | impact↑, novelty↑ |
+   | Narrow scope | specific algorithm, single method | rigor↑, feasibility↑ |
+   | Broad scope | interdisciplinary, broad, cross-domain | novelty↑, impact↑ |
+
+2. **Generate recommended weights**: Starting from the domain baseline loaded in Step 0, apply adjustments based on detected signals:
+   - Each signal adjusts relevant dimensions by ±0.05 to ±0.10
+   - After all adjustments, **normalize** so values sum to 1.0
+   - **Clamp** each dimension to the range [0.05, 0.45] before final normalization
+
+3. **Present a comparison table** to the user:
+
+   ```
+   Detected signals: [list of signals found in the prompt]
+
+   | Dimension     | Domain Default | Recommended | Adjustment Reason            |
+   |---------------|---------------|-------------|------------------------------|
+   | novelty       | 0.30          | 0.35        | +0.05 (exploratory research) |
+   | feasibility   | 0.15          | 0.10        | -0.05 (theoretical focus)    |
+   | impact        | 0.25          | 0.25        | (no change)                  |
+   | rigor         | 0.20          | 0.25        | +0.05 (formal methods)       |
+   | scalability   | 0.10          | 0.05        | -0.05 (narrow scope)         |
+   ```
+
+4. **Ask the user for confirmation** using `AskUserQuestion`:
+   - Option A: **"Accept recommended weights"** (Recommended) — use the adaptive weights
+   - Option B: **"Use domain defaults"** — use the unmodified domain baseline
+   - Other: User provides custom weights as JSON
+
+5. **Save to `brainstorm/weights.json`** with metadata based on the user's choice:
+   ```json
+   {
+     "weights": { <chosen weights> },
+     "_meta": {
+       "method": "<adaptive-recommended|domain-default|custom>",
+       "domain": "<detected domain>",
+       "domain_defaults": { <original domain baseline> },
+       "signals_detected": ["theoretical work", "narrow scope", ...],
+       "adjustments_applied": {
+         "rigor": "+0.05 (theoretical focus)",
+         "feasibility": "-0.05 (theoretical focus)"
+       }
+     }
+   }
+   ```
+   - If "Accept recommended": `method` = `"adaptive-recommended"`
+   - If "Use domain defaults": `method` = `"domain-default"`, `signals_detected` and `adjustments_applied` are still recorded for traceability
+   - If custom JSON: `method` = `"custom"`
 
 ### Step 0b: Dynamic Persona Casting
 
@@ -306,10 +381,10 @@ Save to `brainstorm/meta_debate_codex.md`.
    - All N `persona_{i}/conclusion.md` files
    - `meta_review_gemini.md`, `meta_review_codex.md`
    - `meta_debate_gemini.md`, `meta_debate_codex.md`
-2. Load `weights.json` and compute **weighted scores** for each research direction (same 0-10 rating per dimension, weighted sum).
+2. Load `weights.json` and extract the `"weights"` object. Compute **weighted scores** for each research direction (same 0-10 rating per dimension, weighted sum).
 3. Produce an **enriched `brainstorm/synthesis.md`** with the following structure:
    1. **Personas Used** — table of N personas with name, expertise summary, and primary lens
-   2. **Scoring Weights** — the weights used for ranking (from `weights.json`)
+   2. **Scoring Weights** — the weights used for ranking (from `weights.json`), including `_meta.method` to document how weights were selected (explicit, adaptive-recommended, domain-default, or custom)
    3. **Top Research Directions** — ranked by weighted score, with:
       - Score breakdown per dimension
       - Which personas supported this direction
@@ -331,13 +406,13 @@ Save to `brainstorm/meta_debate_codex.md`.
    - If `--depth medium` or `high`: `gemini_review_of_codex.md`, `codex_review_of_gemini.md`
    - If `--depth high`: `debate_round2_gemini.md`, `debate_round2_codex.md`
    - Always: `weights.json`, `personas.md`
-2. Load `weights.json` and use the weights to compute a **weighted score** for each research direction:
+2. Load `weights.json` and extract the `"weights"` object. Use the weights to compute a **weighted score** for each research direction:
    - For each candidate direction, rate it on each weight dimension (0-10 scale)
    - Compute the weighted sum: `score = Σ(weight_i × rating_i)`
    - Rank directions by weighted score
 3. Synthesize into a coherent research direction document that includes:
    - **Personas Used** — brief summary of assigned Gemini and Codex personas
-   - **Scoring Weights** — the weights used for ranking (from `weights.json`)
+   - **Scoring Weights** — the weights used for ranking (from `weights.json`), including `_meta.method` to document how weights were selected
    - **Top Research Directions** (ranked by weighted score, showing score breakdown)
    - **Key Technical Approaches** for each direction
    - **Consensus Points** — ideas both models agreed on
@@ -360,7 +435,7 @@ Wait for user input before proceeding.
 **`--depth low|medium|high`:**
 ```
 brainstorm/
-├── weights.json                  # Scoring weights (always)
+├── weights.json                  # Scoring weights + selection metadata (always)
 ├── personas.md                   # Assigned expert personas (always)
 ├── gemini_ideas.md               # Gemini brainstorm output (always)
 ├── codex_ideas.md                # Codex brainstorm output (always)
@@ -375,7 +450,7 @@ brainstorm/
 **`--depth max`:**
 ```
 brainstorm/
-├── weights.json                  # Scoring weights
+├── weights.json                  # Scoring weights + selection metadata
 ├── personas.md                   # N domain-specialist personas
 ├── persona_1/                    # Persona 1 mini-MAGI output
 │   ├── gemini_ideas.md
