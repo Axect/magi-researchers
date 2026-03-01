@@ -230,6 +230,24 @@ Wait for all N subagents to complete before proceeding.
    - **Recurring themes** — directions proposed by 2+ personas
    - **Unique directions** — ideas that appeared in only one persona's output
    - **Explicit disagreements** — contradictory assessments across personas
+4. **Consolidate conclusions for Layer 2**: Create `brainstorm/all_conclusions.md` by concatenating
+   all N conclusion files with clear separators:
+   ```markdown
+   # Persona 1: {persona_1_name} — {persona_1_lens}
+
+   {persona_1_conclusion_content}
+
+   ---
+
+   # Persona 2: {persona_2_name} — {persona_2_lens}
+
+   {persona_2_conclusion_content}
+
+   ---
+
+   ... (for all N personas)
+   ```
+   This single consolidated file replaces multiple @-references in Layer 2 calls.
 
 ### Step 1-max-c: Layer 2 — Meta-Review + Adversarial Debate
 
@@ -240,7 +258,7 @@ Execute simultaneously:
 **Gemini Meta-Review:**
 ```
 mcp__gemini-cli__ask-gemini(
-  prompt: "You are reviewing the outputs of {N} domain-specialist research personas who independently analyzed: {topic}\n\nHere are their conclusions:\n@{output_dir}/brainstorm/persona_1/conclusion.md\n@{output_dir}/brainstorm/persona_2/conclusion.md\n...(one @-reference per persona)\n\nProvide a meta-review covering:\n1. **Coverage analysis** — Which aspects of the research space are well-covered vs. underexplored?\n2. **Quality assessment** — Rate each persona's conclusions (depth, rigor, creativity) on a 1-10 scale\n3. **Cross-persona synthesis** — What emerges when combining all perspectives that no single persona captured?\n4. **Top 3 disagreements** — Identify the 3 most significant points where personas contradict each other, with specific quotes\n5. **Recommended directions** — Your top 5 research directions considering all perspectives",
+  prompt: "You are reviewing the outputs of {N} domain-specialist research personas who independently analyzed: {topic}\n\nHere are all persona conclusions:\n@{output_dir}/brainstorm/all_conclusions.md\n\nProvide a meta-review covering:\n1. **Coverage analysis** — Which aspects of the research space are well-covered vs. underexplored?\n2. **Quality assessment** — Rate each persona's conclusions (depth, rigor, creativity) on a 1-10 scale\n3. **Cross-persona synthesis** — What emerges when combining all perspectives that no single persona captured?\n4. **Top 3 disagreements** — Identify the 3 most significant points where personas contradict each other, with specific quotes\n5. **Recommended directions** — Your top 5 research directions considering all perspectives",
   model: "gemini-3.1-pro-preview"  // fallback chain applies
 )
 ```
@@ -249,7 +267,7 @@ Save to `brainstorm/meta_review_gemini.md`.
 **Codex Meta-Review:**
 ```
 mcp__codex-cli__ask-codex(
-  prompt: "You are reviewing the outputs of {N} domain-specialist research personas who independently analyzed: {topic}\n\nHere are their conclusions:\n@{output_dir}/brainstorm/persona_1/conclusion.md\n@{output_dir}/brainstorm/persona_2/conclusion.md\n...(one @-reference per persona)\n\nProvide a meta-review covering:\n1. **Coverage analysis** — Which aspects of the research space are well-covered vs. underexplored?\n2. **Quality assessment** — Rate each persona's conclusions (depth, rigor, creativity) on a 1-10 scale\n3. **Cross-persona synthesis** — What emerges when combining all perspectives that no single persona captured?\n4. **Top 3 disagreements** — Identify the 3 most significant points where personas contradict each other, with specific quotes\n5. **Recommended directions** — Your top 5 research directions considering all perspectives"
+  prompt: "You are reviewing the outputs of {N} domain-specialist research personas who independently analyzed: {topic}\n\nHere are all persona conclusions:\n@{output_dir}/brainstorm/all_conclusions.md\n\nProvide a meta-review covering:\n1. **Coverage analysis** — Which aspects of the research space are well-covered vs. underexplored?\n2. **Quality assessment** — Rate each persona's conclusions (depth, rigor, creativity) on a 1-10 scale\n3. **Cross-persona synthesis** — What emerges when combining all perspectives that no single persona captured?\n4. **Top 3 disagreements** — Identify the 3 most significant points where personas contradict each other, with specific quotes\n5. **Recommended directions** — Your top 5 research directions considering all perspectives"
 )
 ```
 Save to `brainstorm/meta_review_codex.md`.
@@ -258,11 +276,17 @@ Save to `brainstorm/meta_review_codex.md`.
 
 Claude reads both meta-reviews and extracts the **top 3 cross-persona disagreements** — prioritizing disagreements identified by both reviewers. For each disagreement, produce a structured summary: the claim, which personas support each side, and the core tension. **Save the meta-disagreement summary to `brainstorm/meta_disagreements.md`** before the debate calls.
 
-**Phase C — Adversarial Debate (simultaneous):**
+**Phase C — Consolidate Debate Context + Adversarial Debate:**
+
+Before the debate calls, create consolidated context files (each containing exactly what the opposing model needs):
+- `brainstorm/debate_context_for_gemini.md` — concatenate `meta_disagreements.md` + `meta_review_codex.md`
+- `brainstorm/debate_context_for_codex.md` — concatenate `meta_disagreements.md` + `meta_review_gemini.md`
+
+Then execute the debate calls **simultaneously**:
 
 ```
 mcp__gemini-cli__ask-gemini(
-  prompt: "[Meta-Reviewer]\n\nYou reviewed {N} persona conclusions and identified these top 3 disagreements:\n\n@{output_dir}/brainstorm/meta_disagreements.md\n\nCodex's meta-review highlighted:\n@{output_dir}/brainstorm/meta_review_codex.md\n\nFor each disagreement:\n1. **Defend** your position with additional evidence or reasoning\n2. **Concede** if the opposing argument is stronger, explaining why\n3. **Revise** your assessment to a new synthesized position if appropriate",
+  prompt: "[Meta-Reviewer]\n\nYou reviewed {N} persona conclusions and identified top disagreements. Below is the disagreement summary followed by Codex's meta-review for context:\n\n@{output_dir}/brainstorm/debate_context_for_gemini.md\n\nFor each disagreement:\n1. **Defend** your position with additional evidence or reasoning\n2. **Concede** if the opposing argument is stronger, explaining why\n3. **Revise** your assessment to a new synthesized position if appropriate",
   model: "gemini-3.1-pro-preview"  // fallback chain applies
 )
 ```
@@ -270,7 +294,7 @@ Save to `brainstorm/meta_debate_gemini.md`.
 
 ```
 mcp__codex-cli__ask-codex(
-  prompt: "[Meta-Reviewer]\n\nYou reviewed {N} persona conclusions and identified these top 3 disagreements:\n\n@{output_dir}/brainstorm/meta_disagreements.md\n\nGemini's meta-review highlighted:\n@{output_dir}/brainstorm/meta_review_gemini.md\n\nFor each disagreement:\n1. **Defend** your position with additional evidence or reasoning\n2. **Concede** if the opposing argument is stronger, explaining why\n3. **Revise** your assessment to a new synthesized position if appropriate"
+  prompt: "[Meta-Reviewer]\n\nYou reviewed {N} persona conclusions and identified top disagreements. Below is the disagreement summary followed by Gemini's meta-review for context:\n\n@{output_dir}/brainstorm/debate_context_for_codex.md\n\nFor each disagreement:\n1. **Defend** your position with additional evidence or reasoning\n2. **Concede** if the opposing argument is stronger, explaining why\n3. **Revise** your assessment to a new synthesized position if appropriate"
 )
 ```
 Save to `brainstorm/meta_debate_codex.md`.
@@ -363,9 +387,12 @@ brainstorm/
 │   └── ...                       # (same 5 files)
 ├── persona_N/                    # Persona N mini-MAGI output
 │   └── ...
+├── all_conclusions.md            # Consolidated persona conclusions for Layer 2
 ├── meta_review_gemini.md         # Gemini meta-review of all conclusions
 ├── meta_review_codex.md          # Codex meta-review of all conclusions
 ├── meta_disagreements.md         # Meta-disagreement summary for debate
+├── debate_context_for_gemini.md  # Consolidated: disagreements + Codex meta-review
+├── debate_context_for_codex.md   # Consolidated: disagreements + Gemini meta-review
 ├── meta_debate_gemini.md         # Adversarial debate — Gemini
 ├── meta_debate_codex.md          # Adversarial debate — Codex
 └── synthesis.md                  # Enriched final synthesis
