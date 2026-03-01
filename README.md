@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="MAGI.drawio.png" width="600" alt="MAGI Architecture: Claude, Gemini, and Codex orchestrating cross-verified research through brainstorm, plan, implement, test, and report phases" />
+  <img src="MAGI-RESEARCHERS.png" width="600" alt="MAGI System Architecture: MELCHIOR (Claude), BALTHASAR (Gemini), and CASPAR (Codex) orchestrating cross-verified research through brainstorm, plan, implement, test, and report phases" />
 </p>
 
 <h1 align="center">MAGI Researchers</h1>
