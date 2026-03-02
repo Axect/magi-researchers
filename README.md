@@ -114,6 +114,7 @@ We gave all three single models and MAGI the same physics problem: *discover an 
 | **3. Implement** | Claude writes code with live library doc lookups | `src/` |
 | **4. Test & Visualize** | Collaborative test design + publication-quality plots | `tests/` + `plots/` |
 | **5. Report** | Structured report with cross-verified claim-evidence integrity | `report.md` |
+| **Explain** | Teacher/Critic MAGI pipeline → single-voice concept explanation | `explain/` |
 
 ### MAGI-in-MAGI (v0.5.0)
 
@@ -123,6 +124,15 @@ Two models aren't enough for deep, multi-faceted research questions. `--depth ma
 - **Adversarial meta-debate** — Gemini and Codex meta-review all N conclusions, Claude extracts the top 3 cross-persona disagreements, and a defend/concede/revise debate resolves them
 - **Enriched synthesis** — Final output includes cross-persona consensus, unique contributions, debate resolutions, emergent insights, and full MAGI process traceability
 - **`--personas N`** — Scale from 2 to 5 domain specialists (default: 3) covering theory, computation, empirics, application, and critique
+
+### Concept Explanation (v0.7.0)
+
+Research isn't just about generating ideas — it's about explaining them clearly. `/research-explain` generates pedagogically-sound explanations using an asymmetric Teacher/Critic MAGI pipeline:
+
+- **Two-phase architecture** — Phase 1 (MAGI) explores explanation strategies with a Teacher agent (draft explanation) and a Critic agent (misconceptions, prerequisites, calibration questions). Phase 2 (Claude) generates a single-voice explanation — no committee voice.
+- **`--audience` targeting** — Calibrate explanations for `general-public`, `high-school`, `undergraduate`, `phd-student`, `researcher`, `expert`, or any free-text audience
+- **Pedagogical quality dimensions** — `clarity`, `accuracy`, `depth`, `accessibility`, `completeness`, `engagement` with audience-keyed defaults
+- **Structured output** — Core explanation, common misconceptions, confusion neighbors table, and calibration questions that test genuine understanding
 
 ### Never Lose Your Work (v0.4.0)
 
@@ -167,6 +177,7 @@ Long research sessions crash. Context windows expire. Networks drop. Now you can
 |:---|:---|
 | `/magi-researchers:research "topic"` | Full pipeline (all 5 phases) |
 | `/magi-researchers:research-brainstorm "topic"` | Brainstorming with cross-verification |
+| `/magi-researchers:research-explain "concept"` | Concept explanation with Teacher/Critic pipeline |
 | `/magi-researchers:research-implement` | Implementation (needs existing plan) |
 | `/magi-researchers:research-test` | Testing & visualization |
 | `/magi-researchers:research-report` | Report generation |
@@ -176,9 +187,11 @@ Long research sessions crash. Context windows expire. Networks drop. Now you can
 | Flag | Values | Default | Description |
 |:---|:---|:---|:---|
 | `--domain` | `physics` `ai_ml` `statistics` `mathematics` `paper` | auto-inferred | Research domain for context and weight defaults |
-| `--weights` | JSON object | domain default | Custom scoring weights (keys: `novelty`, `feasibility`, `impact`, `rigor`, `scalability`) |
+| `--weights` | JSON object | domain default | Custom scoring weights (brainstorm: `novelty`, `feasibility`, `impact`, `rigor`, `scalability`; explain: `clarity`, `accuracy`, `depth`, `accessibility`, `completeness`, `engagement`) |
 | `--depth` | `low` `medium` `high` `max` | `medium` | Review thoroughness — `max` enables hierarchical MAGI-in-MAGI pipeline |
 | `--personas` | `2`–`5` | `3` | Number of domain-specialist subagents for `--depth max` |
+| `--audience` | `general-public` `high-school` `undergraduate` `phd-student` `researcher` `expert` `"free text"` | `phd-student` | Target audience level (`research-explain` only) |
+| `--claude-only` | flag | off | Replace Gemini/Codex with Claude Agent subagents |
 | `--resume` | `<output_dir>` | — | Resume an interrupted pipeline from the last completed phase |
 
 ```bash
@@ -196,6 +209,15 @@ Long research sessions crash. Context windows expire. Networks drop. Now you can
 
 # Fast ideation only (no cross-review, lowest cost)
 /magi-researchers:research-brainstorm "transformer alternatives for long sequences" --domain ai_ml --depth low
+
+# Explain a concept for undergraduates with full cross-review
+/magi-researchers:research-explain "entropy" --domain physics --audience undergraduate --depth medium
+
+# Quick explanation for a general audience (no MAGI pipeline)
+/magi-researchers:research-explain "Bayesian inference" --audience general-public --depth low
+
+# Deep multi-perspective explanation with Claude-only mode
+/magi-researchers:research-explain "gauge symmetry" --domain physics --audience phd-student --depth max --claude-only
 ```
 
 > If MAGI saves you research time, consider leaving a [star](https://github.com/Axect/magi-researchers/stargazers) so other researchers can find it.
@@ -205,6 +227,7 @@ Long research sessions crash. Context windows expire. Networks drop. Now you can
 ```
 outputs/{topic_YYYYMMDD_vN}/
 ├── brainstorm/       # Personas, ideas, cross-reviews, debate, synthesis
+├── explain/          # Teacher/Critic analysis, strategy, final explanation
 ├── plan/             # Research plan, murder board, mitigations, phase gate
 ├── src/              # Implementation + phase gate
 ├── tests/            # Test suite + phase gate
@@ -243,6 +266,26 @@ src/
 tests/
 ├── test_*.py                 # Test suite
 └── phase_gate.md             # Test quality gate
+```
+
+</details>
+
+<details>
+<summary><strong>Full artifact tree — <code>research-explain</code></strong></summary>
+
+```
+explain/
+├── weights.json              # Scoring weights (audience-keyed)
+├── personas.md               # Teacher + Critic personas
+├── gemini_ideas.md           # Teacher's draft explanation
+├── codex_ideas.md            # Critic's analysis (prerequisites, misconceptions, etc.)
+├── gemini_review_of_codex.md # Teacher reviews Critic (depth ≥ medium)
+├── codex_review_of_gemini.md # Critic reviews Teacher (depth ≥ medium)
+├── disagreements.md          # Disagreement summary (depth = high)
+├── debate_round2_gemini.md   # Adversarial debate (depth = high)
+├── debate_round2_codex.md    # Adversarial debate (depth = high)
+├── synthesis.md              # Explanation strategy synthesis
+└── explanation.md            # Final single-voice explanation
 ```
 
 </details>
@@ -304,7 +347,7 @@ Add to `.claude/settings.local.json`:
 
 ## Roadmap
 
-**Shipped:**&ensp; Multi-model brainstorming & cross-verification &bull; Domain & journal strategy templates &bull; Plot manifest & gap detection &bull; MAGI traceability review &bull; LaTeX math & Gemini fallback chain &bull; Weighted scoring & dynamic personas &bull; Adversarial debate &bull; Murder board & phase gates &bull; Depth-controlled token budget &bull; Session resume (`--resume`) &bull; Artifact contract validation &bull; Standalone phase gates for all sub-skills &bull; MAGI-in-MAGI hierarchical brainstorming &bull; `@filepath` artifact references for zero-truncation MCP calls
+**Shipped:**&ensp; Multi-model brainstorming & cross-verification &bull; Domain & journal strategy templates &bull; Plot manifest & gap detection &bull; MAGI traceability review &bull; LaTeX math & Gemini fallback chain &bull; Weighted scoring & dynamic personas &bull; Adversarial debate &bull; Murder board & phase gates &bull; Depth-controlled token budget &bull; Session resume (`--resume`) &bull; Artifact contract validation &bull; Standalone phase gates for all sub-skills &bull; MAGI-in-MAGI hierarchical brainstorming &bull; `@filepath` artifact references for zero-truncation MCP calls &bull; Concept explanation skill with Teacher/Critic pipeline (`research-explain`)
 
 **Up next:**
 - [x] Example artifact gallery — real research outputs to showcase the pipeline
