@@ -33,9 +33,9 @@ Generates high-quality explanations of concepts using Gemini and Codex in parall
 ### MCP Tool Rules
 - **Gemini**: Use the following model fallback chain. Try each model in order; if a call fails (error, timeout, or model-not-found), retry with the next model:
   1. `model: "gemini-3.1-pro-preview"` (preferred)
-  2. `model: "gemini-3-pro-preview"` (fallback)
-  3. `model: "gemini-2.5-pro"` (last resort)
-- **Codex**: Use `mcp__codex-cli__ask-codex` for analysis/review.
+  2. `model: "gemini-2.5-pro"` (fallback)
+  3. Claude (last resort — skip Gemini MCP tool, use Claude directly)
+- **Codex**: Use `mcp__codex-cli__ask-codex` for analysis/review. If Codex fails 2+ times, fall back to Claude directly.
 - **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@explain/codex_ideas.md`)
   instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
 
@@ -252,7 +252,7 @@ You are a master explainer. Generate a comprehensive draft explanation of this c
 5. **Connections**: How does this concept relate to concepts the audience likely already knows?
 
 Write for maximum clarity and understanding. Use the persona's communication style.",
-  model: "gemini-3.1-pro-preview"  // fallback: "gemini-3-pro-preview" → "gemini-2.5-pro"
+  model: "gemini-3.1-pro-preview"  // fallback: "gemini-2.5-pro" → Claude
 )
 ```
 > Note: Omit the `Domain context: @{domain_template_path}` line from the prompt when no domain template exists.
@@ -373,7 +373,7 @@ For each item in the Critic's analysis:
 5. **Calibration Questions**: Would your explanation enable the audience to answer these correctly? Flag any questions that are unfair for the audience level.
 
 Also note: What aspects of the Critic's analysis should change your draft explanation?",
-  model: "gemini-3.1-pro-preview"  // fallback: "gemini-3-pro-preview" → "gemini-2.5-pro"
+  model: "gemini-3.1-pro-preview"  // fallback: "gemini-2.5-pro" → Claude
 )
 ```
 

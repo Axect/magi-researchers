@@ -26,9 +26,9 @@ Runs the complete research pipeline: Brainstorming → Planning → Implementati
 ### MCP Tool Rules
 - **Gemini**: Use the following model fallback chain. Try each model in order; if a call fails (error, timeout, or model-not-found), retry with the next model:
   1. `model: "gemini-3.1-pro-preview"` (preferred)
-  2. `model: "gemini-3-pro-preview"` (fallback)
-  3. `model: "gemini-2.5-pro"` (last resort)
-- **Codex**: Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review.
+  2. `model: "gemini-2.5-pro"` (fallback)
+  3. Claude (last resort — skip Gemini MCP tool, use Claude directly)
+- **Codex**: Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review. If Codex fails 2+ times, fall back to Claude directly.
 - **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@plan/research_plan.md`)
   instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
 - **Context7**: Use `mcp__plugin_context7_context7__query-docs` for library documentation lookups during implementation.

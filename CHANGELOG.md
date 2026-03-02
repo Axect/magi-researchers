@@ -5,6 +5,56 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.7.1] — 2026-03-03
+
+### Changed
+- **Gemini fallback chain** — Removed deprecated `gemini-3-pro-preview`; new chain: `gemini-3.1-pro-preview` → `gemini-2.5-pro` → Claude
+- **Codex fallback** — If Codex fails 2+ times, fall back to Claude directly
+
+---
+
+## [0.7.0] — 2026-03-03
+
+### Added
+- **`/research-explain` skill** — Concept explanation via MAGI Teacher-Critic pipeline with audience-adaptive depth
+
+---
+
+## [0.6.1] — 2026-03-02
+
+### Changed
+- **Named personas** — Personas now named after real historical figures related to their domain
+
+---
+
+## [0.6.0] — 2026-03-01
+
+### Added
+- **`--claude-only` flag** — Replace Gemini/Codex MCP calls with Claude Agent subagents for environments without external MCP servers
+
+---
+
+## [0.5.4] — 2026-02-28
+
+### Added
+- **Adaptive weight recommendation** — Step 0a automatically suggests domain-appropriate scoring weights before brainstorming
+
+---
+
+## [0.5.3] — 2026-02-28
+
+### Fixed
+- Use single `@`-reference per CLI call in `--depth max` Layer 2
+
+---
+
+## [0.5.2] — 2026-02-28
+
+### Changed
+- `--personas` default changed from `3` to `auto` for `--depth max`
+
+---
+
 ## [0.5.1] — 2026-02-28
 
 Migrate all MCP tool calls to `@filepath` references for reliable artifact delivery.
@@ -109,7 +159,7 @@ A major feature release introducing weighted scoring, expert personas, adversari
 - **Plot manifest** — `plot_manifest.json` with metadata, section hints, and captions for automated report integration
 - **Report gap detection** — Mini-loop that identifies unsupported claims and auto-generates plots (max 2 iterations)
 - **MAGI traceability review** — Three-model cross-verification of the final report (orphaned claims, orphaned plots, weak links)
-- **Gemini fallback chain** — Resilient 3-tier model fallback: `gemini-3.1-pro-preview` → `gemini-3-pro-preview` → `gemini-2.5-pro`
+- **Gemini fallback chain** — Resilient 3-tier model fallback: `gemini-3.1-pro-preview` → `gemini-2.5-pro` → Claude
 
 ---
 
@@ -137,6 +187,13 @@ Initial release.
 
 ---
 
+[0.7.1]: https://github.com/Axect/magi-researchers/compare/v0.7.0...v0.7.1
+[0.7.0]: https://github.com/Axect/magi-researchers/compare/v0.6.1...v0.7.0
+[0.6.1]: https://github.com/Axect/magi-researchers/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/Axect/magi-researchers/compare/v0.5.4...v0.6.0
+[0.5.4]: https://github.com/Axect/magi-researchers/compare/v0.5.3...v0.5.4
+[0.5.3]: https://github.com/Axect/magi-researchers/compare/v0.5.2...v0.5.3
+[0.5.2]: https://github.com/Axect/magi-researchers/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/Axect/magi-researchers/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/Axect/magi-researchers/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Axect/magi-researchers/compare/v0.3.0...v0.4.0

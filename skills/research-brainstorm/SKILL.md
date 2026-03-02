@@ -25,9 +25,9 @@ Generates and cross-validates research ideas using Gemini and Codex in parallel,
 ### MCP Tool Rules
 - **Gemini**: Use the following model fallback chain. Try each model in order; if a call fails (error, timeout, or model-not-found), retry with the next model:
   1. `model: "gemini-3.1-pro-preview"` (preferred)
-  2. `model: "gemini-3-pro-preview"` (fallback)
-  3. `model: "gemini-2.5-pro"` (last resort)
-- **Codex**: Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review.
+  2. `model: "gemini-2.5-pro"` (fallback)
+  3. Claude (last resort — skip Gemini MCP tool, use Claude directly)
+- **Codex**: Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review. If Codex fails 2+ times, fall back to Claude directly.
 - **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@brainstorm/codex_ideas.md`)
   instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
 
@@ -219,7 +219,7 @@ Execute these two calls **simultaneously** (in the same message). **Prepend the 
 ```
 mcp__gemini-cli__brainstorm(
   prompt: "[Persona: {gemini_persona_name} — {gemini_persona_expertise}]\nGuiding question: {gemini_guiding_question}\n\nDomain context: @{domain_template_path}\n\n{topic} — Generate diverse, creative research ideas. Consider theoretical foundations, practical applications, novel approaches, and potential breakthroughs.",
-  model: "gemini-3.1-pro-preview",  // fallback: "gemini-3-pro-preview" → "gemini-2.5-pro"
+  model: "gemini-3.1-pro-preview",  // fallback: "gemini-2.5-pro" → Claude
   domain: "{domain}",
   methodology: "auto",
   ideaCount: 12,
@@ -302,7 +302,7 @@ After both brainstorming results are saved, execute these two calls **simultaneo
 ```
 mcp__gemini-cli__ask-gemini(
   prompt: "[Persona: {gemini_persona_name} — {gemini_persona_expertise}]\n\nReview the following research ideas for technical feasibility, scientific rigor, novelty, and potential impact. Identify strengths, weaknesses, and suggest improvements for each idea.\n\n@{output_dir}/brainstorm/codex_ideas.md",
-  model: "gemini-3.1-pro-preview"  // fallback: "gemini-3-pro-preview" → "gemini-2.5-pro"
+  model: "gemini-3.1-pro-preview"  // fallback: "gemini-2.5-pro" → Claude
 )
 ```
 

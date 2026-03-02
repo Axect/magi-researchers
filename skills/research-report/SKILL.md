@@ -19,8 +19,8 @@ When `--claude-only` is active (passed from the parent `/research` pipeline), al
 ### MCP Tool Rules
 - **Gemini**: Use the following model fallback chain. Try each model in order; if a call fails (error, timeout, or model-not-found), retry with the next model:
   1. `model: "gemini-3.1-pro-preview"` (preferred)
-  2. `model: "gemini-3-pro-preview"` (fallback)
-  3. `model: "gemini-2.5-pro"` (last resort)
+  2. `model: "gemini-2.5-pro"` (fallback)
+  3. Claude (last resort — skip Gemini MCP tool, use Claude directly)
 - **Visualization**: Use `matplotlib` with `scienceplots` (`['science', 'nature']` style). Save plots as PNG (300 dpi) and PDF.
 - **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@report.md`)
   instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
@@ -170,7 +170,7 @@ Execute these two review calls **simultaneously** (in the same message):
 ```
 mcp__gemini-cli__ask-gemini(
   prompt: "You are a scientific reviewer. Analyze this research report for claim-evidence integrity. Identify:\n\n1. **Orphaned claims**: Text assertions that lack a supporting figure, table, or data reference\n2. **Orphaned plots**: Figures that are embedded but never discussed or interpreted in the text\n3. **Weak links**: Claims that reference a figure but the figure doesn't clearly support the claim\n4. **Caption quality**: Are figure captions precise, quantitative, and publication-ready?\n\nFor each issue found, specify the section, the problematic text or figure, and a concrete fix.\n\nReport draft:\n@{output_dir}/report.md\n\nPlot manifest:\n@{output_dir}/plots/plot_manifest.json",
-  model: "gemini-3.1-pro-preview"  // fallback: "gemini-3-pro-preview" → "gemini-2.5-pro"
+  model: "gemini-3.1-pro-preview"  // fallback: "gemini-2.5-pro" → Claude
 )
 ```
 

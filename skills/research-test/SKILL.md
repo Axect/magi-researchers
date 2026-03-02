@@ -19,8 +19,8 @@ When `--claude-only` is active (passed from the parent `/research` pipeline), al
 ### MCP Tool Rules
 - **Gemini**: Use the following model fallback chain. Try each model in order; if a call fails (error, timeout, or model-not-found), retry with the next model:
   1. `model: "gemini-3.1-pro-preview"` (preferred)
-  2. `model: "gemini-3-pro-preview"` (fallback)
-  3. `model: "gemini-2.5-pro"` (last resort)
+  2. `model: "gemini-2.5-pro"` (fallback)
+  3. Claude (last resort — skip Gemini MCP tool, use Claude directly)
 - **Visualization**: Use `matplotlib` with `scienceplots` (`['science', 'nature']` style). Save plots as PNG (300 dpi) and PDF.
 - **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@plan/research_plan.md`)
   instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
@@ -40,7 +40,7 @@ When `--claude-only` is active (passed from the parent `/research` pipeline), al
 ```
 mcp__gemini-cli__ask-gemini(
   prompt: "Given the following research plan and implementation, suggest comprehensive test cases. Include unit tests, integration tests, and validation tests against known results.\n\nResearch plan:\n@{output_dir}/plan/research_plan.md\n\nSource files:\n@{output_dir}/src/*.py",
-  model: "gemini-3.1-pro-preview"  // fallback: "gemini-3-pro-preview" → "gemini-2.5-pro"
+  model: "gemini-3.1-pro-preview"  // fallback: "gemini-2.5-pro" → Claude
 )
 ```
 
