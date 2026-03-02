@@ -116,49 +116,34 @@ We gave all three single models and MAGI the same physics problem: *discover an 
 | **5. Report** | Structured report with cross-verified claim-evidence integrity | `report.md` |
 | **Explain** | Teacher/Critic MAGI pipeline → single-voice concept explanation | `explain/` |
 
-### MAGI-in-MAGI (v0.5.0)
+### Multi-Model Verification
 
-Two models aren't enough for deep, multi-faceted research questions. `--depth max` scales to N independent domain specialists:
+- **Dynamic personas** — Each model gets a topic-specific expert identity, sharpening ideation
+- **Weighted scoring** — Rank ideas by novelty, feasibility, impact, rigor, and scalability with domain-tuned or custom weights
+- **Murder board** — Gemini attacks the research plan as a hostile reviewer; Claude documents mitigations
+- **Adversarial debate** (`--depth high`) — Models defend, concede, or revise on their top disagreements before synthesis
+- **MAGI-in-MAGI** (`--depth max`) — N persona subagents each run a full mini-MAGI brainstorm in parallel, then a meta-layer synthesizes across all perspectives with adversarial meta-debate
 
-- **Hierarchical pipeline** — N persona subagents each run a full mini-MAGI brainstorm (Gemini + Codex + cross-review) in parallel, then a meta-layer synthesizes across all perspectives
-- **Adversarial meta-debate** — Gemini and Codex meta-review all N conclusions, Claude extracts the top 3 cross-persona disagreements, and a defend/concede/revise debate resolves them
-- **Enriched synthesis** — Final output includes cross-persona consensus, unique contributions, debate resolutions, emergent insights, and full MAGI process traceability
-- **`--personas N`** — Scale from 2 to 5 domain specialists (default: 3) covering theory, computation, empirics, application, and critique
+### Concept Explanation
 
-### Concept Explanation (v0.7.0)
+`/research-explain` generates pedagogically-sound explanations using a Teacher/Critic MAGI pipeline:
 
-Research isn't just about generating ideas — it's about explaining them clearly. `/research-explain` generates pedagogically-sound explanations using an asymmetric Teacher/Critic MAGI pipeline:
+- **Two-phase architecture** — Phase 1 (MAGI): Teacher drafts explanation, Critic analyzes misconceptions and prerequisites. Phase 2 (Claude): single-voice final output
+- **`--audience` targeting** — From `general-public` to `expert`, or any free-text audience
+- **Structured output** — Core explanation, misconceptions, confusion neighbors table, and calibration questions
 
-- **Two-phase architecture** — Phase 1 (MAGI) explores explanation strategies with a Teacher agent (draft explanation) and a Critic agent (misconceptions, prerequisites, calibration questions). Phase 2 (Claude) generates a single-voice explanation — no committee voice.
-- **`--audience` targeting** — Calibrate explanations for `general-public`, `high-school`, `undergraduate`, `phd-student`, `researcher`, `expert`, or any free-text audience
-- **Pedagogical quality dimensions** — `clarity`, `accuracy`, `depth`, `accessibility`, `completeness`, `engagement` with audience-keyed defaults
-- **Structured output** — Core explanation, common misconceptions, confusion neighbors table, and calibration questions that test genuine understanding
+### Resilience
 
-### Never Lose Your Work (v0.4.0)
+- **`--resume`** — Detects progress from existing files and picks up where you left off — artifacts *are* the checkpoints
+- **Artifact contracts** — Each phase verifies upstream files exist and aren't empty before running
+- **Phase gates** — Automated quality checkpoints before each pipeline step, even for standalone sub-skills
 
-Long research sessions crash. Context windows expire. Networks drop. Now you can pick up right where you left off:
-
-- **`--resume`** — Interrupted mid-pipeline? Just pass `--resume <output_dir>` and MAGI detects your progress from existing files. No manual bookkeeping, no fragile state files — your artifacts *are* the checkpoints.
-- **Artifact contracts** — Before each phase, MAGI verifies that all required upstream files actually exist and aren't empty. Catches silent failures before they cascade into garbage outputs.
-- **Standalone phase gates** — Every sub-skill (`/research-implement`, `/research-test`) now generates its own quality gate, even when run independently outside the main pipeline.
-
-### Stress-Tested by Design (v0.3.0)
-
-- **Weighted direction scoring** — Rank research ideas by novelty, feasibility, impact, rigor, and scalability with domain-tuned or custom weights
-- **Dynamic persona casting** — Each model gets a topic-specific expert identity (e.g., *"Bayesian statistician with causal inference expertise"*), sharpening ideation
-- **Adversarial debate** — At `--depth high`, models defend, concede, or revise on their top disagreements before synthesis
-- **Murder board** — Gemini attacks the research plan as a hostile reviewer; Claude documents mitigations for every flaw found
-- **Phase gates** — Automated quality checkpoints with conditional MAGI mini-review before each user approval step
-- **Depth control** — `--depth low` for fast/cheap runs, `medium` (default) for standard review, `high` for full adversarial analysis
-
-### Core Capabilities
+### Output Quality
 
 - **Publication-quality plots** — `matplotlib` + `scienceplots` (Nature theme), PNG 300 dpi + vector PDF
-- **MAGI traceability review** — All three models cross-verify the final report for orphaned claims and figures
-- **Report gap detection** — Auto-generates missing visualizations from existing data
+- **MAGI traceability** — All three models cross-verify the final report for orphaned claims and figures
 - **Domain templates** — Built-in context for Physics, AI/ML, Statistics, Mathematics, and Paper Writing
 - **Journal strategy** — Venue recommendations for [Physics](docs/journal-strategies.md#particle-physics-phenomenology), [AI/ML](docs/journal-strategies.md#aiml-conferences--journals), and [Interdisciplinary](docs/journal-strategies.md#interdisciplinary-science-ml--natural-sciences) research
-- **LaTeX math** — Proper inline and display equations across all outputs
 
 <details>
 <summary><strong>Under the hood</strong></summary>
