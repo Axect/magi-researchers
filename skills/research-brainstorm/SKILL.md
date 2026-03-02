@@ -5,7 +5,7 @@ Generates and cross-validates research ideas using Gemini and Codex in parallel,
 
 ## Usage
 ```
-/research-brainstorm "research topic" [--domain physics|ai_ml|statistics|mathematics|paper] [--weights '{"novelty":0.4,"feasibility":0.3,"impact":0.3}'] [--depth low|medium|high|max] [--personas N]
+/research-brainstorm "research topic" [--domain physics|ai_ml|statistics|mathematics|paper] [--weights '{"novelty":0.4,"feasibility":0.3,"impact":0.3}'] [--depth low|medium|high|max] [--personas N] [--claude-only]
 ```
 
 ## Arguments
@@ -18,6 +18,7 @@ Generates and cross-validates research ideas using Gemini and Codex in parallel,
     - `high` — Cross-review + adversarial debate round
     - `max` — Hierarchical MAGI-in-MAGI: N persona subagents run parallel mini-MAGI pipelines, then meta-review + adversarial debate across all perspectives
   - `--personas N|auto` — Number of domain-specialist subagents for `--depth max` (default: `auto`, range: 2-5). When `auto`, Claude analyzes the topic to determine the optimal persona count. Ignored for other depth levels.
+  - `--claude-only` — Replace all Gemini/Codex MCP calls with Claude Agent subagents. Use when external model endpoints are unavailable or for a Claude-only workflow. Two subagents with distinct cognitive styles (Creative-Divergent and Analytical-Convergent) ensure perspective diversity.
 
 ## Instructions
 
@@ -29,6 +30,23 @@ Generates and cross-validates research ideas using Gemini and Codex in parallel,
 - **Codex**: Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review.
 - **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@brainstorm/codex_ideas.md`)
   instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
+
+### Claude-Only Mode
+
+When `--claude-only` is active, **all** Gemini/Codex MCP tool calls are replaced with Claude Agent subagents (`subagent_type: general-purpose`). The table below maps each original call to its replacement:
+
+| Original Call | Replacement | Cognitive Style |
+|---|---|---|
+| `mcp__gemini-cli__brainstorm` | Agent subagent A | **Creative-Divergent**: unconventional connections, "What if?" scenarios, wide exploration, questioning assumptions |
+| `mcp__codex-cli__brainstorm` | Agent subagent B | **Analytical-Convergent**: step-by-step feasibility, established methodologies, deep evaluation, practical constraints, risk assessment |
+| `mcp__gemini-cli__ask-gemini` | Agent subagent A | Same Creative-Divergent style |
+| `mcp__codex-cli__ask-codex` | Agent subagent B | Same Analytical-Convergent style |
+
+**Key rules for claude-only mode:**
+1. **File access**: Subagents use the `Read` tool to access files (no `@filepath` syntax).
+2. **Output filenames**: Keep original names (`gemini_ideas.md`, `codex_ideas.md`, etc.) — add a header `> Source: Claude Agent subagent (claude-only mode, {style})` to each output file.
+3. **Independence**: Both subagents are spawned simultaneously so neither can see the other's output.
+4. **`--depth max` internal subagents**: Within each persona's mini-MAGI pipeline, use **Expansive Explorer** (replaces Gemini) and **Grounded Builder** (replaces Codex) cognitive styles to maintain internal diversity.
 
 ### LaTeX Formatting Rules
 When writing mathematical expressions in any output document (brainstorm ideas, synthesis, etc.):
@@ -78,6 +96,7 @@ When this skill is invoked, follow these steps exactly:
 6. **Parse `--personas N|auto`**: Accept integer 2-5 or the string `auto` (default: `auto`). Only used when `--depth max`; ignored otherwise.
    - If `auto`: Defer persona count determination to Step 0b, where Claude analyzes the topic's complexity, number of distinct sub-disciplines, and methodological diversity to select the optimal N (2-5).
    - If an explicit integer is given: Use that value directly.
+7. **Parse `--claude-only`**: Boolean flag (default: `false`). When present, all Gemini/Codex MCP calls are replaced with Claude Agent subagents. See the **Claude-Only Mode** section above for the replacement table and cognitive style definitions.
 
 ### Step 0a: Adaptive Weight Recommendation
 
@@ -154,7 +173,11 @@ After setup, Claude analyzes the topic and domain to assign specialist personas:
 3. Assign a **Codex persona** — a practitioner/builder profile best suited for implementation-focused ideation (e.g., "Computational physicist with GPU simulation experience" or "ML engineer specializing in scalable training pipelines").
 4. Each persona definition should include: name/title, expertise areas (3-5 bullet points), and a guiding question that shapes their perspective.
 5. Personas **complement** the domain template — they do not override it. The domain template provides general context; personas provide topic-specific focus.
-6. Save to `brainstorm/personas.md`.
+6. **If `--claude-only`**: Relabel the personas in `brainstorm/personas.md`:
+   - "Gemini persona" → "Subagent A (Creative-Divergent)"
+   - "Codex persona" → "Subagent B (Analytical-Convergent)"
+   - Include the cognitive style directive in each persona definition so subagents receive it directly.
+7. Save to `brainstorm/personas.md`.
 
 **For `--depth max` (N personas):**
 
@@ -182,7 +205,11 @@ After setup, Claude analyzes the topic and domain to assign specialist personas:
    - **Guiding question** that shapes their perspective
    - **Primary lens** (one sentence summarizing their analytical viewpoint)
 4. Personas are **complementary** — they should cover distinct dimensions of the research space with minimal overlap.
-5. Save to `brainstorm/personas.md`.
+5. **If `--claude-only`**: Within each persona's mini-MAGI pipeline, relabel the internal model roles:
+   - "Gemini" → "Expansive Explorer" (pushes boundaries, explores emerging approaches, proposes frontier ideas)
+   - "Codex" → "Grounded Builder" (focuses on proven approaches, clear implementation paths, established tools)
+   - Include these cognitive style directives in the persona file so subagents receive them directly.
+6. Save to `brainstorm/personas.md`.
 
 ### Step 1a: Parallel Independent Brainstorming
 
@@ -215,9 +242,55 @@ mcp__codex-cli__brainstorm(
 
 > Note: If Codex MCP is unavailable, fall back to `mcp__gemini-cli__brainstorm` with the Gemini fallback chain and implementation-focused framing.
 
+> **If `--claude-only`**: Replace both calls above with two Agent subagents, executed **simultaneously**:
+>
+> **Subagent A (Creative-Divergent, replaces Gemini):**
+> ```
+> Agent(
+>   subagent_type: "general-purpose",
+>   prompt: "You are a Creative-Divergent thinker. Prioritize unconventional connections across adjacent fields, 'What if?' scenarios, wide exploratory breadth, and questioning fundamental assumptions.
+>
+> [Persona: {gemini_persona_name} — {gemini_persona_expertise}]
+> Guiding question: {gemini_guiding_question}
+>
+> Use the Read tool to read the domain template at {domain_template_path} (skip if no template exists).
+>
+> Research topic: {topic}
+>
+> Generate 12 diverse, creative research ideas. Consider theoretical foundations, practical applications, novel approaches, and potential breakthroughs. Include feasibility and impact analysis for each idea.
+>
+> Save your complete output to {output_dir}/brainstorm/gemini_ideas.md. Start the file with:
+> > Source: Claude Agent subagent (claude-only mode, Creative-Divergent)
+> > Persona: {gemini_persona_name}
+> > Timestamp: {ISO timestamp}"
+> )
+> ```
+>
+> **Subagent B (Analytical-Convergent, replaces Codex):**
+> ```
+> Agent(
+>   subagent_type: "general-purpose",
+>   prompt: "You are an Analytical-Convergent thinker. Prioritize step-by-step feasibility analysis, established methodologies, deep evaluation of each option, practical constraints, and risk assessment.
+>
+> [Persona: {codex_persona_name} — {codex_persona_expertise}]
+> Guiding question: {codex_guiding_question}
+>
+> Use the Read tool to read the domain template at {domain_template_path} (skip if no template exists).
+>
+> Research topic: {topic}
+>
+> Generate 12 implementation-focused research ideas. Consider feasibility, existing tools/libraries, computational requirements, and step-by-step approaches. Include feasibility and impact analysis for each idea.
+>
+> Save your complete output to {output_dir}/brainstorm/codex_ideas.md. Start the file with:
+> > Source: Claude Agent subagent (claude-only mode, Analytical-Convergent)
+> > Persona: {codex_persona_name}
+> > Timestamp: {ISO timestamp}"
+> )
+> ```
+
 Save results to:
-- `brainstorm/gemini_ideas.md` — Gemini's raw output with header noting source, persona, and timestamp
-- `brainstorm/codex_ideas.md` — Codex's raw output with header noting source, persona, and timestamp
+- `brainstorm/gemini_ideas.md` — Gemini's (or Subagent A's) raw output with header noting source, persona, and timestamp
+- `brainstorm/codex_ideas.md` — Codex's (or Subagent B's) raw output with header noting source, persona, and timestamp
 
 ### Step 1b: Cross-Check (`--depth medium` or `--depth high` only)
 
@@ -241,6 +314,42 @@ mcp__codex-cli__ask-codex(
 ```
 
 > Note: If Codex MCP is unavailable, fall back to `mcp__gemini-cli__ask-gemini` with the Gemini fallback chain.
+
+> **If `--claude-only`**: Replace both calls above with two Agent subagents, executed **simultaneously**:
+>
+> **Subagent A (Creative-Divergent, replaces Gemini reviewing Codex):**
+> ```
+> Agent(
+>   subagent_type: "general-purpose",
+>   prompt: "You are a Creative-Divergent reviewer. Prioritize unconventional connections, wide exploratory breadth, and questioning assumptions.
+>
+> [Persona: {gemini_persona_name} — {gemini_persona_expertise}]
+>
+> Use the Read tool to read: {output_dir}/brainstorm/codex_ideas.md
+>
+> Review these research ideas for technical feasibility, scientific rigor, novelty, and potential impact. Identify strengths, weaknesses, and suggest improvements for each idea.
+>
+> Save your review to {output_dir}/brainstorm/gemini_review_of_codex.md. Start with:
+> > Source: Claude Agent subagent (claude-only mode, Creative-Divergent)"
+> )
+> ```
+>
+> **Subagent B (Analytical-Convergent, replaces Codex reviewing Gemini):**
+> ```
+> Agent(
+>   subagent_type: "general-purpose",
+>   prompt: "You are an Analytical-Convergent reviewer. Prioritize step-by-step feasibility, practical constraints, and risk assessment.
+>
+> [Persona: {codex_persona_name} — {codex_persona_expertise}]
+>
+> Use the Read tool to read: {output_dir}/brainstorm/gemini_ideas.md
+>
+> Review these research ideas for implementation feasibility, computational practicality, available tools/datasets, and timeline realism. Identify strengths, weaknesses, and suggest improvements for each idea.
+>
+> Save your review to {output_dir}/brainstorm/codex_review_of_gemini.md. Start with:
+> > Source: Claude Agent subagent (claude-only mode, Analytical-Convergent)"
+> )
+> ```
 
 Save results to:
 - `brainstorm/gemini_review_of_codex.md`
@@ -269,6 +378,54 @@ mcp__codex-cli__ask-codex(
 )
 ```
 
+> **If `--claude-only`**: Replace both debate calls above with two Agent subagents, executed **simultaneously**:
+>
+> **Subagent A (Creative-Divergent, replaces Gemini Round 2):**
+> ```
+> Agent(
+>   subagent_type: "general-purpose",
+>   prompt: "You are a Creative-Divergent debater. Prioritize unconventional reasoning and questioning assumptions.
+>
+> [Persona: {gemini_persona_name}]
+>
+> You reviewed the opposing side's ideas and they reviewed yours. Use the Read tool to read:
+> - {output_dir}/brainstorm/disagreements.md
+> - {output_dir}/brainstorm/gemini_review_of_codex.md
+> - {output_dir}/brainstorm/codex_review_of_gemini.md
+>
+> For each disagreement:
+> 1. **Defend** your position if you believe it is correct, providing additional evidence or reasoning
+> 2. **Concede** if the opposing argument is stronger, explaining why
+> 3. **Revise** your assessment to a new position if appropriate
+>
+> Save to {output_dir}/brainstorm/debate_round2_gemini.md. Start with:
+> > Source: Claude Agent subagent (claude-only mode, Creative-Divergent)"
+> )
+> ```
+>
+> **Subagent B (Analytical-Convergent, replaces Codex Round 2):**
+> ```
+> Agent(
+>   subagent_type: "general-purpose",
+>   prompt: "You are an Analytical-Convergent debater. Prioritize evidence-based reasoning and practical constraints.
+>
+> [Persona: {codex_persona_name}]
+>
+> You reviewed the opposing side's ideas and they reviewed yours. Use the Read tool to read:
+> - {output_dir}/brainstorm/disagreements.md
+> - {output_dir}/brainstorm/codex_review_of_gemini.md
+> - {output_dir}/brainstorm/gemini_review_of_codex.md
+>
+> For each disagreement:
+> 1. **Defend** your position if you believe it is correct, providing additional evidence or reasoning
+> 2. **Concede** if the opposing argument is stronger, explaining why
+> 3. **Revise** your assessment to a new position if appropriate
+>
+> Save to {output_dir}/brainstorm/debate_round2_codex.md. Start with:
+> > Source: Claude Agent subagent (claude-only mode, Analytical-Convergent)"
+> )
+> ```
+
 Save results to:
 - `brainstorm/debate_round2_gemini.md`
 - `brainstorm/debate_round2_codex.md`
@@ -288,11 +445,85 @@ Spawn **N Task subagents simultaneously** (one per persona, `subagent_type: gene
 
    **B. Codex Brainstorm** — Call `mcp__codex-cli__brainstorm` with the persona's viewpoint. Save to `brainstorm/persona_{i}/codex_ideas.md`.
 
+   > **If `--claude-only`**: Replace A and B above with two Agent sub-subagents, executed **simultaneously** within the persona subagent:
+   >
+   > **A'. Expansive Explorer (replaces Gemini):**
+   > ```
+   > Agent(
+   >   subagent_type: "general-purpose",
+   >   prompt: "You are an Expansive Explorer. Push boundaries, explore emerging approaches, and propose ideas at the frontier of what's possible. Challenge conventional thinking and seek novel combinations.
+   >
+   > [Persona: {persona_i_name} — {persona_i_expertise}]
+   > Guiding question: {persona_i_guiding_question}
+   >
+   > Use the Read tool to read the domain template at {domain_template_path} (skip if none).
+   >
+   > Research topic: {topic}
+   >
+   > Generate 12 creative research ideas from this persona's perspective. Save to {output_dir}/brainstorm/persona_{i}/gemini_ideas.md. Start with:
+   > > Source: Claude Agent subagent (claude-only mode, Expansive Explorer)"
+   > )
+   > ```
+   >
+   > **B'. Grounded Builder (replaces Codex):**
+   > ```
+   > Agent(
+   >   subagent_type: "general-purpose",
+   >   prompt: "You are a Grounded Builder. Focus on proven approaches with clear implementation paths, established tools, and demonstrable results. Prioritize what can be built and validated now.
+   >
+   > [Persona: {persona_i_name} — {persona_i_expertise}]
+   > Guiding question: {persona_i_guiding_question}
+   >
+   > Use the Read tool to read the domain template at {domain_template_path} (skip if none).
+   >
+   > Research topic: {topic}
+   >
+   > Generate 12 implementation-focused research ideas from this persona's perspective. Save to {output_dir}/brainstorm/persona_{i}/codex_ideas.md. Start with:
+   > > Source: Claude Agent subagent (claude-only mode, Grounded Builder)"
+   > )
+   > ```
+
    **C+D. Cross-Review (simultaneous):**
    - Gemini reviews Codex ideas using `@{output_dir}/brainstorm/persona_{i}/codex_ideas.md` → save to `brainstorm/persona_{i}/gemini_review_of_codex.md`
    - Codex reviews Gemini ideas using `@{output_dir}/brainstorm/persona_{i}/gemini_ideas.md` → save to `brainstorm/persona_{i}/codex_review_of_gemini.md`
 
-   **E. Persona Conclusion** — The subagent synthesizes its top 3 research directions, noting areas of internal agreement and disagreement between the two models. Save to `brainstorm/persona_{i}/conclusion.md`.
+   > **If `--claude-only`**: Replace C+D above with two Agent sub-subagents, executed **simultaneously**:
+   >
+   > **C'. Expansive Explorer reviews Grounded Builder's ideas:**
+   > ```
+   > Agent(
+   >   subagent_type: "general-purpose",
+   >   prompt: "You are an Expansive Explorer reviewer. Question constraints and look for hidden potential.
+   >
+   > [Persona: {persona_i_name}]
+   >
+   > Use the Read tool to read: {output_dir}/brainstorm/persona_{i}/codex_ideas.md
+   >
+   > Review these ideas for novelty, scientific rigor, and potential impact. Identify strengths, weaknesses, and improvements.
+   >
+   > Save to {output_dir}/brainstorm/persona_{i}/gemini_review_of_codex.md. Start with:
+   > > Source: Claude Agent subagent (claude-only mode, Expansive Explorer)"
+   > )
+   > ```
+   >
+   > **D'. Grounded Builder reviews Expansive Explorer's ideas:**
+   > ```
+   > Agent(
+   >   subagent_type: "general-purpose",
+   >   prompt: "You are a Grounded Builder reviewer. Evaluate practical feasibility and implementation viability.
+   >
+   > [Persona: {persona_i_name}]
+   >
+   > Use the Read tool to read: {output_dir}/brainstorm/persona_{i}/gemini_ideas.md
+   >
+   > Review these ideas for implementation feasibility, computational practicality, and timeline realism. Identify strengths, weaknesses, and improvements.
+   >
+   > Save to {output_dir}/brainstorm/persona_{i}/codex_review_of_gemini.md. Start with:
+   > > Source: Claude Agent subagent (claude-only mode, Grounded Builder)"
+   > )
+   > ```
+
+   **E. Persona Conclusion** — The subagent synthesizes its top 3 research directions, noting areas of internal agreement and disagreement between the two models (or two cognitive styles in claude-only mode). Save to `brainstorm/persona_{i}/conclusion.md`.
 
 Wait for all N subagents to complete before proceeding.
 
@@ -347,6 +578,52 @@ mcp__codex-cli__ask-codex(
 ```
 Save to `brainstorm/meta_review_codex.md`.
 
+> **If `--claude-only`**: Replace both meta-review calls above with two Agent subagents, executed **simultaneously**:
+>
+> **Subagent A (Creative-Divergent, replaces Gemini Meta-Review):**
+> ```
+> Agent(
+>   subagent_type: "general-purpose",
+>   prompt: "You are a Creative-Divergent meta-reviewer. Look for emergent patterns, underexplored spaces, and unconventional combinations across perspectives.
+>
+> Use the Read tool to read: {output_dir}/brainstorm/all_conclusions.md
+>
+> You are reviewing the outputs of {N} domain-specialist research personas who independently analyzed: {topic}
+>
+> Provide a meta-review covering:
+> 1. **Coverage analysis** — Which aspects are well-covered vs. underexplored?
+> 2. **Quality assessment** — Rate each persona's conclusions (depth, rigor, creativity) on a 1-10 scale
+> 3. **Cross-persona synthesis** — What emerges when combining all perspectives?
+> 4. **Top 3 disagreements** — Identify the 3 most significant contradictions with specific quotes
+> 5. **Recommended directions** — Your top 5 research directions
+>
+> Save to {output_dir}/brainstorm/meta_review_gemini.md. Start with:
+> > Source: Claude Agent subagent (claude-only mode, Creative-Divergent)"
+> )
+> ```
+>
+> **Subagent B (Analytical-Convergent, replaces Codex Meta-Review):**
+> ```
+> Agent(
+>   subagent_type: "general-purpose",
+>   prompt: "You are an Analytical-Convergent meta-reviewer. Focus on methodological rigor, feasibility, and practical implementation paths across perspectives.
+>
+> Use the Read tool to read: {output_dir}/brainstorm/all_conclusions.md
+>
+> You are reviewing the outputs of {N} domain-specialist research personas who independently analyzed: {topic}
+>
+> Provide a meta-review covering:
+> 1. **Coverage analysis** — Which aspects are well-covered vs. underexplored?
+> 2. **Quality assessment** — Rate each persona's conclusions (depth, rigor, creativity) on a 1-10 scale
+> 3. **Cross-persona synthesis** — What emerges when combining all perspectives?
+> 4. **Top 3 disagreements** — Identify the 3 most significant contradictions with specific quotes
+> 5. **Recommended directions** — Your top 5 research directions
+>
+> Save to {output_dir}/brainstorm/meta_review_codex.md. Start with:
+> > Source: Claude Agent subagent (claude-only mode, Analytical-Convergent)"
+> )
+> ```
+
 **Phase B — Disagreement Extraction:**
 
 Claude reads both meta-reviews and extracts the **top 3 cross-persona disagreements** — prioritizing disagreements identified by both reviewers. For each disagreement, produce a structured summary: the claim, which personas support each side, and the core tension. **Save the meta-disagreement summary to `brainstorm/meta_disagreements.md`** before the debate calls.
@@ -373,6 +650,52 @@ mcp__codex-cli__ask-codex(
 )
 ```
 Save to `brainstorm/meta_debate_codex.md`.
+
+> **If `--claude-only`**: Replace both debate calls above with two Agent subagents, executed **simultaneously**:
+>
+> **Subagent A (Creative-Divergent, replaces Gemini Debate):**
+> ```
+> Agent(
+>   subagent_type: "general-purpose",
+>   prompt: "You are a Creative-Divergent debater. Defend unconventional positions with imaginative reasoning, but concede when evidence demands it.
+>
+> [Meta-Reviewer]
+>
+> Use the Read tool to read: {output_dir}/brainstorm/debate_context_for_gemini.md
+>
+> You reviewed {N} persona conclusions and identified top disagreements. The file contains the disagreement summary followed by the opposing meta-review.
+>
+> For each disagreement:
+> 1. **Defend** your position with additional evidence or reasoning
+> 2. **Concede** if the opposing argument is stronger, explaining why
+> 3. **Revise** your assessment to a new synthesized position if appropriate
+>
+> Save to {output_dir}/brainstorm/meta_debate_gemini.md. Start with:
+> > Source: Claude Agent subagent (claude-only mode, Creative-Divergent)"
+> )
+> ```
+>
+> **Subagent B (Analytical-Convergent, replaces Codex Debate):**
+> ```
+> Agent(
+>   subagent_type: "general-purpose",
+>   prompt: "You are an Analytical-Convergent debater. Defend positions with evidence and practical reasoning, but concede when creative arguments reveal genuine blind spots.
+>
+> [Meta-Reviewer]
+>
+> Use the Read tool to read: {output_dir}/brainstorm/debate_context_for_codex.md
+>
+> You reviewed {N} persona conclusions and identified top disagreements. The file contains the disagreement summary followed by the opposing meta-review.
+>
+> For each disagreement:
+> 1. **Defend** your position with additional evidence or reasoning
+> 2. **Concede** if the opposing argument is stronger, explaining why
+> 3. **Revise** your assessment to a new synthesized position if appropriate
+>
+> Save to {output_dir}/brainstorm/meta_debate_codex.md. Start with:
+> > Source: Claude Agent subagent (claude-only mode, Analytical-Convergent)"
+> )
+> ```
 
 ### Step 1-max-d: Layer 3 — Final Enriched Synthesis (`--depth max`)
 

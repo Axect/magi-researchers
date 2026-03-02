@@ -13,6 +13,9 @@ Generates a structured markdown research report from all previous phase outputs.
 
 ## Instructions
 
+### Claude-Only Mode
+When `--claude-only` is active (passed from the parent `/research` pipeline), all Gemini/Codex MCP calls in this skill are replaced with Claude Agent subagents (`subagent_type: general-purpose`). Subagents use the `Read` tool to access files instead of `@filepath`. Output filenames remain unchanged; each output starts with `> Source: Claude Agent subagent (claude-only mode, {style})`.
+
 ### MCP Tool Rules
 - **Gemini**: Use the following model fallback chain. Try each model in order; if a call fails (error, timeout, or model-not-found), retry with the next model:
   1. `model: "gemini-3.1-pro-preview"` (preferred)
@@ -179,6 +182,54 @@ mcp__codex-cli__ask-codex(
 ```
 
 > Note: If Codex MCP is unavailable, fall back to `mcp__gemini-cli__ask-gemini` with the Gemini fallback chain and visualization-focused framing.
+
+> **If `--claude-only`**: Replace both BALTHASAR and CASPER calls above with two Agent subagents, executed **simultaneously**:
+>
+> **Subagent A (Creative-Divergent, BALTHASAR — Scientific Rigor Review):**
+> ```
+> Agent(
+>   subagent_type: "general-purpose",
+>   prompt: "You are BALTHASAR, a Creative-Divergent scientific reviewer. You look for gaps in reasoning, missed connections, and opportunities for deeper analysis.
+>
+> Use the Read tool to read:
+> - {output_dir}/report.md
+> - {output_dir}/plots/plot_manifest.json
+> - {output_dir}/brainstorm/personas.md (if it exists, adopt the Gemini/Subagent A persona for continuity)
+>
+> Analyze this research report for claim-evidence integrity. Identify:
+> 1. **Orphaned claims**: Text assertions lacking a supporting figure, table, or data reference
+> 2. **Orphaned plots**: Figures embedded but never discussed or interpreted
+> 3. **Weak links**: Claims that reference a figure but the figure doesn't clearly support the claim
+> 4. **Caption quality**: Are figure captions precise, quantitative, and publication-ready?
+>
+> For each issue, specify the section, problematic text/figure, and a concrete fix.
+>
+> Return your review as structured text (do not save to a file)."
+> )
+> ```
+>
+> **Subagent B (Analytical-Convergent, CASPER — Visualization Quality Review):**
+> ```
+> Agent(
+>   subagent_type: "general-purpose",
+>   prompt: "You are CASPER, an Analytical-Convergent visualization reviewer. You focus on data presentation quality, reproducibility, and practical completeness.
+>
+> Use the Read tool to read:
+> - {output_dir}/report.md
+> - {output_dir}/plots/plot_manifest.json
+> - {output_dir}/brainstorm/personas.md (if it exists, adopt the Codex/Subagent B persona for continuity)
+>
+> Analyze this research report for visualization quality and completeness. Identify:
+> 1. **Missing visualizations**: Quantitative results described in text that need a chart/plot
+> 2. **Plot-narrative mismatch**: Figures whose captions don't match what the plot shows
+> 3. **Visualization improvements**: Better chart types, scales, or encodings for clarity
+> 4. **Reproducibility gaps**: Plots lacking source context or data references
+>
+> For each issue, specify the section, problematic text/figure, and a concrete fix.
+>
+> Return your review as structured text (do not save to a file)."
+> )
+> ```
 
 **Claude (MELCHIOR) — Synthesis & Revision:**
 
