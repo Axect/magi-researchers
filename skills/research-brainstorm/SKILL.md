@@ -171,7 +171,7 @@ After setup, Claude analyzes the topic and domain to assign specialist personas:
 1. Analyze the topic's sub-disciplines, methodologies, and key challenges.
 2. Assign a **Gemini persona** — a domain expert profile best suited for creative/theoretical ideation on this topic (e.g., "Theoretical cosmologist specializing in dark energy models" or "Bayesian statistician with expertise in causal inference").
 3. Assign a **Codex persona** — a practitioner/builder profile best suited for implementation-focused ideation (e.g., "Computational physicist with GPU simulation experience" or "ML engineer specializing in scalable training pipelines").
-4. Each persona definition should include: name/title, expertise areas (3-5 bullet points), and a guiding question that shapes their perspective.
+4. Each persona definition should include: name/title, expertise areas (3-5 bullet points), and a guiding question that shapes their perspective. **Name the persona after a real historical figure (위인) whose work is closely related to the persona's domain** (e.g., a statistical learning theorist → "R. A. Fisher", a theoretical physicist → "Emmy Noether", a computational pioneer → "John von Neumann"). This immediately signals the persona's intellectual lineage and analytical style.
 5. Personas **complement** the domain template — they do not override it. The domain template provides general context; personas provide topic-specific focus.
 6. **If `--claude-only`**: Relabel the personas in `brainstorm/personas.md`:
    - "Gemini persona" → "Subagent A (Creative-Divergent)"
@@ -200,7 +200,7 @@ After setup, Claude analyzes the topic and domain to assign specialist personas:
    - **N=4**: + Application/Interdisciplinary
    - **N=5**: + Critique/Skepticism
 3. Each persona definition must include:
-   - **Name/title** (e.g., "Dr. Theoretician — Formal Methods Specialist")
+   - **Name/title** — **Use a real historical figure (위인) whose work aligns with this persona's domain** (e.g., "Alan Turing — Computation Theory Specialist", "Marie Curie — Experimental Methodology Pioneer", "Claude Shannon — Information-Theoretic Analyst"). The figure's intellectual legacy should resonate with the persona's analytical lens.
    - **Expertise areas** (3-5 bullet points)
    - **Guiding question** that shapes their perspective
    - **Primary lens** (one sentence summarizing their analytical viewpoint)
