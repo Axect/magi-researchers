@@ -20,6 +20,9 @@ When `--claude-only` is active (passed from the parent `/research` pipeline), al
 - **Context7**: Use `mcp__plugin_context7_context7__query-docs` for library documentation lookups. Call `resolve-library-id` first to get the library ID.
 - **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@plan/research_plan.md`)
   instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
+- **Web Search**: Use web search freely whenever implementation requires checking library APIs, usage patterns, or recent best practices:
+  - **Claude**: Use the `WebSearch` tool directly
+  - **When to search**: library API changes, implementation examples, algorithm details, dependency compatibility, debugging known issues
 
 ### Step 0: Locate Research Plan
 

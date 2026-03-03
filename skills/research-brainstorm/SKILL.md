@@ -30,6 +30,12 @@ Generates and cross-validates research ideas using Gemini and Codex in parallel,
 - **Codex**: Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review. If Codex fails 2+ times, fall back to Claude directly.
 - **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@brainstorm/codex_ideas.md`)
   instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
+- **Web Search**: Use web search freely whenever factual verification, recent developments, or literature context would strengthen the discussion:
+  - **Claude**: Use the `WebSearch` tool directly
+  - **Gemini**: Add `search: true` to `mcp__gemini-cli__ask-gemini` or `mcp__gemini-cli__brainstorm` calls
+  - **Codex**: Add `search: true` to `mcp__codex-cli__ask-codex` or `mcp__codex-cli__brainstorm` calls
+  - **When to search**: prior work verification, methodological precedents, dataset/library availability, related approaches, fact-checking quantitative claims
+  - **Claude-only mode**: Claude Agent subagents cannot use WebSearch. The main Claude agent should search beforehand and include findings in the subagent prompt.
 
 ### Claude-Only Mode
 

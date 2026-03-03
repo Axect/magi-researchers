@@ -24,6 +24,11 @@ When `--claude-only` is active (passed from the parent `/research` pipeline), al
 - **Visualization**: Use `matplotlib` with `scienceplots` (`['science', 'nature']` style). Save plots as PNG (300 dpi) and PDF.
 - **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@report.md`)
   instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
+- **Web Search**: Use web search freely whenever report writing requires citation verification, related work context, or factual accuracy checks:
+  - **Claude**: Use the `WebSearch` tool directly
+  - **Gemini**: Add `search: true` to `mcp__gemini-cli__ask-gemini` calls
+  - **Codex**: Add `search: true` to `mcp__codex-cli__ask-codex` calls
+  - **When to search**: citation verification, related work references, fact-checking claims, confirming state-of-the-art results
 
 ### Step 0: Gather Materials & Health Check
 

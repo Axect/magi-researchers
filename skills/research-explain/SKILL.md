@@ -38,6 +38,12 @@ Generates high-quality explanations of concepts using Gemini and Codex in parall
 - **Codex**: Use `mcp__codex-cli__ask-codex` for analysis/review. If Codex fails 2+ times, fall back to Claude directly.
 - **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@explain/codex_ideas.md`)
   instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
+- **Web Search**: Use web search freely whenever factual verification, recent developments, or literature context would strengthen the explanation:
+  - **Claude**: Use the `WebSearch` tool directly
+  - **Gemini**: Add `search: true` to `mcp__gemini-cli__ask-gemini` calls
+  - **Codex**: Add `search: true` to `mcp__codex-cli__ask-codex` calls
+  - **When to search**: concept definitions, pedagogical resources, common misconceptions, recent breakthroughs, related concepts, fact-checking claims
+  - **Claude-only mode**: Claude Agent subagents cannot use WebSearch. The main Claude agent should search beforehand and include findings in the subagent prompt.
 
 ### Claude-Only Mode
 

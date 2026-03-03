@@ -317,6 +317,7 @@ Add to `.claude/settings.local.json`:
       "Bash(uv add:*)",
       "Bash(uv sync:*)",
       "Bash(mkdir:*)",
+      "WebSearch",
       "mcp__gemini-cli__ask-gemini",
       "mcp__gemini-cli__brainstorm",
       "mcp__codex-cli__ask-codex",

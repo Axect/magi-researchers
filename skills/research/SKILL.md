@@ -32,6 +32,12 @@ Runs the complete research pipeline: Brainstorming → Planning → Implementati
 - **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@plan/research_plan.md`)
   instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
 - **Context7**: Use `mcp__plugin_context7_context7__query-docs` for library documentation lookups during implementation.
+- **Web Search**: Use web search freely whenever factual verification, recent developments, or literature context would strengthen the analysis:
+  - **Claude**: Use the `WebSearch` tool directly
+  - **Gemini**: Add `search: true` to `mcp__gemini-cli__ask-gemini` or `mcp__gemini-cli__brainstorm` calls
+  - **Codex**: Add `search: true` to `mcp__codex-cli__ask-codex` or `mcp__codex-cli__brainstorm` calls
+  - **When to search**: prior work verification, methodological precedents, dataset/library availability, related approaches, fact-checking quantitative claims
+  - **Claude-only mode**: Claude Agent subagents cannot use WebSearch. The main Claude agent should search beforehand and include findings in the subagent prompt.
 - **Visualization**: Use `matplotlib` with `scienceplots` (`['science', 'nature']` style). Save plots as PNG (300 dpi) and PDF.
 - **LaTeX**: Use LaTeX for all mathematical expressions in output documents. Inline: `$...$`. Display equations: `$$` on its own line with the equation on a separate line:
   ```
