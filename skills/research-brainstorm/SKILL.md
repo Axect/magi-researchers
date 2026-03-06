@@ -27,7 +27,7 @@ Generates and cross-validates research ideas using Gemini and Codex in parallel,
   1. `model: "gemini-3.1-pro-preview"` (preferred)
   2. `model: "gemini-2.5-pro"` (fallback)
   3. Claude (last resort — skip Gemini MCP tool, use Claude directly)
-- **Codex**: Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review. If Codex fails 2+ times, fall back to Claude directly.
+- **Codex**: Use `model: "gpt-5.4"` for all Codex MCP calls. Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review. If Codex fails 2+ times, fall back to Claude directly.
 - **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@brainstorm/codex_ideas.md`)
   instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
 - **Web Search**: Use web search freely whenever factual verification, recent developments, or literature context would strengthen the discussion:
@@ -238,6 +238,7 @@ mcp__gemini-cli__brainstorm(
 ```
 mcp__codex-cli__brainstorm(
   prompt: "[Persona: {codex_persona_name} — {codex_persona_expertise}]\nGuiding question: {codex_guiding_question}\n\nDomain context: @{domain_template_path}\n\n{topic} — Generate implementation-focused research ideas. Consider feasibility, existing tools/libraries, computational requirements, and step-by-step approaches. For each idea, include a brief mechanism (1-2 sentences): how and why does this approach address the stated problem?",
+  model: "gpt-5.4",
   domain: "{domain}",
   methodology: "auto",
   ideaCount: 12,
@@ -315,7 +316,8 @@ mcp__gemini-cli__ask-gemini(
 **Codex reviews Gemini ideas (Round 1):**
 ```
 mcp__codex-cli__ask-codex(
-  prompt: "[Persona: {codex_persona_name} — {codex_persona_expertise}]\n\nReview the following research ideas for implementation feasibility, computational practicality, available tools/datasets, and timeline realism. For each idea: (1) Restate the proponent's mechanism in your own words. (2) Identify strengths and weaknesses — for each, explain concretely in what scenario it manifests and why it matters. (3) Name the warrant connecting the claimed benefit to the proposed mechanism. (4) Suggest improvements.\n\n@{output_dir}/brainstorm/gemini_ideas.md"
+  prompt: "[Persona: {codex_persona_name} — {codex_persona_expertise}]\n\nReview the following research ideas for implementation feasibility, computational practicality, available tools/datasets, and timeline realism. For each idea: (1) Restate the proponent's mechanism in your own words. (2) Identify strengths and weaknesses — for each, explain concretely in what scenario it manifests and why it matters. (3) Name the warrant connecting the claimed benefit to the proposed mechanism. (4) Suggest improvements.\n\n@{output_dir}/brainstorm/gemini_ideas.md",
+  model: "gpt-5.4"
 )
 ```
 
@@ -380,7 +382,8 @@ mcp__gemini-cli__ask-gemini(
 **Codex Round 2 — Defend/Concede/Revise:**
 ```
 mcp__codex-cli__ask-codex(
-  prompt: "[Persona: {codex_persona_name}]\n\nYou reviewed Gemini's ideas and Gemini reviewed yours. Here are the top 3 points of disagreement:\n\n@{output_dir}/brainstorm/disagreements.md\n\nFor each disagreement:\n1. **Defend** your position if you believe it is correct, providing additional evidence or reasoning\n2. **Concede** if the opposing argument is stronger, explaining why\n3. **Revise** your assessment to a new position if appropriate\n\nWalk through your reasoning step by step. Don't just state your verdict — explain the logic chain so a reader can follow exactly why you defend, concede, or revise.\n\nYour original review:\n@{output_dir}/brainstorm/codex_review_of_gemini.md\n\nGemini's review of your ideas:\n@{output_dir}/brainstorm/gemini_review_of_codex.md"
+  prompt: "[Persona: {codex_persona_name}]\n\nYou reviewed Gemini's ideas and Gemini reviewed yours. Here are the top 3 points of disagreement:\n\n@{output_dir}/brainstorm/disagreements.md\n\nFor each disagreement:\n1. **Defend** your position if you believe it is correct, providing additional evidence or reasoning\n2. **Concede** if the opposing argument is stronger, explaining why\n3. **Revise** your assessment to a new position if appropriate\n\nWalk through your reasoning step by step. Don't just state your verdict — explain the logic chain so a reader can follow exactly why you defend, concede, or revise.\n\nYour original review:\n@{output_dir}/brainstorm/codex_review_of_gemini.md\n\nGemini's review of your ideas:\n@{output_dir}/brainstorm/gemini_review_of_codex.md",
+  model: "gpt-5.4"
 )
 ```
 
@@ -496,7 +499,6 @@ Spawn **N Task subagents simultaneously** (one per persona, `subagent_type: gene
    **C+D. Cross-Review (simultaneous):**
    - Gemini reviews Codex ideas using `@{output_dir}/brainstorm/persona_{i}/codex_ideas.md` → save to `brainstorm/persona_{i}/gemini_review_of_codex.md`
    - Codex reviews Gemini ideas using `@{output_dir}/brainstorm/persona_{i}/gemini_ideas.md` → save to `brainstorm/persona_{i}/codex_review_of_gemini.md`
-
    > **If `--claude-only`**: Replace C+D above with two Agent sub-subagents, executed **simultaneously**:
    >
    > **C'. Expansive Explorer reviews Grounded Builder's ideas:**
@@ -587,7 +589,8 @@ Save to `brainstorm/meta_review_gemini.md`.
 **Codex Meta-Review:**
 ```
 mcp__codex-cli__ask-codex(
-  prompt: "You are reviewing the outputs of {N} domain-specialist research personas who independently analyzed: {topic}\n\nHere are all persona conclusions:\n@{output_dir}/brainstorm/all_conclusions.md\n\nProvide a meta-review covering:\n1. **Coverage analysis** — Which aspects of the research space are well-covered vs. underexplored?\n2. **Quality assessment** — Rate each persona's conclusions (depth, rigor, creativity) on a 1-10 scale\n3. **Cross-persona synthesis** — What emerges when combining all perspectives that no single persona captured?\n4. **Top 3 disagreements** — Identify the 3 most significant points where personas contradict each other, with specific quotes\n5. **Recommended directions** — Your top 5 research directions considering all perspectives. For each, explain the mechanism by which it addresses the research question."
+  prompt: "You are reviewing the outputs of {N} domain-specialist research personas who independently analyzed: {topic}\n\nHere are all persona conclusions:\n@{output_dir}/brainstorm/all_conclusions.md\n\nProvide a meta-review covering:\n1. **Coverage analysis** — Which aspects of the research space are well-covered vs. underexplored?\n2. **Quality assessment** — Rate each persona's conclusions (depth, rigor, creativity) on a 1-10 scale\n3. **Cross-persona synthesis** — What emerges when combining all perspectives that no single persona captured?\n4. **Top 3 disagreements** — Identify the 3 most significant points where personas contradict each other, with specific quotes\n5. **Recommended directions** — Your top 5 research directions considering all perspectives. For each, explain the mechanism by which it addresses the research question.",
+  model: "gpt-5.4"
 )
 ```
 Save to `brainstorm/meta_review_codex.md`.
@@ -660,7 +663,8 @@ Save to `brainstorm/meta_debate_gemini.md`.
 
 ```
 mcp__codex-cli__ask-codex(
-  prompt: "[Meta-Reviewer]\n\nYou reviewed {N} persona conclusions and identified top disagreements. Below is the disagreement summary followed by Gemini's meta-review for context:\n\n@{output_dir}/brainstorm/debate_context_for_codex.md\n\nFor each disagreement:\n1. **Defend** your position with additional evidence or reasoning\n2. **Concede** if the opposing argument is stronger, explaining why\n3. **Revise** your assessment to a new synthesized position if appropriate\n\nWalk through your reasoning step by step. Don't just state your verdict — explain the logic chain so a reader can follow exactly why you defend, concede, or revise."
+  prompt: "[Meta-Reviewer]\n\nYou reviewed {N} persona conclusions and identified top disagreements. Below is the disagreement summary followed by Gemini's meta-review for context:\n\n@{output_dir}/brainstorm/debate_context_for_codex.md\n\nFor each disagreement:\n1. **Defend** your position with additional evidence or reasoning\n2. **Concede** if the opposing argument is stronger, explaining why\n3. **Revise** your assessment to a new synthesized position if appropriate\n\nWalk through your reasoning step by step. Don't just state your verdict — explain the logic chain so a reader can follow exactly why you defend, concede, or revise.",
+  model: "gpt-5.4"
 )
 ```
 Save to `brainstorm/meta_debate_codex.md`.

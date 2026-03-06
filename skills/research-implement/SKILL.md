@@ -83,7 +83,8 @@ Before presenting to the user, execute a lightweight quality checkpoint:
    - Send the implementation summary + source code to Codex for a focused review targeting the low-scoring checklist items:
    ```
    mcp__codex-cli__ask-codex(
-     prompt: "Review this research implementation for correctness, plan alignment, error handling, and dependency management. Focus on: {low_scoring_items}\n\n@{output_dir}/plan/research_plan.md\n@{output_dir}/src/*.py"
+     prompt: "Review this research implementation for correctness, plan alignment, error handling, and dependency management. Focus on: {low_scoring_items}\n\n@{output_dir}/plan/research_plan.md\n@{output_dir}/src/*.py",
+     model: "gpt-5.4"
    )
    ```
    > **If `--claude-only`**: Replace the Codex call above with:

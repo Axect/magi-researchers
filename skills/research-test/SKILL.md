@@ -170,7 +170,8 @@ Before presenting to the user, execute a lightweight quality checkpoint:
    - Send the test results + plot summaries to Codex for a focused review targeting the low-scoring checklist items:
    ```
    mcp__codex-cli__ask-codex(
-     prompt: "Review these research tests and visualizations for coverage, edge cases, visualization quality, and reproducibility. Focus on: {low_scoring_items}\n\n@{output_dir}/plots/plot_manifest.json\n@{output_dir}/tests/test_*.py"
+     prompt: "Review these research tests and visualizations for coverage, edge cases, visualization quality, and reproducibility. Focus on: {low_scoring_items}\n\n@{output_dir}/plots/plot_manifest.json\n@{output_dir}/tests/test_*.py",
+     model: "gpt-5.4"
    )
    ```
    > **If `--claude-only`**: Replace the Codex call above with:

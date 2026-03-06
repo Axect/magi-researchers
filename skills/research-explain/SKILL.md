@@ -35,7 +35,7 @@ Generates high-quality explanations of concepts using Gemini and Codex in parall
   1. `model: "gemini-3.1-pro-preview"` (preferred)
   2. `model: "gemini-2.5-pro"` (fallback)
   3. Claude (last resort — skip Gemini MCP tool, use Claude directly)
-- **Codex**: Use `mcp__codex-cli__ask-codex` for analysis/review. If Codex fails 2+ times, fall back to Claude directly.
+- **Codex**: Use `model: "gpt-5.4"` for all Codex MCP calls. Use `mcp__codex-cli__ask-codex` for analysis/review. If Codex fails 2+ times, fall back to Claude directly.
 - **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@explain/codex_ideas.md`)
   instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
 - **Web Search**: Use web search freely whenever factual verification, recent developments, or literature context would strengthen the explanation:
@@ -286,7 +286,8 @@ You are a pedagogical analyst and explanation critic. Generate a comprehensive c
    - This concept IS NOT [confused concept]
    - Key distinguishing feature
 4. **Precision-Accessibility Tradeoffs**: Where must an explanation sacrifice precision for accessibility at this audience level? What simplifications are acceptable vs. dangerous?
-5. **Calibration Questions** (5-10): Questions that test genuine understanding (not just recall). Include expected correct answers and common wrong answers with explanations of what each wrong answer reveals about the student's misunderstanding."
+5. **Calibration Questions** (5-10): Questions that test genuine understanding (not just recall). Include expected correct answers and common wrong answers with explanations of what each wrong answer reveals about the student's misunderstanding.",
+  model: "gpt-5.4"
 )
 ```
 > Note: Omit the `Domain context: @{domain_template_path}` line from the prompt when no domain template exists.
@@ -404,7 +405,8 @@ Evaluate the Teacher's explanation on these dimensions:
 For each issue found, provide:
 - The specific problematic passage
 - Why it's problematic
-- A suggested fix"
+- A suggested fix",
+  model: "gpt-5.4"
 )
 ```
 
@@ -531,7 +533,8 @@ Your original review:
 @{output_dir}/explain/codex_review_of_gemini.md
 
 Teacher's review of your analysis:
-@{output_dir}/explain/gemini_review_of_codex.md"
+@{output_dir}/explain/gemini_review_of_codex.md",
+  model: "gpt-5.4"
 )
 ```
 
@@ -764,7 +767,8 @@ Provide a meta-review covering:
 2. **Quality assessment** — Rate each persona's explanation strategy (clarity, accuracy, audience calibration) on a 1-10 scale
 3. **Cross-persona synthesis** — What emerges when combining all perspectives that no single persona captured?
 4. **Top 3 disagreements** — Identify the 3 most significant points where personas contradict each other, with specific quotes
-5. **Recommended explanation strategy** — Your top approach considering all perspectives"
+5. **Recommended explanation strategy** — Your top approach considering all perspectives",
+  model: "gpt-5.4"
 )
 ```
 Save to `explain/meta_review_codex.md`.
@@ -857,7 +861,8 @@ You reviewed {N} persona conclusions on explaining {concept} and identified top 
 For each disagreement:
 1. **Defend** your position with pedagogical evidence or learning science reasoning
 2. **Concede** if the opposing argument better serves the audience's understanding
-3. **Revise** your assessment to a new synthesized position if appropriate"
+3. **Revise** your assessment to a new synthesized position if appropriate",
+  model: "gpt-5.4"
 )
 ```
 Save to `explain/meta_debate_codex.md`.
