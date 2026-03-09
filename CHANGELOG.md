@@ -5,6 +5,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.8.1] — 2026-03-09
+
+### Added
+- **`/research-execute` skill (Phase 3.5)** — Dedicated code execution phase between Implement and Test. Reads `execution_cmd` and `dry_run_cmd` deterministically from `research_plan.md` YAML frontmatter. No keyword heuristics, no entry-point guessing. Supports dry-run verification, 30-min timeout, structured error classification (minor/logic/environment), and `results/pre_execution_status.md` output.
+- **`research_plan.md` YAML frontmatter** — Phase 2 (Plan) now scaffolds `languages`, `ecosystem`, `execution_cmd`, `dry_run_cmd`, `expected_outputs`, and `estimated_runtime` fields. Phase 3 (Implement) fills execution fields after writing code.
+
+### Changed
+- **Language-agnostic implementation** — `research-implement` no longer assumes Python. Detects existing ecosystem from `src/` files (package managers first, then file extensions). Priority: reality (`src/`) > plan intent > domain defaults. Any language with scripted Ubuntu setup is supported; Python/uv remains the safe fallback.
+- **Two-tier testing** — `research-test` separates Tier 1 (unit, mock-based, always runs) from Tier 2 (integration, depends on `results/`, gracefully skipped if absent). Test frameworks are chosen to match the detected workspace — no single framework enforced.
+- **Common Restrictions** — Phase 4 enforces four output-interface contracts regardless of tool choice: `plot_manifest.json` (fixed schema), PNG + PDF/SVG dual format, execution evidence, and dependency spec file. Internal tooling is autonomous.
+- **Workspace Detection** — Both `research-implement` and `research-test` scan `src/` for package manager files and file extensions to determine the active language/ecosystem before making any tool decisions.
+- **Removed pre-execution heuristics from `research-test`** — All code execution logic (entry-point detection, keyword scanning, auto-fix, 10-min timeout) moved to the dedicated `research-execute` skill.
+- **Resume Protocol updated** — `results/pre_execution_status.md` is now the Phase 3.5 completion checkpoint. `src/` containing any source file (not only `.py`) triggers Phase 3.5 resume.
+- **Artifact Contract updated** — Phase 4 no longer requires Python-specific glob; accepts any source file. Phase 3.5 contract requires `execution_cmd` in plan frontmatter.
+
+---
+
 ## [0.7.1] — 2026-03-03
 
 ### Changed

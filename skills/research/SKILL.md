@@ -74,7 +74,8 @@ Phase gates are lightweight quality checkpoints inserted **before** each USER CH
 |:------|:----------------|
 | **Plan** (Phase 2) | Completeness (all objectives addressed), methodology soundness, resource feasibility, risk identification |
 | **Implement** (Phase 3) | Code correctness, alignment with plan, error handling, dependency management |
-| **Test** (Phase 4) | Coverage adequacy, edge case handling, visualization quality, result reproducibility |
+| **Execute** (Phase 3.5) | Exit code 0, `results/` populated (or EXISTING/PARTIAL with user acknowledgment), `pre_execution_status.md` written |
+| **Test** (Phase 4) | Tier 1 unit test coverage, edge case handling, Common Restrictions fulfilled (plot_manifest.json, dual format, dependency spec), result reproducibility |
 
 > If a gate returns **No-Go**, Claude must fix the identified issues before presenting to the user. Maximum 1 fix iteration per gate.
 
@@ -90,7 +91,8 @@ When `--resume <output_dir>` is provided, the pipeline skips initialization and 
 |:----------|:----------|:-------|
 | `report.md` exists | Pipeline complete | Inform user; offer to re-run specific phases |
 | `plots/plot_manifest.json` exists | Phase 4 complete | Resume from Phase 5 (Reporting) |
-| `src/` contains at least one `.py` file | Phase 3 complete | Resume from Phase 4 (Testing) |
+| `results/pre_execution_status.md` exists | Phase 3.5 complete | Resume from Phase 4 (Testing) |
+| `src/` contains at least one source file | Phase 3 complete | Resume from Phase 3.5 (Execute) |
 | `plan/research_plan.md` exists | Phase 2 complete | Resume from Phase 3 (Implementation) |
 | `brainstorm/synthesis.md` exists | Phase 1 complete | Resume from Phase 2 (Planning) |
 | None of the above | No phase complete | Start from Phase 1 (Brainstorming) |
@@ -116,8 +118,9 @@ Before starting each phase (2 through 5), verify that the required predecessor a
 |:------|:-------------------|:------------------|
 | **Phase 2** (Plan) | `brainstorm/synthesis.md` | Glob + Read first 3 lines (non-empty) |
 | **Phase 3** (Implement) | `plan/research_plan.md` | Glob + Read first 3 lines (non-empty) |
-| **Phase 4** (Test) | At least one `.py` file in `src/`, `plan/research_plan.md` | Glob for `src/**/*.py` + Glob for plan |
-| **Phase 5** (Report) | `brainstorm/synthesis.md`, `plan/research_plan.md`, at least one `.py` in `src/`, `plots/plot_manifest.json` | Glob for each path |
+| **Phase 3.5** (Execute) | At least one source file in `src/`, `plan/research_plan.md` with `execution_cmd` in frontmatter | Glob `src/**/*` + Read frontmatter |
+| **Phase 4** (Test) | At least one source file in `src/`, `plan/research_plan.md` | Glob `src/**/*` + Glob for plan. Note: `results/pre_execution_status.md` is optional — its absence means Tier 2 integration tests will be skipped |
+| **Phase 5** (Report) | `brainstorm/synthesis.md`, `plan/research_plan.md`, at least one source file in `src/`, `plots/plot_manifest.json` | Glob for each path |
 
 **On validation failure:**
 1. List the missing or empty artifacts with specific file paths.
@@ -202,7 +205,20 @@ Execute the `/magi-researchers:research-brainstorm` workflow, **forwarding all f
    - Specify implementation requirements (language, libraries, compute)
    - Design the test strategy
    - Plan visualizations
-2. Save to `plan/research_plan.md`
+2. Save to `plan/research_plan.md`, beginning with a YAML frontmatter block:
+   ```yaml
+   ---
+   title: "{research topic}"
+   domain: "{physics|ai_ml|statistics|mathematics|paper}"
+   languages: ["{primary language(s) planned}"]
+   ecosystem: ["{package manager(s) planned}"]
+   execution_cmd: ""          # filled in after Phase 3 (Implement)
+   dry_run_cmd: ""            # filled in after Phase 3 (Implement)
+   expected_outputs: []       # filled in after Phase 3 (Implement)
+   estimated_runtime: ""      # filled in after Phase 3 (Implement)
+   ---
+   ```
+   Leave execution fields empty for now — Phase 3 (Implement) will populate them.
 
 **Step 2b — Murder Board:**
 
@@ -275,28 +291,57 @@ Execute the `/magi-researchers:research-implement` workflow:
 
 ---
 
+### Phase 3.5: Execute
+
+**Artifact Contract**: Verify at least one source file in `src/` and `plan/research_plan.md` with
+`execution_cmd` in frontmatter. On failure, follow the Artifact Contract Protocol above.
+
+Execute the `/magi-researchers:research-execute` workflow:
+
+- Read `execution_cmd` and `dry_run_cmd` from `plan/research_plan.md` YAML frontmatter
+- Run dry-run first (fast sanity check); fix minor errors before full run
+- Run full execution; capture output to `results/run_log.txt`
+- Write `results/pre_execution_status.md` (SUCCESS / FAILED / PARTIAL / EXISTING)
+- For long-running jobs (> 15 min): inform user, recommend running externally then resuming
+
+**Phase Gate: Execute** — Execute the Phase Gate Protocol with Execute checklist.
+
+**>>> USER CHECKPOINT: Review execution results <<<**
+Present: execution status, generated artifacts, any errors encountered.
+
+---
+
 ### Phase 4: Testing & Visualization
 
-**Artifact Contract**: Verify at least one `.py` file exists in `src/` (Glob `src/**/*.py`) and `plan/research_plan.md` exists. On failure, follow the Artifact Contract Protocol above.
+**Artifact Contract**: Verify at least one source file exists in `src/` (Glob `src/**/*`) and
+`plan/research_plan.md` exists. `results/pre_execution_status.md` is optional — its absence causes
+Tier 2 integration tests to be skipped (not a pipeline failure).
 
 Execute the `/magi-researchers:research-test` workflow:
 
-**Step 1 — Test Design:**
-- Consult Gemini for test case suggestions
-- Claude synthesizes test strategy
+**Step 0 — Workspace Detection:**
+- Scan `src/` for package managers and file extensions to detect languages and ecosystems
+- Check `results/pre_execution_status.md` to determine data availability for Tier 2 tests
+
+**Step 1 — Test Strategy Discussion:**
+- Consult Gemini for test suggestions; propose two-tier plan (Tier 1 unit / Tier 2 integration)
+- Choose testing tools matching detected workspace languages
 - Present to user for approval
 
-**Step 2 — Test Execution:**
-- Write tests in `tests/`
-- Run with `uv run pytest tests/ -v`
+**Step 2 — Test Implementation:**
+- Write Tier 1 unit tests (mock-based, always run)
+- Write Tier 2 integration tests (guarded by `results/` availability)
+- Run tests with the native test runner for each detected language
 - Report results
 
 **Step 3 — Visualization:**
-- Generate plots using matplotlib + scienceplots (`['science', 'nature']` style)
-- Save as PNG (300 dpi) and PDF in `plots/`
+- Choose visualization tools matching detected workspace
+- Load data from `results/` if available; compute inline otherwise
+- All plots must follow Common Restrictions: PNG + PDF/SVG, registered in `plot_manifest.json`
 
 **Step 4 — Plot Manifest:**
-- Generate `plots/plot_manifest.json` with metadata for every plot: plot_id, file paths, description, section_hint, publication-ready caption, and markdown snippet
+- Generate `plots/plot_manifest.json` using the fixed schema
+- All plots registered here regardless of which tool generated them
 - This manifest is the primary input for Phase 5's plot integration
 
 **Phase Gate: Test** — Execute the Phase Gate Protocol with Test checklist.
@@ -307,7 +352,7 @@ Execute the `/magi-researchers:research-test` workflow:
 
 ### Phase 5: Reporting
 
-**Artifact Contract**: Verify all of the following exist (Glob for each): `brainstorm/synthesis.md`, `plan/research_plan.md`, at least one `.py` in `src/`, and `plots/plot_manifest.json`. On failure, follow the Artifact Contract Protocol above.
+**Artifact Contract**: Verify all of the following exist (Glob for each): `brainstorm/synthesis.md`, `plan/research_plan.md`, at least one source file in `src/`, and `plots/plot_manifest.json`. On failure, follow the Artifact Contract Protocol above.
 
 Execute the `/magi-researchers:research-report` workflow:
 

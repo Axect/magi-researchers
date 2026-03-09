@@ -1,12 +1,18 @@
 {
   "name": "magi-researchers",
-  "version": "0.8.0",
-  "description": "Three AI models, one synthesis — multi-model research workflow for scientific domains",
+  "version": "0.8.1",
+  "description": "Three AI models, one synthesis \u2014 multi-model research workflow for scientific domains",
   "author": {
     "name": "axect",
     "url": "https://github.com/axect"
   },
   "repository": "https://github.com/axect/magi-researchers",
   "license": "MIT",
-  "keywords": ["research", "science", "physics", "ai-ml", "multi-model"]
+  "keywords": [
+    "research",
+    "science",
+    "physics",
+    "ai-ml",
+    "multi-model"
+  ]
 }

@@ -34,39 +34,99 @@ When `--claude-only` is active (passed from the parent `/research` pipeline), al
 4. Read the research plan and identify:
    - The output base directory (parent of `plan/`)
    - Required algorithms/models to implement
-   - Programming language and framework choices
+   - Programming language and framework choices (from frontmatter `languages`/`ecosystem` fields)
    - Expected inputs and outputs
    - Dependencies needed
 
-### Step 1: Environment Setup
+### Step 1: Workspace Detection & Environment Setup
 
-1. Create the `src/` directory under the output base if it doesn't exist.
-2. Check if any additional Python dependencies are needed beyond what's in `pyproject.toml`.
-   - If so, inform the user and suggest adding them via `uv add`.
+1. **Check if `src/` already has code** (Glob `src/**/*`):
+   - If files exist, read them to understand the current ecosystem before adding anything new.
+   - If `src/` is empty or absent, proceed with initialization.
+
+2. **Determine language and ecosystem** using the following priority:
+
+   | Priority | Source | How |
+   |:---------|:-------|:----|
+   | **1st** | Existing `src/` files | Detect package managers (`Cargo.toml`, `pyproject.toml`, `Project.toml`, `DESCRIPTION`) and dominant file extensions |
+   | **2nd** | `research_plan.md` frontmatter | Read `languages` and `ecosystem` fields |
+   | **3rd** | Domain + topic inference | Autonomous selection based on research domain and algorithms |
+
+   If 1st and 2nd conflict (e.g., plan says Python but `src/` has Rust code), **the actual files win**.
+   Announce the discrepancy and proceed with the detected ecosystem.
+
+3. **Initialize the ecosystem** (only if `src/` is empty):
+   - Run the appropriate setup commands for the chosen language:
+     - Python: `uv init` (if no `pyproject.toml` exists) or `uv add {deps}`
+     - Rust: `cargo init src/` or structure as appropriate
+     - R: create `DESCRIPTION` and `R/` subdirectory
+     - Julia: `julia --project=src/ -e 'import Pkg; Pkg.init()'`
+     - C/C++: create `CMakeLists.txt` or `Makefile`
+   - If the chosen language/tool is not available on the host system, inform the user with the
+     install command and stop. Do NOT attempt to install system-level tools without user approval.
+
+4. **Language selection principles** (when choosing freely):
+   - Match the dominant language of the research domain and algorithms
+   - Prefer languages/libraries the research plan explicitly mentions
+   - Python + uv is the safe fallback when no other preference is clear
+   - The implementation must be runnable on a standard Ubuntu Linux system via a scripted command
+     (no interactive install steps, no GUI-only tools, no proprietary licenses required)
 
 ### Step 2: Implementation
 
 1. Follow the research plan's implementation section strictly.
 2. Write modular, well-structured code in `src/`:
-   - Main entry point (e.g., `src/main.py`)
-   - Separate modules for distinct components (e.g., `src/model.py`, `src/data.py`, `src/utils.py`)
-3. Use Context7 (`mcp__plugin_context7_context7__query-docs`) to look up library APIs when needed.
-4. Include docstrings for all public functions explaining:
-   - Purpose
-   - Parameters and return values
-   - Any assumptions or limitations
+   - Follow the ecosystem's idiomatic project layout (e.g., `src/main.py` for Python, `src/main.rs`
+     + `src/lib.rs` for Rust, `R/` for R packages)
+   - Separate modules for distinct components (data loading, model, utilities, etc.)
+3. **Implement a dry-run / fast-mode flag** in the main entry point:
+   - The flag should reduce runtime to seconds (e.g., 1 epoch, 10 samples, minimal iterations)
+   - This is used by Phase 3.5 (`/research-execute`) for a quick sanity check before the full run
+   - Examples: `--dry-run`, `--fast`, `--epochs 1 --samples 10`
+4. Use Context7 (`mcp__plugin_context7_context7__query-docs`) to look up library APIs when needed.
+5. Include docstrings/comments for all public functions explaining purpose, parameters, return values.
 
-### Step 3: Validation
+### Step 3: Update research_plan.md Frontmatter
 
-1. After implementation, do a basic sanity check:
-   - Ensure all files are syntactically valid (e.g., `uv run python -c "import src.main"` or equivalent)
-   - Check for obvious issues (unused imports, undefined variables)
+After implementation, update the YAML frontmatter in `plan/research_plan.md` to reflect the actual
+execution commands. This information is consumed by Phase 3.5 (`/research-execute`).
+
+Read the current frontmatter and update or add these fields:
+```yaml
+---
+title: "..."
+domain: "..."
+languages: ["rust", "python"]        # actual languages used in src/
+ecosystem: ["cargo", "uv"]           # actual package managers
+execution_cmd: "bash run_all.sh"     # command to run the full pipeline
+dry_run_cmd: "bash run_all.sh --dry-run"  # fast sanity-check command (seconds)
+expected_outputs:                    # key files that should appear in results/
+  - "results/metrics.csv"
+  - "results/model.pt"
+estimated_runtime: "~30 minutes"     # rough estimate for user awareness
+---
+```
+
+If a `run_all.sh` (or equivalent) script does not yet exist, create it in the project root or
+`src/` so that the full pipeline runs with a single command.
+
+### Step 4: Validation
+
+1. Run the dry-run command to confirm basic executability:
+   ```bash
+   {dry_run_cmd}
+   ```
+   - Exit 0: validation passed.
+   - Non-zero: fix the issue before presenting to the user.
+
 2. Present the implementation summary to the user:
    - List of files created with brief descriptions
+   - Detected/chosen ecosystem and rationale
+   - Execution commands (`execution_cmd`, `dry_run_cmd`)
    - Any deviations from the research plan and why
    - Known limitations or TODOs
 
-### Step 4: Phase Gate
+### Step 5: Phase Gate
 
 Before presenting to the user, execute a lightweight quality checkpoint:
 
@@ -113,7 +173,7 @@ Before presenting to the user, execute a lightweight quality checkpoint:
 
 > If the gate returns **No-Go**, fix the identified issues before presenting to the user. Maximum 1 fix iteration.
 
-### Step 5: User Review
+### Step 6: User Review
 
 Present the implementation for user review:
 - Highlight key design decisions
