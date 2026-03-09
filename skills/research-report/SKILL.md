@@ -13,14 +13,22 @@ Generates a structured markdown research report from all previous phase outputs.
 
 ## Instructions
 
+### Claude-Only Mode
+When `--claude-only` is active (passed from the parent `/research` pipeline), all Gemini/Codex MCP calls in this skill are replaced with Claude Agent subagents (`subagent_type: general-purpose`). Subagents use the `Read` tool to access files instead of `@filepath`. Output filenames remain unchanged; each output starts with `> Source: Claude Agent subagent (claude-only mode, {style})`.
+
 ### MCP Tool Rules
 - **Gemini**: Use the following model fallback chain. Try each model in order; if a call fails (error, timeout, or model-not-found), retry with the next model:
   1. `model: "gemini-3.1-pro-preview"` (preferred)
-  2. `model: "gemini-3-pro-preview"` (fallback)
-  3. `model: "gemini-2.5-pro"` (last resort)
+  2. `model: "gemini-2.5-pro"` (fallback)
+  3. Claude (last resort — skip Gemini MCP tool, use Claude directly)
 - **Visualization**: Use `matplotlib` with `scienceplots` (`['science', 'nature']` style). Save plots as PNG (300 dpi) and PDF.
 - **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@report.md`)
   instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
+- **Web Search**: Use web search freely whenever report writing requires citation verification, related work context, or factual accuracy checks:
+  - **Claude**: Use the `WebSearch` tool directly
+  - **Gemini**: Add `search: true` to `mcp__gemini-cli__ask-gemini` calls
+  - **Codex**: Add `search: true` to `mcp__codex-cli__ask-codex` calls
+  - **When to search**: citation verification, related work references, fact-checking claims, confirming state-of-the-art results
 
 ### Step 0: Gather Materials & Health Check
 
@@ -167,18 +175,67 @@ Execute these two review calls **simultaneously** (in the same message):
 ```
 mcp__gemini-cli__ask-gemini(
   prompt: "You are a scientific reviewer. Analyze this research report for claim-evidence integrity. Identify:\n\n1. **Orphaned claims**: Text assertions that lack a supporting figure, table, or data reference\n2. **Orphaned plots**: Figures that are embedded but never discussed or interpreted in the text\n3. **Weak links**: Claims that reference a figure but the figure doesn't clearly support the claim\n4. **Caption quality**: Are figure captions precise, quantitative, and publication-ready?\n\nFor each issue found, specify the section, the problematic text or figure, and a concrete fix.\n\nReport draft:\n@{output_dir}/report.md\n\nPlot manifest:\n@{output_dir}/plots/plot_manifest.json",
-  model: "gemini-3.1-pro-preview"  // fallback: "gemini-3-pro-preview" → "gemini-2.5-pro"
+  model: "gemini-3.1-pro-preview"  // fallback: "gemini-2.5-pro" → Claude
 )
 ```
 
 **Codex (CASPER) — Visualization Quality Review:**
 ```
 mcp__codex-cli__ask-codex(
-  prompt: "You are a data visualization reviewer. Analyze this research report for visualization quality and completeness. Identify:\n\n1. **Missing visualizations**: Quantitative results or comparisons described in text that would benefit from a chart/plot but have none\n2. **Plot-narrative mismatch**: Figures whose captions or surrounding text don't accurately describe what the plot shows\n3. **Visualization improvements**: Existing plots that could use better chart types, scales, or encodings for clarity\n4. **Reproducibility gaps**: Plots that lack source context or data references needed to regenerate them\n\nFor each issue found, specify the section, the problematic text or figure, and a concrete fix.\n\nReport draft:\n@{output_dir}/report.md\n\nPlot manifest:\n@{output_dir}/plots/plot_manifest.json"
+  prompt: "You are a data visualization reviewer. Analyze this research report for visualization quality and completeness. Identify:\n\n1. **Missing visualizations**: Quantitative results or comparisons described in text that would benefit from a chart/plot but have none\n2. **Plot-narrative mismatch**: Figures whose captions or surrounding text don't accurately describe what the plot shows\n3. **Visualization improvements**: Existing plots that could use better chart types, scales, or encodings for clarity\n4. **Reproducibility gaps**: Plots that lack source context or data references needed to regenerate them\n\nFor each issue found, specify the section, the problematic text or figure, and a concrete fix.\n\nReport draft:\n@{output_dir}/report.md\n\nPlot manifest:\n@{output_dir}/plots/plot_manifest.json",
+  model: "gpt-5.4"
 )
 ```
 
 > Note: If Codex MCP is unavailable, fall back to `mcp__gemini-cli__ask-gemini` with the Gemini fallback chain and visualization-focused framing.
+
+> **If `--claude-only`**: Replace both BALTHASAR and CASPER calls above with two Agent subagents, executed **simultaneously**:
+>
+> **Subagent A (Creative-Divergent, BALTHASAR — Scientific Rigor Review):**
+> ```
+> Agent(
+>   subagent_type: "general-purpose",
+>   prompt: "You are BALTHASAR, a Creative-Divergent scientific reviewer. You look for gaps in reasoning, missed connections, and opportunities for deeper analysis.
+>
+> Use the Read tool to read:
+> - {output_dir}/report.md
+> - {output_dir}/plots/plot_manifest.json
+> - {output_dir}/brainstorm/personas.md (if it exists, adopt the Gemini/Subagent A persona for continuity)
+>
+> Analyze this research report for claim-evidence integrity. Identify:
+> 1. **Orphaned claims**: Text assertions lacking a supporting figure, table, or data reference
+> 2. **Orphaned plots**: Figures embedded but never discussed or interpreted
+> 3. **Weak links**: Claims that reference a figure but the figure doesn't clearly support the claim
+> 4. **Caption quality**: Are figure captions precise, quantitative, and publication-ready?
+>
+> For each issue, specify the section, problematic text/figure, and a concrete fix.
+>
+> Return your review as structured text (do not save to a file)."
+> )
+> ```
+>
+> **Subagent B (Analytical-Convergent, CASPER — Visualization Quality Review):**
+> ```
+> Agent(
+>   subagent_type: "general-purpose",
+>   prompt: "You are CASPER, an Analytical-Convergent visualization reviewer. You focus on data presentation quality, reproducibility, and practical completeness.
+>
+> Use the Read tool to read:
+> - {output_dir}/report.md
+> - {output_dir}/plots/plot_manifest.json
+> - {output_dir}/brainstorm/personas.md (if it exists, adopt the Codex/Subagent B persona for continuity)
+>
+> Analyze this research report for visualization quality and completeness. Identify:
+> 1. **Missing visualizations**: Quantitative results described in text that need a chart/plot
+> 2. **Plot-narrative mismatch**: Figures whose captions don't match what the plot shows
+> 3. **Visualization improvements**: Better chart types, scales, or encodings for clarity
+> 4. **Reproducibility gaps**: Plots lacking source context or data references
+>
+> For each issue, specify the section, problematic text/figure, and a concrete fix.
+>
+> Return your review as structured text (do not save to a file)."
+> )
+> ```
 
 **Claude (MELCHIOR) — Synthesis & Revision:**
 

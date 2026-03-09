@@ -13,14 +13,22 @@ Creates tests for research code and generates publication-quality visualizations
 
 ## Instructions
 
+### Claude-Only Mode
+When `--claude-only` is active (passed from the parent `/research` pipeline), all Gemini/Codex MCP calls in this skill are replaced with Claude Agent subagents (`subagent_type: general-purpose`). Subagents use the `Read` tool to access files instead of `@filepath`. Output filenames remain unchanged; each output starts with `> Source: Claude Agent subagent (claude-only mode, {style})`.
+
 ### MCP Tool Rules
 - **Gemini**: Use the following model fallback chain. Try each model in order; if a call fails (error, timeout, or model-not-found), retry with the next model:
   1. `model: "gemini-3.1-pro-preview"` (preferred)
-  2. `model: "gemini-3-pro-preview"` (fallback)
-  3. `model: "gemini-2.5-pro"` (last resort)
+  2. `model: "gemini-2.5-pro"` (fallback)
+  3. Claude (last resort — skip Gemini MCP tool, use Claude directly)
 - **Visualization**: Use `matplotlib` with `scienceplots` (`['science', 'nature']` style). Save plots as PNG (300 dpi) and PDF.
 - **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@plan/research_plan.md`)
   instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
+- **Web Search**: Use web search freely whenever testing requires checking best practices, benchmark references, or visualization techniques:
+  - **Claude**: Use the `WebSearch` tool directly
+  - **Gemini**: Add `search: true` to `mcp__gemini-cli__ask-gemini` calls
+  - **Codex**: Add `search: true` to `mcp__codex-cli__ask-codex` calls
+  - **When to search**: testing methodologies, benchmark datasets, expected values for validation, visualization best practices
 
 ### Step 0: Locate Implementation
 
@@ -37,9 +45,25 @@ Creates tests for research code and generates publication-quality visualizations
 ```
 mcp__gemini-cli__ask-gemini(
   prompt: "Given the following research plan and implementation, suggest comprehensive test cases. Include unit tests, integration tests, and validation tests against known results.\n\nResearch plan:\n@{output_dir}/plan/research_plan.md\n\nSource files:\n@{output_dir}/src/*.py",
-  model: "gemini-3.1-pro-preview"  // fallback: "gemini-3-pro-preview" → "gemini-2.5-pro"
+  model: "gemini-3.1-pro-preview"  // fallback: "gemini-2.5-pro" → Claude
 )
 ```
+
+> **If `--claude-only`**: Replace the Gemini call above with:
+> ```
+> Agent(
+>   subagent_type: "general-purpose",
+>   prompt: "You are a Creative-Divergent test strategist. Think broadly about edge cases, unusual failure modes, and creative validation approaches.
+>
+> Use the Read tool to read:
+> - {output_dir}/plan/research_plan.md
+> - All .py files in {output_dir}/src/
+>
+> Suggest comprehensive test cases for this research implementation. Include unit tests, integration tests, and validation tests against known results. Consider edge cases and boundary conditions.
+>
+> Return your suggestions as structured text (do not save to a file)."
+> )
+> ```
 
 3. Synthesize the test suggestions into a test plan:
    - **Unit tests**: Individual function correctness
@@ -146,9 +170,25 @@ Before presenting to the user, execute a lightweight quality checkpoint:
    - Send the test results + plot summaries to Codex for a focused review targeting the low-scoring checklist items:
    ```
    mcp__codex-cli__ask-codex(
-     prompt: "Review these research tests and visualizations for coverage, edge cases, visualization quality, and reproducibility. Focus on: {low_scoring_items}\n\n@{output_dir}/plots/plot_manifest.json\n@{output_dir}/tests/test_*.py"
+     prompt: "Review these research tests and visualizations for coverage, edge cases, visualization quality, and reproducibility. Focus on: {low_scoring_items}\n\n@{output_dir}/plots/plot_manifest.json\n@{output_dir}/tests/test_*.py",
+     model: "gpt-5.4"
    )
    ```
+   > **If `--claude-only`**: Replace the Codex call above with:
+   > ```
+   > Agent(
+   >   subagent_type: "general-purpose",
+   >   prompt: "You are an Analytical-Convergent test reviewer. Focus on coverage gaps, reproducibility, and practical quality issues.
+   >
+   > Use the Read tool to read:
+   > - {output_dir}/plots/plot_manifest.json
+   > - All test_*.py files in {output_dir}/tests/
+   >
+   > Review these research tests and visualizations for coverage, edge cases, visualization quality, and reproducibility. Focus on: {low_scoring_items}
+   >
+   > Return your review as structured text (do not save to a file)."
+   > )
+   > ```
 
 3. **Go/No-Go synthesis**: Write a brief gate report with:
    - Confidence level and justification

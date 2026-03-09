@@ -13,10 +13,16 @@ Implements research code based on an existing research plan. Requires a `researc
 
 ## Instructions
 
+### Claude-Only Mode
+When `--claude-only` is active (passed from the parent `/research` pipeline), all Gemini/Codex MCP calls in this skill are replaced with Claude Agent subagents (`subagent_type: general-purpose`). Subagents use the `Read` tool to access files instead of `@filepath`. Output filenames remain unchanged; each output starts with `> Source: Claude Agent subagent (claude-only mode, {style})`.
+
 ### MCP Tool Rules
 - **Context7**: Use `mcp__plugin_context7_context7__query-docs` for library documentation lookups. Call `resolve-library-id` first to get the library ID.
 - **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@plan/research_plan.md`)
   instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
+- **Web Search**: Use web search freely whenever implementation requires checking library APIs, usage patterns, or recent best practices:
+  - **Claude**: Use the `WebSearch` tool directly
+  - **When to search**: library API changes, implementation examples, algorithm details, dependency compatibility, debugging known issues
 
 ### Step 0: Locate Research Plan
 
@@ -77,9 +83,25 @@ Before presenting to the user, execute a lightweight quality checkpoint:
    - Send the implementation summary + source code to Codex for a focused review targeting the low-scoring checklist items:
    ```
    mcp__codex-cli__ask-codex(
-     prompt: "Review this research implementation for correctness, plan alignment, error handling, and dependency management. Focus on: {low_scoring_items}\n\n@{output_dir}/plan/research_plan.md\n@{output_dir}/src/*.py"
+     prompt: "Review this research implementation for correctness, plan alignment, error handling, and dependency management. Focus on: {low_scoring_items}\n\n@{output_dir}/plan/research_plan.md\n@{output_dir}/src/*.py",
+     model: "gpt-5.4"
    )
    ```
+   > **If `--claude-only`**: Replace the Codex call above with:
+   > ```
+   > Agent(
+   >   subagent_type: "general-purpose",
+   >   prompt: "You are an Analytical-Convergent code reviewer. Focus on correctness, practical constraints, and implementation quality.
+   >
+   > Use the Read tool to read:
+   > - {output_dir}/plan/research_plan.md
+   > - All .py files in {output_dir}/src/
+   >
+   > Review this research implementation for correctness, plan alignment, error handling, and dependency management. Focus on: {low_scoring_items}
+   >
+   > Return your review as structured text (do not save to a file)."
+   > )
+   > ```
 
 3. **Go/No-Go synthesis**: Write a brief gate report with:
    - Confidence level and justification

@@ -5,7 +5,7 @@ Runs the complete research pipeline: Brainstorming → Planning → Implementati
 
 ## Usage
 ```
-/research "research topic" [--domain physics|ai_ml|statistics|mathematics|paper] [--weights '{"novelty":0.4,"feasibility":0.3,"impact":0.3}'] [--depth low|medium|high|max] [--personas N] [--resume <output_dir>]
+/research "research topic" [--domain physics|ai_ml|statistics|mathematics|paper] [--weights '{"novelty":0.4,"feasibility":0.3,"impact":0.3}'] [--depth low|medium|high|max] [--personas N] [--claude-only] [--resume <output_dir>]
 ```
 
 ## Arguments
@@ -17,7 +17,8 @@ Runs the complete research pipeline: Brainstorming → Planning → Implementati
     - `medium` — Standard one-shot cross-review (default)
     - `high` — Cross-review + adversarial debate (most thorough, highest cost)
     - `max` — Hierarchical MAGI-in-MAGI: N persona subagents run parallel mini-MAGI pipelines, then meta-review + adversarial debate across all perspectives (deepest, highest cost)
-  - `--personas N` — Number of domain-specialist subagents for `--depth max` (default: 3, range: 2-5). Ignored for other depth levels.
+  - `--personas N|auto` — Number of domain-specialist subagents for `--depth max` (default: `auto`, range: 2-5). When `auto`, Claude analyzes the topic to determine the optimal persona count. Ignored for other depth levels.
+  - `--claude-only` — Replace all Gemini/Codex MCP calls with Claude Agent subagents across all phases. Use when external model endpoints are unavailable. Forwarded to all sub-skills automatically.
   - `--resume <output_dir>` — Resume an interrupted pipeline from a previous output directory. See **Resume Protocol** below.
 
 ## Instructions
@@ -25,12 +26,18 @@ Runs the complete research pipeline: Brainstorming → Planning → Implementati
 ### MCP Tool Rules
 - **Gemini**: Use the following model fallback chain. Try each model in order; if a call fails (error, timeout, or model-not-found), retry with the next model:
   1. `model: "gemini-3.1-pro-preview"` (preferred)
-  2. `model: "gemini-3-pro-preview"` (fallback)
-  3. `model: "gemini-2.5-pro"` (last resort)
-- **Codex**: Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review.
+  2. `model: "gemini-2.5-pro"` (fallback)
+  3. Claude (last resort — skip Gemini MCP tool, use Claude directly)
+- **Codex**: Use `model: "gpt-5.4"` for all Codex MCP calls. Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review. If Codex fails 2+ times, fall back to Claude directly.
 - **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@plan/research_plan.md`)
   instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
 - **Context7**: Use `mcp__plugin_context7_context7__query-docs` for library documentation lookups during implementation.
+- **Web Search**: Use web search freely whenever factual verification, recent developments, or literature context would strengthen the analysis:
+  - **Claude**: Use the `WebSearch` tool directly
+  - **Gemini**: Add `search: true` to `mcp__gemini-cli__ask-gemini` or `mcp__gemini-cli__brainstorm` calls
+  - **Codex**: Add `search: true` to `mcp__codex-cli__ask-codex` or `mcp__codex-cli__brainstorm` calls
+  - **When to search**: prior work verification, methodological precedents, dataset/library availability, related approaches, fact-checking quantitative claims
+  - **Claude-only mode**: Claude Agent subagents cannot use WebSearch. The main Claude agent should search beforehand and include findings in the subagent prompt.
 - **Visualization**: Use `matplotlib` with `scienceplots` (`['science', 'nature']` style). Save plots as PNG (300 dpi) and PDF.
 - **LaTeX**: Use LaTeX for all mathematical expressions in output documents. Inline: `$...$`. Display equations: `$$` on its own line with the equation on a separate line:
   ```
@@ -52,6 +59,7 @@ Phase gates are lightweight quality checkpoints inserted **before** each USER CH
 1. **Self-assessment**: Claude evaluates the phase output against the checklist below and assigns a confidence level: `High`, `Medium`, or `Low`.
 2. **Conditional MAGI mini-review** (if confidence is `Medium` or `Low`):
    - Send the phase output to one MAGI model for a focused review (Gemini for scientific/plan quality, Codex for implementation/test quality)
+   - **If `--claude-only`**: Replace the MAGI model call with a Claude Agent subagent (`subagent_type: general-purpose`). Use the appropriate cognitive style: Creative-Divergent for scientific/plan review, Analytical-Convergent for implementation/test review. The subagent reads files via the `Read` tool instead of `@filepath`.
    - The review prompt should target the specific checklist items that scored low
 3. **Go/No-Go synthesis**: Claude writes a brief gate report with:
    - Confidence level and justification
@@ -139,14 +147,17 @@ Before starting each phase (2 through 5), verify that the required predecessor a
 3. If the domain has a template in `${CLAUDE_PLUGIN_ROOT}/templates/domains/`, read it as context.
 4. **Parse `--weights`**: If provided, validate and store. If omitted, domain defaults will be used by the brainstorm sub-skill.
 5. **Parse `--depth`**: Accept `low`, `medium` (default), `high`, or `max`.
-6. **Parse `--personas N`**: Accept integer 2-5 (default: 3). Only used when `--depth max`; ignored otherwise.
-7. Announce to the user: topic, domain, output directory, **active weights** (user-provided or domain default), **depth level**, and **persona count** (if `max`).
+6. **Parse `--personas N|auto`**: Accept integer 2-5 or the string `auto` (default: `auto`). Only used when `--depth max`; ignored otherwise.
+   - If `auto`: Defer persona count determination to Phase 1 (brainstorm sub-skill Step 0b), where Claude analyzes the topic to select the optimal N.
+   - If an explicit integer is given: Use that value directly.
+7. **Parse `--claude-only`**: Boolean flag (default: `false`). When present, all Gemini/Codex MCP calls across all phases are replaced with Claude Agent subagents. This flag is forwarded to every sub-skill invocation.
+8. Announce to the user: topic, domain, output directory, **active weights** (user-provided or domain default), **depth level**, **persona count** (if `max`; show `auto` if no explicit `--personas` was given), and **claude-only mode** (if active).
 
 ---
 
 ### Phase 1: Brainstorming
 
-Execute the `/magi-researchers:research-brainstorm` workflow, **forwarding all flags**: `--domain`, `--weights`, `--depth`, and `--personas` (only when `--depth max`).
+Execute the `/magi-researchers:research-brainstorm` workflow, **forwarding all flags**: `--domain`, `--weights`, `--depth`, `--personas` (only when `--depth max`), and `--claude-only` (if active).
 
 **Step 0 & 0b — Setup & Persona Casting:**
 - Brainstorm sub-skill parses weights and depth, assigns expert personas
@@ -205,6 +216,28 @@ mcp__gemini-cli__ask-gemini(
 ```
 
 Save to `plan/murder_board.md`.
+
+> **If `--claude-only`**: Replace the Gemini murder board call above with a Claude Agent subagent:
+> ```
+> Agent(
+>   subagent_type: "general-purpose",
+>   prompt: "You are an Adversarial-Critical reviewer. Your cognitive style is hostile but fair — you actively search for fatal flaws, unstated assumptions, and failure modes. You are NOT here to be helpful; you are here to break the plan.
+>
+> Use the Read tool to read: {output_dir}/plan/research_plan.md
+>
+> Attack the plan on these dimensions:
+> 1. **Methodological flaws**: Are there fundamental errors in the proposed approach?
+> 2. **Missing assumptions**: What unstated assumptions could invalidate results?
+> 3. **Scalability risks**: Will this approach break on realistic problem sizes?
+> 4. **Data/resource gaps**: Are required datasets, compute, or libraries actually available?
+> 5. **Novelty concerns**: Has this exact approach been tried and failed before?
+>
+> For each flaw found, rate its severity (Critical/Major/Minor) and explain the likely failure mode.
+>
+> Save to {output_dir}/plan/murder_board.md. Start with:
+> > Source: Claude Agent subagent (claude-only mode, Adversarial-Critical)"
+> )
+> ```
 
 **Step 2c — Mitigations:**
 
