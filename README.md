@@ -114,6 +114,7 @@ We gave all three single models and MAGI the same physics problem: *discover an 
 | **3. Implement** | Claude writes code with live library doc lookups | `src/` |
 | **4. Test & Visualize** | Collaborative test design + publication-quality plots | `tests/` + `plots/` |
 | **5. Report** | Structured report with cross-verified claim-evidence integrity | `report.md` |
+| **Write** | Multi-agent collaborative writing from research artifacts → polished documents | `write/` |
 | **Explain** | Teacher/Critic MAGI pipeline → single-voice concept explanation | `explain/` |
 
 ### Multi-Model Verification
@@ -123,6 +124,15 @@ We gave all three single models and MAGI the same physics problem: *discover an 
 - **Murder board** — Gemini attacks the research plan as a hostile reviewer; Claude documents mitigations
 - **Adversarial debate** (`--depth high`) — Models defend, concede, or revise on their top disagreements before synthesis
 - **MAGI-in-MAGI** (`--depth max`) — N persona subagents each run a full mini-MAGI brainstorm in parallel, then a meta-layer synthesizes across all perspectives with adversarial meta-debate
+
+### Collaborative Writing
+
+`/research-write` transforms upstream research artifacts into polished, evidence-grounded documents:
+
+- **Prose compiler paradigm** — The LLM writes prose *around* pre-placed evidence blocks from upstream artifacts, not from memory. Every claim traces to its source via the claim/citation ledger
+- **Mode-specific templates** — `--mode paper` (academic paper with 9 sections) or `--mode proposal` (grant proposal with 7 sections), each with section schemas, evidence slots, and word budgets
+- **Layered hybrid QA** — Structural grounding (claim ledger) → adversarial critique (Devil's Advocate) → automated validation (DocCI: math delimiters, link integrity, word budget)
+- **Two hard gates** — Outline approval before drafting, publish approval before export. Automated progression between them with escalation triggers
 
 ### Concept Explanation
 
@@ -162,6 +172,7 @@ We gave all three single models and MAGI the same physics problem: *discover an 
 |:---|:---|
 | `/magi-researchers:research "topic"` | Full pipeline (all 5 phases) |
 | `/magi-researchers:research-brainstorm "topic"` | Brainstorming with cross-verification |
+| `/magi-researchers:research-write --source <dir>` | Collaborative writing from research artifacts |
 | `/magi-researchers:research-explain "concept"` | Concept explanation with Teacher/Critic pipeline |
 | `/magi-researchers:research-implement` | Implementation (needs existing plan) |
 | `/magi-researchers:research-test` | Testing & visualization |
@@ -176,6 +187,8 @@ We gave all three single models and MAGI the same physics problem: *discover an 
 | `--depth` | `low` `medium` `high` `max` | `medium` | Review thoroughness — `max` enables hierarchical MAGI-in-MAGI pipeline |
 | `--personas` | `2`–`5` | `3` | Number of domain-specialist subagents for `--depth max` |
 | `--audience` | `general-public` `high-school` `undergraduate` `phd-student` `researcher` `expert` `"free text"` | `phd-student` | Target audience level (`research-explain` only) |
+| `--mode` | `paper` `proposal` | `paper` | Writing mode with mode-specific section schemas (`research-write` only) |
+| `--source` | `<output_dir>` | — | Path to upstream research output directory (`research-write` only) |
 | `--claude-only` | flag | off | Replace Gemini/Codex with Claude Agent subagents |
 | `--resume` | `<output_dir>` | — | Resume an interrupted pipeline from the last completed phase |
 
@@ -203,6 +216,12 @@ We gave all three single models and MAGI the same physics problem: *discover an 
 
 # Deep multi-perspective explanation with Claude-only mode
 /magi-researchers:research-explain "gauge symmetry" --domain physics --audience phd-student --depth max --claude-only
+
+# Write an academic paper from research outputs
+/magi-researchers:research-write --source outputs/neural_ode_solvers_20260225_v1 --mode paper
+
+# Write a grant proposal from the same research
+/magi-researchers:research-write --source outputs/neural_ode_solvers_20260225_v1 --mode proposal --audience researcher
 ```
 
 > If MAGI saves you research time, consider leaving a [star](https://github.com/Axect/magi-researchers/stargazers) so other researchers can find it.
@@ -213,6 +232,7 @@ We gave all three single models and MAGI the same physics problem: *discover an 
 outputs/{topic_YYYYMMDD_vN}/
 ├── brainstorm/       # Personas, ideas, cross-reviews, debate, synthesis
 ├── explain/          # Teacher/Critic analysis, strategy, final explanation
+├── write/            # Intake, outline, draft, review, final document
 ├── plan/             # Research plan, murder board, mitigations, phase gate
 ├── src/              # Implementation + phase gate
 ├── tests/            # Test suite + phase gate
@@ -276,6 +296,30 @@ explain/
 </details>
 
 <details>
+<summary><strong>Full artifact tree — <code>research-write</code></strong></summary>
+
+```
+write/
+├── write_inputs.json            # Canonical intake (claims, evidence, definitions)
+├── citation_ledger.json         # Claim-source traceability
+├── section_contracts.json       # Per-section requirements and evidence slots
+├── writing_state.json           # Pipeline state for resumability
+├── gemini_outline.md            # Gemini outline proposal
+├── codex_outline.md             # Codex outline proposal
+├── outline.md                   # Synthesized canonical outline
+├── draft.md                     # Section-by-section draft
+├── gemini_review.md             # Content quality review (depth ≥ medium)
+├── codex_review.md              # Structure/evidence review (depth ≥ medium)
+├── devils_advocate.md           # Adversarial review (depth = high)
+├── coherence_pass.md            # Global transition rewrite
+├── validation_report.json       # DocCI automated checks
+├── revised_draft.md             # Post-review revision
+└── final.md                     # Export-ready document
+```
+
+</details>
+
+<details>
 <summary><strong>Full artifact tree — <code>--depth max</code></strong></summary>
 
 ```
@@ -333,7 +377,7 @@ Add to `.claude/settings.local.json`:
 
 ## Roadmap
 
-**Shipped:**&ensp; Multi-model brainstorming & cross-verification &bull; Domain & journal strategy templates &bull; Plot manifest & gap detection &bull; MAGI traceability review &bull; LaTeX math & Gemini fallback chain &bull; Weighted scoring & dynamic personas &bull; Adversarial debate &bull; Murder board & phase gates &bull; Depth-controlled token budget &bull; Session resume (`--resume`) &bull; Artifact contract validation &bull; Standalone phase gates for all sub-skills &bull; MAGI-in-MAGI hierarchical brainstorming &bull; `@filepath` artifact references for zero-truncation MCP calls &bull; Concept explanation skill with Teacher/Critic pipeline (`research-explain`)
+**Shipped:**&ensp; Multi-model brainstorming & cross-verification &bull; Domain & journal strategy templates &bull; Plot manifest & gap detection &bull; MAGI traceability review &bull; LaTeX math & Gemini fallback chain &bull; Weighted scoring & dynamic personas &bull; Adversarial debate &bull; Murder board & phase gates &bull; Depth-controlled token budget &bull; Session resume (`--resume`) &bull; Artifact contract validation &bull; Standalone phase gates for all sub-skills &bull; MAGI-in-MAGI hierarchical brainstorming &bull; `@filepath` artifact references for zero-truncation MCP calls &bull; Concept explanation skill with Teacher/Critic pipeline (`research-explain`) &bull; **Collaborative writing skill** (`research-write`) with paper & proposal modes, evidence-grounded prose, layered hybrid QA, and canonical artifact intake
 
 **Up next:**
 - [x] Example artifact gallery — real research outputs to showcase the pipeline
