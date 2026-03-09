@@ -110,6 +110,37 @@ estimated_runtime: "~30 minutes"     # rough estimate for user awareness
 If a `run_all.sh` (or equivalent) script does not yet exist, create it in the project root or
 `src/` so that the full pipeline runs with a single command.
 
+### Step 3b: Emit Execution Manifest
+
+After updating the YAML frontmatter, also emit a structured `execution_manifest.json` in the output directory root. This file is the machine-readable execution contract consumed by Phase 3.5 (`/research-execute`).
+
+```json
+{
+  "schema_version": "1.0.0",
+  "languages": ["rust", "python"],
+  "ecosystem": ["cargo", "uv"],
+  "execution_cmd": "bash run_all.sh",
+  "dry_run_cmd": "bash run_all.sh --dry-run",
+  "expected_outputs": [
+    {"path": "results/metrics.csv", "required": true},
+    {"path": "results/model.pt", "required": false}
+  ],
+  "estimated_runtime": "~30 minutes",
+  "cwd": "src/"
+}
+```
+
+Fields:
+- `schema_version`: Always `"1.0.0"` for this release
+- `languages`, `ecosystem`: Actual languages/tools used in `src/`
+- `execution_cmd`: Single command to run the full pipeline
+- `dry_run_cmd`: Fast sanity-check command (seconds, not minutes)
+- `expected_outputs`: Files that should appear in `results/` after execution. `required: true` means the pipeline should warn if absent; `required: false` means optional.
+- `estimated_runtime`: Rough estimate for user awareness
+- `cwd`: Working directory relative to the output directory (optional, defaults to output directory root)
+
+> The YAML frontmatter in `research_plan.md` is retained for backward compatibility and human readability, but `execution_manifest.json` is the authoritative machine contract.
+
 ### Step 4: Validation
 
 1. Run the dry-run command to confirm basic executability:

@@ -28,7 +28,7 @@ Subagents use the `Read` tool to access files instead of `@filepath`. Output fil
 unchanged; each output starts with `> Source: Claude Agent subagent (claude-only mode, {style})`.
 
 ### MCP Tool Rules
-- **Gemini**: Use the following model fallback chain: `gemini-3.1-pro-preview` → `gemini-3-pro-preview` → `gemini-2.5-pro` → Claude
+- **Gemini**: Use the following model fallback chain: `gemini-3.1-pro-preview` → `gemini-2.5-pro` → Claude
 - **File References**: Use `@filepath` in prompt parameters instead of pasting content inline.
 - **Web Search**: Use freely for testing best practices, benchmark references, visualization
   techniques, domain-specific test patterns.
@@ -76,9 +76,10 @@ interface between Phase 4 and Phase 5 (Report) — violating them breaks the pip
    contains `Cargo.toml` and `.rs` files, **the actual files win**. Announce the discrepancy.
 
 6. **Check execution results**:
-   - Glob for `results/pre_execution_status.md`. Read it if present.
-   - Status `SUCCESS` or `EXISTING` → integration tests and visualizations may use `results/` data.
-   - Status `FAILED`, `PARTIAL`, or file absent → integration tests must be skipped; use mocks/inline data.
+   - Glob for `results/pre_execution_status.json`. If present, parse JSON and check the `state` field.
+   - If `pre_execution_status.json` does not exist but `pre_execution_status.md` does (legacy workspace), read the `.md` and infer state from its content (look for SUCCESS/FAILED/PARTIAL/EXISTING).
+   - State `SUCCESS` or `EXISTING` → integration tests and visualizations may use `results/` data.
+   - State `FAILED`, `PARTIAL`, or file absent → integration tests must be skipped; use mocks/inline data.
 
 ### Step 1: Test Strategy Discussion
 
@@ -90,7 +91,7 @@ interface between Phase 4 and Phase 5 (Report) — violating them breaks the pip
 2. Consult Gemini for test suggestions, providing the workspace context:
    ```
    mcp__gemini-cli__ask-gemini(
-     prompt: "Given the following research implementation, suggest a comprehensive test strategy.\n\nWorkspace context:\n- Detected languages/ecosystems: {detected}\n- results/ status: {SUCCESS|FAILED|ABSENT}\n\nResearch plan:\n@{output_dir}/plan/research_plan.md\n\nSource files:\n@{output_dir}/src/*\n\nPre-execution status (if available):\n@{output_dir}/results/pre_execution_status.md\n\nSuggest tests in two tiers:\n1. Unit tests (no results/ dependency — use mocks/fixtures; must run even without pre-execution)\n2. Integration/validation tests (may depend on results/ artifacts; mark as skippable if results/ absent)\n\nRecommend appropriate testing tools for the detected languages. Do not prescribe a single framework — choose what fits the codebase.",
+     prompt: "Given the following research implementation, suggest a comprehensive test strategy.\n\nWorkspace context:\n- Detected languages/ecosystems: {detected}\n- results/ status: {SUCCESS|FAILED|ABSENT}\n\nResearch plan:\n@{output_dir}/plan/research_plan.md\n\nSource files:\n@{output_dir}/src/*\n\nPre-execution status (if available):\n@{output_dir}/results/pre_execution_status.json\n\nSuggest tests in two tiers:\n1. Unit tests (no results/ dependency — use mocks/fixtures; must run even without pre-execution)\n2. Integration/validation tests (may depend on results/ artifacts; mark as skippable if results/ absent)\n\nRecommend appropriate testing tools for the detected languages. Do not prescribe a single framework — choose what fits the codebase.",
      model: "gemini-3.1-pro-preview"
    )
    ```
@@ -104,7 +105,7 @@ interface between Phase 4 and Phase 5 (Report) — violating them breaks the pip
    > Use the Read tool to read:
    > - {output_dir}/plan/research_plan.md
    > - All source files in {output_dir}/src/
-   > - {output_dir}/results/pre_execution_status.md (if it exists)
+   > - {output_dir}/results/pre_execution_status.json (if it exists; fall back to .md for legacy)
    >
    > Workspace context:
    > - Detected languages/ecosystems: {detected}
@@ -154,8 +155,10 @@ interface between Phase 4 and Phase 5 (Report) — violating them breaks the pip
 3. Write Tier 2 integration tests, guarded by availability of `results/`:
    - Python example:
      ```python
-     import pytest, pathlib
-     RESULTS_AVAILABLE = pathlib.Path("results/pre_execution_status.md").exists()
+     import pytest, pathlib, json
+     _status_json = pathlib.Path("results/pre_execution_status.json")
+     _status_md = pathlib.Path("results/pre_execution_status.md")  # legacy fallback
+     RESULTS_AVAILABLE = _status_json.exists() or _status_md.exists()
 
      @pytest.mark.skipif(not RESULTS_AVAILABLE, reason="results/ not available — run /research-execute first")
      def test_output_schema():
@@ -264,7 +267,7 @@ Before presenting to the user, execute a lightweight quality checkpoint:
 2. **Conditional MAGI mini-review** (if confidence is `Medium` or `Low`):
    ```
    mcp__codex-cli__ask-codex(
-     prompt: "Review these research tests and visualizations. Focus on: {low_scoring_items}\n\n@{output_dir}/plots/plot_manifest.json\n@{output_dir}/tests/ (or equivalent test directory)\n@{output_dir}/results/pre_execution_status.md",
+     prompt: "Review these research tests and visualizations. Focus on: {low_scoring_items}\n\n@{output_dir}/plots/plot_manifest.json\n@{output_dir}/tests/ (or equivalent test directory)\n@{output_dir}/results/pre_execution_status.json",
      model: "gpt-5.4"
    )
    ```
@@ -278,7 +281,7 @@ Before presenting to the user, execute a lightweight quality checkpoint:
    > Use the Read tool to read:
    > - {output_dir}/plots/plot_manifest.json
    > - All test files in {output_dir}/tests/ (or equivalent)
-   > - {output_dir}/results/pre_execution_status.md (if it exists)
+   > - {output_dir}/results/pre_execution_status.json (if it exists; fall back to .md for legacy)
    >
    > Review tests and visualizations. Focus on: {low_scoring_items}
    > Return structured text — do not save to a file."

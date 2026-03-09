@@ -109,12 +109,12 @@ We gave all three single models and MAGI the same physics problem: *discover an 
 
 | Phase | What Happens | Output |
 |:---|:---|:---|
-| **1. Brainstorm** | Three models generate and cross-review ideas with expert personas | `brainstorm/` |
-| **2. Plan** | Concrete research plan with execution metadata, stress-tested by a hostile reviewer | `plan/` |
-| **3. Implement** | Language-agnostic implementation with dry-run verification and frontmatter update | `src/` |
-| **3.5. Execute** | Deterministic code execution from plan frontmatter; generates result artifacts | `results/` |
-| **4. Test & Visualize** | Workspace-aware two-tier testing + publication-quality plots with Common Restrictions | `tests/` + `plots/` |
-| **5. Report** | Structured report with cross-verified claim-evidence integrity | `report.md` |
+| **Brainstorm** | Three models generate and cross-review ideas with expert personas | `brainstorm/` |
+| **Plan** | Concrete research plan with execution metadata, stress-tested by a hostile reviewer | `plan/` |
+| **Implement** | Language-agnostic implementation with dry-run verification and frontmatter update | `src/` |
+| **Execute** | Deterministic code execution from plan frontmatter; generates result artifacts | `results/` |
+| **Test & Visualize** | Workspace-aware two-tier testing + publication-quality plots with Common Restrictions | `tests/` + `plots/` |
+| **Report** | Structured report with cross-verified claim-evidence integrity | `report.md` |
 
 ### MAGI-in-MAGI (v0.5.0)
 
@@ -123,7 +123,7 @@ Two models aren't enough for deep, multi-faceted research questions. `--depth ma
 - **Hierarchical pipeline** — N persona subagents each run a full mini-MAGI brainstorm (Gemini + Codex + cross-review) in parallel, then a meta-layer synthesizes across all perspectives
 - **Adversarial meta-debate** — Gemini and Codex meta-review all N conclusions, Claude extracts the top 3 cross-persona disagreements, and a defend/concede/revise debate resolves them
 - **Enriched synthesis** — Final output includes cross-persona consensus, unique contributions, debate resolutions, emergent insights, and full MAGI process traceability
-- **`--personas N`** — Scale from 2 to 5 domain specialists (default: 3) covering theory, computation, empirics, application, and critique
+- **`--personas N`** — Scale from 2 to 5 domain specialists (default: auto) covering theory, computation, empirics, application, and critique
 
 ### Never Lose Your Work (v0.4.0)
 
@@ -160,7 +160,7 @@ Long research sessions crash. Context windows expire. Networks drop. Now you can
 - **Two-tier testing** — Tier 1 (unit, mock-based, always runs) and Tier 2 (integration, depends on `results/`, skipped gracefully if absent). Test frameworks match the detected workspace language.
 - **Deterministic execution** — Phase 3.5 reads `execution_cmd` and `dry_run_cmd` directly from `research_plan.md` YAML frontmatter. No heuristics, no entry-point guessing.
 - **`research_plan.md` frontmatter** — Carries `languages`, `ecosystem`, `execution_cmd`, `dry_run_cmd`, `expected_outputs`, and `estimated_runtime` fields as machine-readable metadata for downstream phases.
-- **Gemini fallback chain** — Resilient 3-tier model fallback: `gemini-3.1-pro-preview` → `gemini-3-pro-preview` → `gemini-2.5-pro`
+- **Gemini fallback chain** — Resilient 3-tier model fallback: `gemini-3.1-pro-preview` → `gemini-2.5-pro` → Claude
 - **Cross-phase artifact contracts** — Each phase validates incoming artifacts before running (tool-based Glob/Read, not LLM guesswork)
 - **Depth-controlled token budget** — `--depth low` skips cross-review for fast/cheap runs; `--depth high` enables full adversarial debate
 - **`@filepath` artifact references** — MCP tool calls use `@filepath` syntax instead of inline content, so large artifacts are read directly from disk with zero truncation
@@ -171,7 +171,7 @@ Long research sessions crash. Context windows expire. Networks drop. Now you can
 
 | Command | Description |
 |:---|:---|
-| `/magi-researchers:research "topic"` | Full pipeline (all phases including 3.5) |
+| `/magi-researchers:research "topic"` | Full pipeline (Brainstorm → Plan → Implement → Execute → Test → Report) |
 | `/magi-researchers:research-brainstorm "topic"` | Brainstorming with cross-verification |
 | `/magi-researchers:research-write --source <dir>` | Collaborative writing from research artifacts |
 | `/magi-researchers:research-explain "concept"` | Concept explanation with Teacher/Critic pipeline |
@@ -187,8 +187,9 @@ Long research sessions crash. Context windows expire. Networks drop. Now you can
 | `--domain` | `physics` `ai_ml` `statistics` `mathematics` `paper` | auto-inferred | Research domain for context and weight defaults |
 | `--weights` | JSON object | domain default | Custom scoring weights (keys: `novelty`, `feasibility`, `impact`, `rigor`, `scalability`) |
 | `--depth` | `low` `medium` `high` `max` | `medium` | Review thoroughness — `max` enables hierarchical MAGI-in-MAGI pipeline |
-| `--personas` | `2`–`5` | `3` | Number of domain-specialist subagents for `--depth max` |
+| `--personas` | `2`–`5` | `auto` | Number of domain-specialist subagents for `--depth max` |
 | `--resume` | `<output_dir>` | — | Resume an interrupted pipeline from the last completed phase |
+| `--claude-only` | flag | off | Replace Gemini/Codex with Claude Agent subagents for offline/single-model usage |
 
 ```bash
 # Quick brainstorm with default settings
@@ -254,7 +255,7 @@ src/
 
 results/
 ├── run_log.txt               # Full execution log
-├── pre_execution_status.md   # SUCCESS / FAILED / PARTIAL / EXISTING
+├── pre_execution_status.json  # Structured status (state, error_class, severity, retryable, next_action)
 └── *                         # Generated artifacts (csv, npz, pt, etc.)
 
 tests/
@@ -322,7 +323,7 @@ Add to `.claude/settings.local.json`:
 
 ## Roadmap
 
-**Shipped:**&ensp; Multi-model brainstorming & cross-verification &bull; Domain & journal strategy templates &bull; Plot manifest & gap detection &bull; MAGI traceability review &bull; LaTeX math & Gemini fallback chain &bull; Weighted scoring & dynamic personas &bull; Adversarial debate &bull; Murder board & phase gates &bull; Depth-controlled token budget &bull; Session resume (`--resume`) &bull; Artifact contract validation &bull; Standalone phase gates for all sub-skills &bull; MAGI-in-MAGI hierarchical brainstorming &bull; `@filepath` artifact references for zero-truncation MCP calls &bull; Concept explanation skill with Teacher/Critic pipeline (`research-explain`) &bull; Collaborative writing skill (`research-write`) with paper & proposal modes, evidence-grounded prose, layered hybrid QA, and canonical artifact intake &bull; **Phase 3.5 `research-execute`** — deterministic code execution from plan frontmatter, dry-run verification, structured `results/` inventory &bull; **Language-agnostic implementation** — workspace detection (Reality > Intent > Fallback), any language with scripted setup &bull; **Two-tier testing** (Tier 1 mock-based unit / Tier 2 integration with graceful skip) &bull; **Common Restrictions** as output-interface contracts for Phase 4→5 pipeline integrity
+**Shipped:**&ensp; Multi-model brainstorming & cross-verification &bull; Domain & journal strategy templates &bull; Plot manifest & gap detection &bull; MAGI traceability review &bull; LaTeX math & Gemini fallback chain &bull; Weighted scoring & dynamic personas &bull; Adversarial debate &bull; Murder board & phase gates &bull; Depth-controlled token budget &bull; Session resume (`--resume`) &bull; Artifact contract validation &bull; Standalone phase gates for all sub-skills &bull; MAGI-in-MAGI hierarchical brainstorming &bull; `@filepath` artifact references for zero-truncation MCP calls &bull; Concept explanation skill with Teacher/Critic pipeline (`research-explain`) &bull; Collaborative writing skill (`research-write`) with paper & proposal modes, evidence-grounded prose, layered hybrid QA, and canonical artifact intake &bull; **Phase 3.5 `research-execute`** — deterministic code execution from plan frontmatter, dry-run verification, structured `results/` inventory &bull; **Language-agnostic implementation** — workspace detection (Reality > Intent > Fallback), any language with scripted setup &bull; **Two-tier testing** (Tier 1 mock-based unit / Tier 2 integration with graceful skip) &bull; **Common Restrictions** as output-interface contracts for Phase 4→5 pipeline integrity &bull; **Machine Contract Layer** (v0.9.0) — JSON Schemas for all pipeline artifacts, maintained validators, structured execution status (`pre_execution_status.json`), execution manifest separation, staleness fingerprinting, process-group isolation, atomic results staging, checkpoint manifests with hash validation, centralized flag manifest
 
 **Up next:**
 - [x] Example artifact gallery — real research outputs to showcase the pipeline

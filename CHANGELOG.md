@@ -5,6 +5,37 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.9.0] — 2026-03-09
+
+### Fixed
+- **Polyglot write intake** — `research-write` artifact inventory now uses `src/**/*` and `tests/**/*` instead of Python-specific `*.py` globs, matching the v0.8.1 language-agnostic design
+- **`--personas` default** — README now correctly documents `auto` (was `3`), matching the SKILL.md definition
+- **`--claude-only` flag** — Restored to README flags table (was removed in v0.8.0 README update)
+- **Stale model reference** — Removed deprecated `gemini-3-pro-preview` from `research-test` MCP Tool Rules and README "Under the hood" section
+- **Semantic phase names** — Pipeline table uses semantic names (Brainstorm, Plan, Implement, Execute, Test, Report) instead of numbered phases; "Phase 3.5" eliminated from user-facing output
+- **Structured execution status** — `pre_execution_status.md` replaced with `pre_execution_status.json` (typed fields: `state`, `error_class`, `severity`, `retryable`, `downstream_allowed`, `next_action`); legacy `.md` fallback preserved for v0.8.x workspaces
+- **Atomic staging false-skip** — `results/.staging/` excluded from existence check so incomplete staged files no longer trigger false early-exit
+- **Execution manifest consumption** — `research-execute` now applies `cwd`, `env`, and `timeout_override_ms` from `execution_manifest.json` when launching processes
+- **Validator edge cases** — `validate_intake.py` and `validate_draft.py` now guard against non-dict JSON roots, non-dict array items, and missing required sections; `validate_draft.py` supports `--json` output mode
+- **Plot manifest schema** — `plot_manifest.schema.json` now enforces Common Restrictions (PNG + PDF or SVG) via `anyOf` constraint
+- **Plugin root resolution** — `research-write` validator references use skill base directory resolution instead of undefined `{PLUGIN_ROOT}` variable
+
+### Added
+- **Centralized flag manifest** — `config/flags.yaml` declares all flags, defaults, allowed values, and model fallback chains as a single source of truth for all SKILL files
+- **Staleness fingerprinting** — `research-execute` compares SHA-256 hashes of `src/` and `plan/research_plan.md` before reusing existing `results/`; stale results trigger re-execution prompt
+- **`fatal/unknown` error class** — `research-execute` error classification now includes a fallback for unclassifiable errors (segfault, disk-full, etc.) that immediately writes FAILED status
+- **Maintained validation utilities** — `research-write` references repository-maintained `utils/validate_intake.py` and `utils/validate_draft.py` instead of LLM-generated scripts
+- **JSON Schema definitions** — `schemas/` directory with versioned schemas for `plot_manifest.json`, `write_inputs.json`, `citation_ledger.json`, `section_contracts.json`, `execution_manifest.json`, and `checkpoint.json`
+
+### Changed
+- **Execution contract separation** — `research-implement` emits `execution_manifest.json` with typed execution fields; `research-execute` consumes this manifest instead of parsing `research_plan.md` YAML frontmatter
+- **Process-group isolation** — `research-execute` runs commands in isolated process groups (`setsid`) with staggered teardown (SIGTERM → grace period → SIGKILL) on timeout
+- **Atomic results staging** — `research-execute` writes to `results/.staging/` and promotes atomically on success; prevents half-written results from triggering false early-exit
+- **Normalized `--resume`** — Both `/research` and `/research-write` now accept workspace root directory; internal inference determines which sub-pipeline to resume
+- **Checkpoint manifests** — Each phase emits `{phase}_checkpoint.json` with completion timestamp and SHA-256 input hashes; resume validates hash currency before skipping phases
+
+---
+
 ## [0.8.1] — 2026-03-09
 
 ### Added
@@ -204,6 +235,8 @@ Initial release.
 
 ---
 
+[0.9.0]: https://github.com/Axect/magi-researchers/compare/v0.8.1...v0.9.0
+[0.8.1]: https://github.com/Axect/magi-researchers/compare/v0.7.1...v0.8.1
 [0.7.1]: https://github.com/Axect/magi-researchers/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/Axect/magi-researchers/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/Axect/magi-researchers/compare/v0.6.0...v0.6.1
