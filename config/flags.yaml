@@ -1,0 +1,71 @@
+# Centralized Flag & Model Manifest
+# All SKILL.md files reference this manifest for flag defaults and model policies.
+# CI linting should validate that README.md and SKILL.md usage blocks match this manifest.
+
+model_fallback_chains:
+  gemini_standard:
+    - "gemini-3.1-pro-preview"
+    - "gemini-2.5-pro"
+    - "claude"  # last resort — skip Gemini MCP tool, use Claude directly
+  codex_standard:
+    model: "gpt-5.4"
+    max_failures_before_fallback: 2
+    fallback: "claude"
+
+flags:
+  domain:
+    values: ["physics", "ai_ml", "statistics", "mathematics", "paper"]
+    default: "auto-inferred"
+    scope: ["research", "research-brainstorm", "research-explain"]
+    description: "Research domain for context and weight defaults"
+
+  weights:
+    type: "json_object"
+    keys: ["novelty", "feasibility", "impact", "rigor", "scalability"]
+    default: "domain-specific"
+    scope: ["research", "research-brainstorm"]
+    description: "Custom scoring weights — values must sum to 1.0"
+
+  depth:
+    values: ["low", "medium", "high", "max"]
+    default: "medium"
+    scope: ["research", "research-brainstorm", "research-write", "research-explain"]
+    description: "Review thoroughness"
+
+  personas:
+    values: ["2", "3", "4", "5", "auto"]
+    default: "auto"
+    scope: ["research", "research-brainstorm"]
+    condition: "Only used when --depth max"
+    description: "Number of domain-specialist subagents for --depth max"
+
+  claude-only:
+    type: "boolean"
+    default: false
+    scope: ["research", "research-brainstorm", "research-write", "research-explain", "research-implement", "research-test"]
+    description: "Replace Gemini/Codex with Claude Agent subagents"
+
+  resume:
+    type: "path"
+    default: null
+    scope: ["research", "research-write"]
+    description: "Resume an interrupted pipeline from a previous output directory. Accepts workspace root — internal inference determines sub-pipeline."
+
+  audience:
+    values: ["general-public", "high-school", "undergraduate", "phd-student", "researcher", "expert"]
+    default: "researcher"
+    scope: ["research-write", "research-explain"]
+    description: "Target audience level"
+
+  mode:
+    values: ["paper", "proposal"]
+    default: "paper"
+    scope: ["research-write"]
+    description: "Writing mode"
+
+  source:
+    type: "path"
+    default: null
+    scope: ["research-write"]
+    required: true
+    description: "Path to upstream research output directory"

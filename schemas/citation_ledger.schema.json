@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Citation Ledger",
+  "description": "Tracks claim-to-source mappings for citation integrity validation",
+  "type": "object",
+  "required": ["citations"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "citations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "source_type", "resolved"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^ref-\\d+$" },
+          "claim_id": { "type": "string" },
+          "source_type": { "type": "string", "enum": ["upstream_artifact", "web_search", "assumed"] },
+          "source_path": { "type": "string" },
+          "source_detail": { "type": "string" },
+          "resolved": { "type": "boolean" },
+          "needs_verification": { "type": "boolean" }
+        }
+      }
+    },
+    "unresolved_claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["claim_id", "reason", "recommendation"],
+        "properties": {
+          "claim_id": { "type": "string" },
+          "reason": { "type": "string" },
+          "recommendation": { "type": "string", "enum": ["remove", "verify_with_search", "mark_as_tentative"] }
+        }
+      }
+    }
+  }
+}

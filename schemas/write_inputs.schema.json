@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Write Inputs",
+  "description": "Structured intake from upstream research artifacts for the write pipeline",
+  "type": "object",
+  "required": ["source_dir", "mode", "audience", "domain", "claims", "evidence"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "source_dir": { "type": "string" },
+    "mode": { "type": "string", "enum": ["paper", "proposal"] },
+    "audience": { "type": "string" },
+    "domain": { "type": "string" },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "text", "source", "confidence"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^claim-\\d+$" },
+          "text": { "type": "string" },
+          "source": { "type": "string" },
+          "confidence": { "type": "string", "enum": ["high", "medium", "low"] },
+          "evidence_ids": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "ref", "description"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^ev-\\d+$" },
+          "type": { "type": "string", "enum": ["plot", "metric", "test_result", "code", "explanation"] },
+          "ref": { "type": "string" },
+          "description": { "type": "string" },
+          "caption": { "type": "string" },
+          "section_hint": { "type": "string" }
+        }
+      }
+    },
+    "definitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["term", "definition"],
+        "properties": {
+          "term": { "type": "string" },
+          "definition": { "type": "string" }
+        }
+      }
+    },
+    "key_findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["finding"],
+        "properties": {
+          "finding": { "type": "string" },
+          "evidence_ids": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "significance": { "type": "string", "enum": ["high", "medium", "low"] }
+        }
+      }
+    },
+    "sections_available": { "type": "array", "items": { "type": "string" } }
+  }
+}

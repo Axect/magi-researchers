@@ -123,8 +123,8 @@ Inventory the source directory for available artifacts using `Glob`:
 | Research plan | `plan/research_plan.md` | Recommended | Methodology, objectives |
 | Murder board | `plan/murder_board.md` | Optional | Stress-test results |
 | Mitigations | `plan/mitigations.md` | Optional | Plan revisions |
-| Source code | `src/**/*.py` | Optional | Implementation details |
-| Test results | `tests/**/*.py` | Optional | Validation data |
+| Source code | `src/**/*` | Optional | Implementation details |
+| Test results | `tests/**/*` | Optional | Validation data |
 | Plot manifest | `plots/plot_manifest.json` | Optional | Figures with metadata |
 | Report | `report.md` | Optional | Pre-existing report draft |
 | Explain outputs | `explain/**/*.md` | Optional | Concept explanations |
@@ -220,59 +220,19 @@ Claude reads all upstream artifacts and produces:
 }
 ```
 
-**3. Validate with Python:**
+**3. Validate with maintained utility:**
 
-After Claude generates both JSON files, write a validation script and run it:
+After Claude generates both JSON files, validate them using the repository-maintained validator.
 
-```python
-# Claude writes this script to write/validate_intake.py, then executes it
-import json
-import sys
+Determine the plugin root directory by navigating two levels up from this skill's base directory (e.g., if this skill is loaded from `.../skills/research-write/`, the plugin root is `../../` relative to that path). The `Base directory for this skill:` header injected by Claude Code provides the absolute path. Then run:
 
-def validate_intake(inputs_path, ledger_path):
-    """Validate write_inputs.json and citation_ledger.json schemas."""
-    errors = []
-
-    # Load and validate write_inputs.json
-    with open(inputs_path) as f:
-        inputs = json.load(f)
-
-    required_keys = ["source_dir", "mode", "audience", "domain", "claims", "evidence"]
-    for key in required_keys:
-        if key not in inputs:
-            errors.append(f"write_inputs.json missing required key: {key}")
-
-    # Validate claim-evidence links
-    evidence_ids = {e["id"] for e in inputs.get("evidence", [])}
-    for claim in inputs.get("claims", []):
-        if "id" not in claim or "text" not in claim:
-            errors.append(f"Claim missing required fields: {claim}")
-        for ev_id in claim.get("evidence_ids", []):
-            if ev_id not in evidence_ids:
-                errors.append(f"Claim {claim['id']} references unknown evidence: {ev_id}")
-
-    # Load and validate citation_ledger.json
-    with open(ledger_path) as f:
-        ledger = json.load(f)
-
-    claim_ids = {c["id"] for c in inputs.get("claims", [])}
-    for citation in ledger.get("citations", []):
-        if citation.get("claim_id") and citation["claim_id"] not in claim_ids:
-            errors.append(f"Citation {citation['id']} references unknown claim: {citation['claim_id']}")
-
-    if errors:
-        print("VALIDATION FAILED:")
-        for e in errors:
-            print(f"  - {e}")
-        sys.exit(1)
-    else:
-        print(f"VALIDATION PASSED: {len(inputs['claims'])} claims, {len(inputs['evidence'])} evidence items, {len(ledger['citations'])} citations")
-
-if __name__ == "__main__":
-    validate_intake(sys.argv[1], sys.argv[2])
+```bash
+uv run python <plugin_root>/utils/validate_intake.py write/write_inputs.json write/citation_ledger.json
 ```
 
-Run with: `uv run python write/validate_intake.py write/write_inputs.json write/citation_ledger.json`
+Where `<plugin_root>` is the resolved absolute path to the plugin installation directory (the directory containing `skills/`, `utils/`, `schemas/`).
+
+> **Important**: Do NOT generate a validation script at runtime. Use the maintained `utils/validate_intake.py` utility. This ensures deterministic, testable validation across all pipeline runs.
 
 If validation fails, Claude fixes the JSON files and re-runs validation. Maximum 2 fix attempts.
 
@@ -829,104 +789,17 @@ After all section-level fixes are applied, Claude performs a focused coherence p
 
 #### Step 3e: DocCI Validation
 
-Claude writes and runs a validation script to perform automated quality checks:
+Run the repository-maintained draft validator to perform automated quality checks.
 
-```python
-# Claude writes this script to write/validate_draft.py, then executes it
-import json
-import re
-import sys
+Determine the plugin root directory by navigating two levels up from this skill's base directory (e.g., if this skill is loaded from `.../skills/research-write/`, the plugin root is `../../` relative to that path). The `Base directory for this skill:` header injected by Claude Code provides the absolute path. Then run:
 
-def validate_draft(draft_path, contracts_path, inputs_path):
-    """Automated document quality checks."""
-    results = {"passed": [], "failed": [], "warnings": []}
-
-    with open(draft_path) as f:
-        draft = f.read()
-    with open(contracts_path) as f:
-        contracts = json.load(f)
-    with open(inputs_path) as f:
-        inputs = json.load(f)
-
-    # 1. Math delimiter balance
-    inline_opens = draft.count('$') - 2 * draft.count('$$')
-    if inline_opens % 2 != 0:
-        results["failed"].append("Unbalanced inline math delimiters ($)")
-    else:
-        results["passed"].append("Inline math delimiters balanced")
-
-    display_count = draft.count('$$')
-    if display_count % 2 != 0:
-        results["failed"].append("Unbalanced display math delimiters ($$)")
-    else:
-        results["passed"].append("Display math delimiters balanced")
-
-    # 2. Evidence block completeness
-    evidence_ids_in_draft = set(re.findall(r'EVIDENCE BLOCK: ([\w-]+)', draft))
-    required_evidence = set()
-    for section in contracts.get("sections", []):
-        for ev_id in section.get("evidence_ids", []):
-            required_evidence.add(ev_id)
-    missing = required_evidence - evidence_ids_in_draft
-    if missing:
-        results["failed"].append(f"Missing evidence blocks: {', '.join(missing)}")
-    else:
-        results["passed"].append("All required evidence blocks present")
-
-    # 3. Section presence
-    for section in contracts.get("sections", []):
-        section_marker = f"## {section['title']}" if 'title' in section else f"## {section['id'].replace('_', ' ').title()}"
-        # Also check for # (H1) level headers
-        if section_marker not in draft and section['id'] not in draft.lower():
-            results["warnings"].append(f"Section '{section['id']}' may be missing from draft")
-
-    # 4. Word budget per section (approximate)
-    sections_text = re.split(r'\n##\s+', draft)
-    for section in contracts.get("sections", []):
-        max_words = section.get("max_words", 0)
-        if max_words == 0:
-            continue
-        # Find the matching section text (approximate match)
-        for text_block in sections_text:
-            if section.get("title", section["id"]).lower() in text_block[:100].lower():
-                word_count = len(text_block.split())
-                if word_count > max_words * 1.1:
-                    results["warnings"].append(
-                        f"Section '{section['id']}' exceeds budget: {word_count}/{max_words} words (+{word_count - max_words})"
-                    )
-                break
-
-    # 5. Orphaned evidence check
-    all_evidence = {e["id"] for e in inputs.get("evidence", [])}
-    orphaned = all_evidence - evidence_ids_in_draft
-    if orphaned:
-        results["warnings"].append(f"Orphaned evidence (not in draft): {', '.join(orphaned)}")
-
-    # Print results
-    print("=== DocCI Validation Report ===")
-    print(f"\nPASSED ({len(results['passed'])}):")
-    for p in results["passed"]:
-        print(f"  [PASS] {p}")
-    print(f"\nFAILED ({len(results['failed'])}):")
-    for f_item in results["failed"]:
-        print(f"  [FAIL] {f_item}")
-    print(f"\nWARNINGS ({len(results['warnings'])}):")
-    for w in results["warnings"]:
-        print(f"  [WARN] {w}")
-
-    # Save as JSON
-    with open(draft_path.replace('.md', '_validation.json'), 'w') as f:
-        json.dump(results, f, indent=2)
-
-    if results["failed"]:
-        sys.exit(1)
-    print("\nOverall: PASSED (with warnings)" if results["warnings"] else "\nOverall: PASSED")
-
-if __name__ == "__main__":
-    validate_draft(sys.argv[1], sys.argv[2], sys.argv[3])
+```bash
+uv run python <plugin_root>/utils/validate_draft.py write/revised_draft.md write/section_contracts.json write/write_inputs.json
 ```
 
-Run with: `uv run python write/validate_draft.py write/revised_draft.md write/section_contracts.json write/write_inputs.json`
+Where `<plugin_root>` is the resolved absolute path to the plugin installation directory (the directory containing `skills/`, `utils/`, `schemas/`).
+
+> **Important**: Do NOT generate a validation script at runtime. Use the maintained `utils/validate_draft.py` utility. This ensures deterministic, testable validation across all pipeline runs.
 
 **On validation failure**: Claude reads the validation report, fixes the identified issues in `write/revised_draft.md`, and re-runs validation. Maximum 2 fix iterations.
 
@@ -1105,7 +978,6 @@ The write pipeline produces artifacts in the `{source_dir}/write/` directory:
 └── write/
     ├── write_inputs.json            # Canonical intake (claims, evidence, definitions)
     ├── citation_ledger.json         # Claim-source tracking
-    ├── validate_intake.py           # Intake validation script
     ├── mode_template_cache.md       # Cached copy of mode template
     ├── gemini_outline.md            # Gemini's outline proposal
     ├── codex_outline.md             # Codex's outline proposal
@@ -1128,7 +1000,6 @@ The write pipeline produces artifacts in the `{source_dir}/write/` directory:
     ├── codex_review.md              # Codex structure & evidence review
     ├── devils_advocate_*.md         # Devil's Advocate reviews (--depth high only)
     ├── revised_draft.md             # Draft after review fixes + coherence pass
-    ├── validate_draft.py            # DocCI validation script
     ├── validation_report.json       # DocCI validation results
     ├── resolve_macros.py            # Macro resolution fallback script (if needed)
     ├── {topic}_paper.md             # Final export (paper mode)
@@ -1140,7 +1011,7 @@ The write pipeline produces artifacts in the `{source_dir}/write/` directory:
 - The write skill is designed as a **standalone skill** invoked after upstream research phases are complete. It is NOT embedded within the `/research` pipeline — invoke it separately with `--source` pointing to a research output directory.
 - If upstream artifacts are incomplete, the skill will produce a document with thinner coverage in the corresponding sections rather than failing entirely. Missing sections are flagged in the DocCI validation.
 - The **evidence-first approach** (pre-inserting evidence blocks before prose generation) prevents hallucination by ensuring the LLM writes around grounded data rather than fabricating evidence to fit a narrative.
-- Python utility scripts (`validate_intake.py`, `validate_draft.py`, `resolve_macros.py`) are written by Claude during the pipeline and saved in the `write/` directory. They are NOT pre-installed — Claude writes the script, then executes it.
+- Validation utilities (`validate_intake.py`, `validate_draft.py`) are maintained in the `utils/` directory at the plugin root. They are NOT generated at runtime — resolve the plugin root by navigating two levels up from this skill's base directory and use the maintained versions at `<plugin_root>/utils/`. The `resolve_macros.py` script is still written by Claude during the pipeline when needed.
 - The two hard gates (outline approval + final publish) ensure the user retains authorial control over structure and content. Between gates, the pipeline progresses automatically with review-driven quality assurance.
 - Section-by-section drafting uses **scoped context windows**: each section receives only its contract, evidence, and preceding section summaries — not the full document or full intake data. This prevents context bloat and "lost in the middle" failures.
 - The global coherence pass (Phase 3d) rewrites ONLY transition sentences (first/last paragraphs of each section). It is NOT a full rewrite — it is a bounded task that eliminates the "Frankenstein" effect.

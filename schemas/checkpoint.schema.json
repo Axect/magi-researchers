@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Phase Checkpoint",
+  "description": "Completion marker with input hashes for staleness detection during resume",
+  "type": "object",
+  "required": ["schema_version", "phase", "completed_at", "input_hashes"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "phase": { "type": "string" },
+    "completed_at": { "type": "string", "format": "date-time" },
+    "input_hashes": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+      "description": "SHA-256 hashes of key input artifacts consumed by this phase"
+    },
+    "output_artifacts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of files produced by this phase"
+    }
+  }
+}

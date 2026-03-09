@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Section Contracts",
+  "description": "Contracts for each section produced during Phase 1 (Section Contracting) of the write pipeline",
+  "type": "object",
+  "required": ["schema_version", "sections"],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["section_id", "title", "target_words"],
+        "properties": {
+          "section_id": { "type": "string" },
+          "title": { "type": "string" },
+          "target_words": { "type": "integer", "minimum": 0 },
+          "required_evidence_ids": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "required_plot_ids": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "key_claims": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "subsections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["title", "target_words"],
+              "properties": {
+                "title": { "type": "string" },
+                "target_words": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

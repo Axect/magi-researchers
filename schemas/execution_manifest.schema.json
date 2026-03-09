@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Execution Manifest",
+  "description": "Machine-readable execution contract emitted by Phase 3 (Implement), consumed by Phase 3.5 (Execute)",
+  "type": "object",
+  "required": ["schema_version", "execution_cmd", "languages", "ecosystem"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "languages": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "ecosystem": { "type": "array", "items": { "type": "string" } },
+    "execution_cmd": { "type": "string", "minLength": 1 },
+    "dry_run_cmd": { "type": "string" },
+    "expected_outputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path"],
+        "properties": {
+          "path": { "type": "string" },
+          "required": { "type": "boolean", "default": true }
+        }
+      }
+    },
+    "estimated_runtime": { "type": "string" },
+    "cwd": { "type": "string", "description": "Working directory for execution (relative to output_dir)" },
+    "env": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Environment variables to set" },
+    "timeout_override_ms": { "type": "integer", "description": "Override default 30-min timeout" }
+  }
+}

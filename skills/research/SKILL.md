@@ -72,10 +72,10 @@ Phase gates are lightweight quality checkpoints inserted **before** each USER CH
 
 | Phase | Checklist Items |
 |:------|:----------------|
-| **Plan** (Phase 2) | Completeness (all objectives addressed), methodology soundness, resource feasibility, risk identification |
-| **Implement** (Phase 3) | Code correctness, alignment with plan, error handling, dependency management |
-| **Execute** (Phase 3.5) | Exit code 0, `results/` populated (or EXISTING/PARTIAL with user acknowledgment), `pre_execution_status.md` written |
-| **Test** (Phase 4) | Tier 1 unit test coverage, edge case handling, Common Restrictions fulfilled (plot_manifest.json, dual format, dependency spec), result reproducibility |
+| **Plan** | Completeness (all objectives addressed), methodology soundness, resource feasibility, risk identification |
+| **Implement** | Code correctness, alignment with plan, error handling, dependency management |
+| **Execute** | Exit code 0, `results/` populated (or EXISTING/PARTIAL with user acknowledgment), `pre_execution_status.json` written |
+| **Test** | Tier 1 unit test coverage, edge case handling, Common Restrictions fulfilled (plot_manifest.json, dual format, dependency spec), result reproducibility |
 
 > If a gate returns **No-Go**, Claude must fix the identified issues before presenting to the user. Maximum 1 fix iteration per gate.
 
@@ -85,17 +85,28 @@ Phase gates are lightweight quality checkpoints inserted **before** each USER CH
 
 When `--resume <output_dir>` is provided, the pipeline skips initialization and infers the current phase from the **presence of key artifact files** in the output directory. This avoids requiring the LLM to maintain a separate state file — the artifacts themselves serve as checkpoints.
 
+> **Unified semantics**: `--resume` always accepts the workspace root directory (e.g., `outputs/topic_20260309_v1/`). Whether resuming a research pipeline or a write sub-pipeline, the same root path is used. The system infers the correct sub-context internally.
+
 **Phase inference rules** (evaluated top-down; first match wins):
 
 | Condition | Inference | Action |
 |:----------|:----------|:-------|
 | `report.md` exists | Pipeline complete | Inform user; offer to re-run specific phases |
-| `plots/plot_manifest.json` exists | Phase 4 complete | Resume from Phase 5 (Reporting) |
-| `results/pre_execution_status.md` exists | Phase 3.5 complete | Resume from Phase 4 (Testing) |
-| `src/` contains at least one source file | Phase 3 complete | Resume from Phase 3.5 (Execute) |
-| `plan/research_plan.md` exists | Phase 2 complete | Resume from Phase 3 (Implementation) |
-| `brainstorm/synthesis.md` exists | Phase 1 complete | Resume from Phase 2 (Planning) |
-| None of the above | No phase complete | Start from Phase 1 (Brainstorming) |
+| `plots/plot_manifest.json` exists | Test phase complete | Resume from the Report phase |
+| `results/pre_execution_status.json` exists (or `pre_execution_status.md` for legacy v0.8.x) | Execute phase complete | Resume from the Test phase |
+| `src/` contains at least one source file | Implement phase complete | Resume from the Execute phase |
+| `plan/research_plan.md` exists | Plan phase complete | Resume from the Implement phase |
+| `brainstorm/synthesis.md` exists | Brainstorm phase complete | Resume from the Plan phase |
+| None of the above | No phase complete | Start from the Brainstorm phase |
+
+**Checkpoint hash validation** (when checkpoint files exist):
+After determining the resume phase from artifact presence, check if a checkpoint file exists for the detected completed phase (e.g., `plan/plan_checkpoint.json`). If found:
+1. Read the `input_hashes` field
+2. Recompute hashes of the referenced input files
+3. If hashes match: proceed with resume (inputs unchanged)
+4. If hashes differ: warn the user that upstream artifacts have changed since this phase completed. Ask: "(a) Re-run this phase with updated inputs, or (b) Proceed anyway with existing outputs?"
+
+> Checkpoint validation is additive — if no checkpoint file exists (e.g., from a pre-v0.9.0 run), fall back to the existing artifact-presence inference.
 
 **Resume procedure:**
 1. Use the `Glob` tool to check for each artifact in the order above.
@@ -116,11 +127,11 @@ Before starting each phase (2 through 5), verify that the required predecessor a
 
 | Phase | Required Artifacts | Validation Method |
 |:------|:-------------------|:------------------|
-| **Phase 2** (Plan) | `brainstorm/synthesis.md` | Glob + Read first 3 lines (non-empty) |
-| **Phase 3** (Implement) | `plan/research_plan.md` | Glob + Read first 3 lines (non-empty) |
-| **Phase 3.5** (Execute) | At least one source file in `src/`, `plan/research_plan.md` with `execution_cmd` in frontmatter | Glob `src/**/*` + Read frontmatter |
-| **Phase 4** (Test) | At least one source file in `src/`, `plan/research_plan.md` | Glob `src/**/*` + Glob for plan. Note: `results/pre_execution_status.md` is optional — its absence means Tier 2 integration tests will be skipped |
-| **Phase 5** (Report) | `brainstorm/synthesis.md`, `plan/research_plan.md`, at least one source file in `src/`, `plots/plot_manifest.json` | Glob for each path |
+| **Plan** | `brainstorm/synthesis.md` | Glob + Read first 3 lines (non-empty) |
+| **Implement** | `plan/research_plan.md` | Glob + Read first 3 lines (non-empty) |
+| **Execute** | At least one source file in `src/`, `plan/research_plan.md` with `execution_cmd` in frontmatter | Glob `src/**/*` + Read frontmatter |
+| **Test** | At least one source file in `src/`, `plan/research_plan.md` | Glob `src/**/*` + Glob for plan. Note: `results/pre_execution_status.json` is optional — its absence means Tier 2 integration tests will be skipped (fall back to `.md` for legacy) |
+| **Report** | `brainstorm/synthesis.md`, `plan/research_plan.md`, at least one source file in `src/`, `plots/plot_manifest.json` | Glob for each path |
 
 **On validation failure:**
 1. List the missing or empty artifacts with specific file paths.
@@ -129,7 +140,7 @@ Before starting each phase (2 through 5), verify that the required predecessor a
 
 ---
 
-### Phase 0: Initialization
+### Initialization
 
 1. Parse `$ARGUMENTS`:
    - Extract the research topic (everything before flags or the entire string)
@@ -151,14 +162,14 @@ Before starting each phase (2 through 5), verify that the required predecessor a
 4. **Parse `--weights`**: If provided, validate and store. If omitted, domain defaults will be used by the brainstorm sub-skill.
 5. **Parse `--depth`**: Accept `low`, `medium` (default), `high`, or `max`.
 6. **Parse `--personas N|auto`**: Accept integer 2-5 or the string `auto` (default: `auto`). Only used when `--depth max`; ignored otherwise.
-   - If `auto`: Defer persona count determination to Phase 1 (brainstorm sub-skill Step 0b), where Claude analyzes the topic to select the optimal N.
+   - If `auto`: Defer persona count determination to the Brainstorm phase (sub-skill Step 0b), where Claude analyzes the topic to select the optimal N.
    - If an explicit integer is given: Use that value directly.
 7. **Parse `--claude-only`**: Boolean flag (default: `false`). When present, all Gemini/Codex MCP calls across all phases are replaced with Claude Agent subagents. This flag is forwarded to every sub-skill invocation.
 8. Announce to the user: topic, domain, output directory, **active weights** (user-provided or domain default), **depth level**, **persona count** (if `max`; show `auto` if no explicit `--personas` was given), and **claude-only mode** (if active).
 
 ---
 
-### Phase 1: Brainstorming
+### Brainstorm Phase
 
 Execute the `/magi-researchers:research-brainstorm` workflow, **forwarding all flags**: `--domain`, `--weights`, `--depth`, `--personas` (only when `--depth max`), and `--claude-only` (if active).
 
@@ -190,16 +201,27 @@ Execute the `/magi-researchers:research-brainstorm` workflow, **forwarding all f
 - Creates `brainstorm/synthesis.md` with weighted scores and debate resolution (if applicable)
 - Present top research directions to user
 
+**Checkpoint**: Emit `brainstorm/brainstorm_checkpoint.json`:
+```json
+{
+  "schema_version": "1.0.0",
+  "phase": "brainstorm",
+  "completed_at": "{ISO-8601 timestamp}",
+  "input_hashes": {},
+  "output_artifacts": ["brainstorm/synthesis.md", "brainstorm/gemini_ideas.md", "brainstorm/codex_ideas.md"]
+}
+```
+
 **>>> USER CHECKPOINT: Confirm research direction <<<**
 
 ---
 
-### Phase 2: Research Planning
+### Plan Phase
 
 **Artifact Contract**: Verify `brainstorm/synthesis.md` exists and is non-empty (Glob + Read first 3 lines). On failure, follow the Artifact Contract Protocol above.
 
 **Step 2a — Plan Drafting:**
-1. Based on user-confirmed direction from Phase 1:
+1. Based on user-confirmed direction from the Brainstorm phase:
    - Define specific research objectives
    - Outline the technical approach (algorithms, models, data)
    - Specify implementation requirements (language, libraries, compute)
@@ -212,13 +234,13 @@ Execute the `/magi-researchers:research-brainstorm` workflow, **forwarding all f
    domain: "{physics|ai_ml|statistics|mathematics|paper}"
    languages: ["{primary language(s) planned}"]
    ecosystem: ["{package manager(s) planned}"]
-   execution_cmd: ""          # filled in after Phase 3 (Implement)
-   dry_run_cmd: ""            # filled in after Phase 3 (Implement)
-   expected_outputs: []       # filled in after Phase 3 (Implement)
-   estimated_runtime: ""      # filled in after Phase 3 (Implement)
+   execution_cmd: ""          # filled in after the Implement phase
+   dry_run_cmd: ""            # filled in after the Implement phase
+   expected_outputs: []       # filled in after the Implement phase
+   estimated_runtime: ""      # filled in after the Implement phase
    ---
    ```
-   Leave execution fields empty for now — Phase 3 (Implement) will populate them.
+   Leave execution fields empty for now — the Implement phase will populate them.
 
 **Step 2b — Murder Board:**
 
@@ -268,12 +290,25 @@ Claude reviews each flaw from the murder board and documents a mitigation strate
 
 **Phase Gate: Plan** — Execute the Phase Gate Protocol with Plan checklist.
 
+**Checkpoint**: Emit `plan/plan_checkpoint.json`:
+```json
+{
+  "schema_version": "1.0.0",
+  "phase": "plan",
+  "completed_at": "{ISO-8601 timestamp}",
+  "input_hashes": {
+    "brainstorm/synthesis.md": "sha256:{hash}"
+  },
+  "output_artifacts": ["plan/research_plan.md", "plan/murder_board.md", "plan/mitigations.md", "plan/phase_gate.md"]
+}
+```
+
 **>>> USER CHECKPOINT: Approve research plan <<<**
 Present to user: plan summary, murder board highlights, mitigations, and gate result.
 
 ---
 
-### Phase 3: Implementation
+### Implement Phase
 
 **Artifact Contract**: Verify `plan/research_plan.md` exists and is non-empty (Glob + Read first 3 lines). On failure, follow the Artifact Contract Protocol above.
 
@@ -285,13 +320,26 @@ Execute the `/magi-researchers:research-implement` workflow:
 
 **Phase Gate: Implement** — Execute the Phase Gate Protocol with Implement checklist.
 
+**Checkpoint**: Emit `src/implement_checkpoint.json`:
+```json
+{
+  "schema_version": "1.0.0",
+  "phase": "implement",
+  "completed_at": "{ISO-8601 timestamp}",
+  "input_hashes": {
+    "plan/research_plan.md": "sha256:{hash}"
+  },
+  "output_artifacts": ["src/phase_gate.md"]
+}
+```
+
 4. Present implementation summary to user, including gate result.
 
 **>>> USER CHECKPOINT: Review implementation <<<**
 
 ---
 
-### Phase 3.5: Execute
+### Execute Phase
 
 **Artifact Contract**: Verify at least one source file in `src/` and `plan/research_plan.md` with
 `execution_cmd` in frontmatter. On failure, follow the Artifact Contract Protocol above.
@@ -301,27 +349,41 @@ Execute the `/magi-researchers:research-execute` workflow:
 - Read `execution_cmd` and `dry_run_cmd` from `plan/research_plan.md` YAML frontmatter
 - Run dry-run first (fast sanity check); fix minor errors before full run
 - Run full execution; capture output to `results/run_log.txt`
-- Write `results/pre_execution_status.md` (SUCCESS / FAILED / PARTIAL / EXISTING)
+- Write `results/pre_execution_status.json` (state: SUCCESS / FAILED / PARTIAL / EXISTING)
 - For long-running jobs (> 15 min): inform user, recommend running externally then resuming
 
 **Phase Gate: Execute** — Execute the Phase Gate Protocol with Execute checklist.
+
+**Checkpoint**: Emit `results/execute_checkpoint.json`:
+```json
+{
+  "schema_version": "1.0.0",
+  "phase": "execute",
+  "completed_at": "{ISO-8601 timestamp}",
+  "input_hashes": {
+    "plan/research_plan.md": "sha256:{hash}",
+    "src/": "sha256:{combined_hash}"
+  },
+  "output_artifacts": ["results/pre_execution_status.json", "results/run_log.txt"]
+}
+```
 
 **>>> USER CHECKPOINT: Review execution results <<<**
 Present: execution status, generated artifacts, any errors encountered.
 
 ---
 
-### Phase 4: Testing & Visualization
+### Test & Visualize Phase
 
 **Artifact Contract**: Verify at least one source file exists in `src/` (Glob `src/**/*`) and
-`plan/research_plan.md` exists. `results/pre_execution_status.md` is optional — its absence causes
-Tier 2 integration tests to be skipped (not a pipeline failure).
+`plan/research_plan.md` exists. `results/pre_execution_status.json` is optional — its absence causes
+Tier 2 integration tests to be skipped (not a pipeline failure). Fall back to `.md` for legacy workspaces.
 
 Execute the `/magi-researchers:research-test` workflow:
 
 **Step 0 — Workspace Detection:**
 - Scan `src/` for package managers and file extensions to detect languages and ecosystems
-- Check `results/pre_execution_status.md` to determine data availability for Tier 2 tests
+- Check `results/pre_execution_status.json` to determine data availability for Tier 2 tests
 
 **Step 1 — Test Strategy Discussion:**
 - Consult Gemini for test suggestions; propose two-tier plan (Tier 1 unit / Tier 2 integration)
@@ -342,15 +404,29 @@ Execute the `/magi-researchers:research-test` workflow:
 **Step 4 — Plot Manifest:**
 - Generate `plots/plot_manifest.json` using the fixed schema
 - All plots registered here regardless of which tool generated them
-- This manifest is the primary input for Phase 5's plot integration
+- This manifest is the primary input for the Report phase's plot integration
 
 **Phase Gate: Test** — Execute the Phase Gate Protocol with Test checklist.
+
+**Checkpoint**: Emit `tests/test_checkpoint.json`:
+```json
+{
+  "schema_version": "1.0.0",
+  "phase": "test",
+  "completed_at": "{ISO-8601 timestamp}",
+  "input_hashes": {
+    "src/": "sha256:{combined_hash}",
+    "results/pre_execution_status.json": "sha256:{hash}"
+  },
+  "output_artifacts": ["plots/plot_manifest.json"]
+}
+```
 
 **>>> USER CHECKPOINT: Review test results and visualizations <<<**
 
 ---
 
-### Phase 5: Reporting
+### Report Phase
 
 **Artifact Contract**: Verify all of the following exist (Glob for each): `brainstorm/synthesis.md`, `plan/research_plan.md`, at least one source file in `src/`, and `plots/plot_manifest.json`. On failure, follow the Artifact Contract Protocol above.
 

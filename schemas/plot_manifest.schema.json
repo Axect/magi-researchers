@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Plot Manifest",
+  "description": "Registry of all visualizations generated during Phase 4 (Test & Visualize)",
+  "type": "object",
+  "required": ["generated_at", "total_plots", "plots"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "generated_at": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}" },
+    "total_plots": { "type": "integer", "minimum": 0 },
+    "plots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["plot_id", "files", "description", "section_hint", "caption", "markdown_snippet"],
+        "properties": {
+          "plot_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "files": {
+            "type": "object",
+            "required": ["png"],
+            "properties": {
+              "png": { "type": "string" },
+              "pdf": { "type": "string" },
+              "svg": { "type": "string" }
+            },
+            "anyOf": [
+              { "required": ["pdf"] },
+              { "required": ["svg"] }
+            ]
+          },
+          "description": { "type": "string" },
+          "section_hint": { "type": "string", "enum": ["results", "methodology", "validation", "comparison", "testing"] },
+          "caption": { "type": "string" },
+          "markdown_snippet": { "type": "string" },
+          "source_context": { "type": "string" }
+        }
+      }
+    }
+  }
+}
