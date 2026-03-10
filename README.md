@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="MAGI.drawio.png" width="600" alt="MAGI Architecture: Claude, Gemini, and Codex orchestrating cross-verified research through brainstorm, plan, implement, test, and report phases" />
+  <img src="MAGI-Researchers.png" width="600" alt="MAGI Researchers architecture: Claude, Gemini, and Codex collaborate through cross-verification, adversarial debate, MAGI-in-MAGI hierarchical scaling, and resumable 6-phase pipeline" />
 </p>
 
 <h1 align="center">MAGI Researchers</h1>

@@ -5,13 +5,17 @@ Runs the complete research pipeline: Brainstorming → Planning → Implementati
 
 ## Usage
 ```
-/research "research topic" [--domain physics|ai_ml|statistics|mathematics|paper] [--weights '{"novelty":0.4,"feasibility":0.3,"impact":0.3}'] [--depth low|medium|high|max] [--personas N] [--claude-only] [--resume <output_dir>]
+/research "research topic" [--domain physics|ai_ml|statistics|mathematics|paper] [--weights '{"novelty":0.4,...}'|adaptive] [--depth low|medium|high|max] [--personas N] [--claude-only] [--substitute "Gemini -> Opus"] [--resume <output_dir>]
 ```
 
 ## Arguments
 - `$ARGUMENTS` — The research topic (required) and optional flags:
   - `--domain` — Research domain (physics, ai_ml, statistics, mathematics, paper). Auto-inferred if omitted.
-  - `--weights` — JSON object of scoring weights for direction ranking. See `/research-brainstorm` for defaults per domain.
+  - `--weights` — Scoring mode for direction ranking:
+    - **Omitted (default)**: Holistic ranking — Claude ranks directions by expert judgment with detailed rationale. No numeric weights.
+    - **JSON object**: Weighted scoring with dimension weights summing to 1.0.
+    - **`adaptive`**: Claude analyzes the prompt and recommends weights for user confirmation.
+    See `/research-brainstorm` for full details.
   - `--depth` — Controls brainstorm review depth (default: `medium`):
     - `low` — Skip cross-review, go directly to synthesis (fastest, lowest cost)
     - `medium` — Standard one-shot cross-review (default)
@@ -19,6 +23,7 @@ Runs the complete research pipeline: Brainstorming → Planning → Implementati
     - `max` — Hierarchical MAGI-in-MAGI: N persona subagents run parallel mini-MAGI pipelines, then meta-review + adversarial debate across all perspectives (deepest, highest cost)
   - `--personas N|auto` — Number of domain-specialist subagents for `--depth max` (default: `auto`, range: 2-5). When `auto`, Claude analyzes the topic to determine the optimal persona count. Ignored for other depth levels.
   - `--claude-only` — Replace all Gemini/Codex MCP calls with Claude Agent subagents across all phases. Use when external model endpoints are unavailable. Forwarded to all sub-skills automatically.
+  - `--substitute "Agent -> Opus"` — Replace a specific MAGI agent with Claude (Opus). Accepted: `"Gemini -> Opus"`, `"Codex -> Opus"`. Can be specified multiple times. Forwarded to all sub-skills. If both agents are substituted, equivalent to `--claude-only`. Mutually exclusive with `--claude-only` (`--claude-only` takes precedence).
   - `--resume <output_dir>` — Resume an interrupted pipeline from a previous output directory. See **Resume Protocol** below.
 
 ## Instructions
@@ -47,6 +52,16 @@ Runs the complete research pipeline: Brainstorming → Planning → Implementati
   ```
   Never write display equations on a single line as `$$..equation..$$`.
 
+### Path Safety Rule
+
+**ALL artifacts MUST be written under `{output_dir}/`.** Never write files directly to the project root or any path outside `outputs/`.
+
+- `{output_dir}` is the **absolute path** stored in `.workspace.json` at the output directory root.
+- **Before writing any file**: if `{output_dir}` is uncertain (e.g., after context compression), recover it:
+  1. `Glob` for `outputs/*/.workspace.json`, select the most recently modified match.
+  2. `Read` the file and extract `output_dir`.
+- **Subagent prompts and sub-skill invocations**: always include the absolute `{output_dir}` path.
+
 When this skill is invoked, execute the full research pipeline below. **Always pause for user confirmation between phases.**
 
 ---
@@ -59,7 +74,7 @@ Phase gates are lightweight quality checkpoints inserted **before** each USER CH
 1. **Self-assessment**: Claude evaluates the phase output against the checklist below and assigns a confidence level: `High`, `Medium`, or `Low`.
 2. **Conditional MAGI mini-review** (if confidence is `Medium` or `Low`):
    - Send the phase output to one MAGI model for a focused review (Gemini for scientific/plan quality, Codex for implementation/test quality)
-   - **If `--claude-only`**: Replace the MAGI model call with a Claude Agent subagent (`subagent_type: general-purpose`). Use the appropriate cognitive style: Creative-Divergent for scientific/plan review, Analytical-Convergent for implementation/test review. The subagent reads files via the `Read` tool instead of `@filepath`.
+   - **If `--claude-only` or the relevant agent is substituted** (via `--substitute`): Replace the substituted MAGI model's call with a Claude Agent subagent (`subagent_type: general-purpose`). Use the appropriate cognitive style: Creative-Divergent for scientific/plan review (Gemini substitute), Analytical-Convergent for implementation/test review (Codex substitute). The subagent reads files via the `Read` tool instead of `@filepath`.
    - The review prompt should target the specific checklist items that scored low
 3. **Go/No-Go synthesis**: Claude writes a brief gate report with:
    - Confidence level and justification
@@ -109,11 +124,12 @@ After determining the resume phase from artifact presence, check if a checkpoint
 > Checkpoint validation is additive — if no checkpoint file exists (e.g., from a pre-v0.9.0 run), fall back to the existing artifact-presence inference.
 
 **Resume procedure:**
-1. Use the `Glob` tool to check for each artifact in the order above.
-2. Read the first few lines of the matched artifact to confirm it is non-empty.
-3. Announce to the user: detected phase, output directory, and which phase will be resumed.
-4. Read the domain template if `brainstorm/personas.md` or `brainstorm/weights.json` exist (to restore context).
-5. Continue the pipeline from the inferred phase, skipping all prior phases.
+1. Read `{output_dir}/.workspace.json` to restore the absolute output path and metadata.
+2. Use the `Glob` tool to check for each artifact in the order above.
+3. Read the first few lines of the matched artifact to confirm it is non-empty.
+4. Announce to the user: detected phase, output directory, and which phase will be resumed.
+5. Read the domain template if `brainstorm/personas.md` or `brainstorm/weights.json` exist (to restore context).
+6. Continue the pipeline from the inferred phase, skipping all prior phases.
 
 > **Important**: On resume, do NOT re-create the output directory or overwrite existing artifacts. Append or create only the artifacts for the resumed phase and beyond.
 
@@ -149,6 +165,7 @@ Before starting each phase (2 through 5), verify that the required predecessor a
 2. Create the output directory structure:
    ```
    outputs/{sanitized_topic}_{YYYYMMDD}_v{N}/
+   ├── .workspace.json            # Workspace anchor (absolute path)
    ├── brainstorm/
    ├── plan/
    ├── src/
@@ -158,6 +175,16 @@ Before starting each phase (2 through 5), verify that the required predecessor a
    - Sanitize topic: lowercase, spaces→underscores, remove special chars, max 50 chars
    - Date format: YYYYMMDD (today's date)
    - Version: Glob for `outputs/{sanitized_topic}_{YYYYMMDD}_v*/` and set N = max existing + 1 (start at v1)
+   - **Write workspace anchor**: Save `.workspace.json` at the output directory root:
+     ```json
+     {
+       "output_dir": "{absolute_path_to_output_dir}",
+       "topic": "{original_topic}",
+       "domain": "{domain}",
+       "created_at": "{ISO-8601 timestamp}"
+     }
+     ```
+     Use `pwd` or equivalent to resolve the absolute path. This file anchors all subsequent file writes across all phases.
 3. If the domain has a template in `${CLAUDE_PLUGIN_ROOT}/templates/domains/`, read it as context.
 4. **Parse `--weights`**: If provided, validate and store. If omitted, domain defaults will be used by the brainstorm sub-skill.
 5. **Parse `--depth`**: Accept `low`, `medium` (default), `high`, or `max`.
@@ -165,13 +192,14 @@ Before starting each phase (2 through 5), verify that the required predecessor a
    - If `auto`: Defer persona count determination to the Brainstorm phase (sub-skill Step 0b), where Claude analyzes the topic to select the optimal N.
    - If an explicit integer is given: Use that value directly.
 7. **Parse `--claude-only`**: Boolean flag (default: `false`). When present, all Gemini/Codex MCP calls across all phases are replaced with Claude Agent subagents. This flag is forwarded to every sub-skill invocation.
-8. Announce to the user: topic, domain, output directory, **active weights** (user-provided or domain default), **depth level**, **persona count** (if `max`; show `auto` if no explicit `--personas` was given), and **claude-only mode** (if active).
+8. **Parse `--substitute`**: Accept zero or more `--substitute "Agent -> Opus"` flags. Valid agent names: `Gemini`, `Codex`. Valid target: `Opus`. Forwarded to every sub-skill invocation. Mutually exclusive with `--claude-only` (`--claude-only` takes precedence). If both agents are substituted, treat as `--claude-only`.
+9. Announce to the user: topic, domain, output directory, **active weights** (user-provided, holistic, or domain default), **depth level**, **persona count** (if `max`; show `auto` if no explicit `--personas` was given), **claude-only mode** (if active), and **agent substitutions** (if any).
 
 ---
 
 ### Brainstorm Phase
 
-Execute the `/magi-researchers:research-brainstorm` workflow, **forwarding all flags**: `--domain`, `--weights`, `--depth`, `--personas` (only when `--depth max`), and `--claude-only` (if active).
+Execute the `/magi-researchers:research-brainstorm` workflow, **forwarding all flags**: `--domain`, `--weights`, `--depth`, `--personas` (only when `--depth max`), `--claude-only` (if active), and `--substitute` (if any).
 
 **Step 0 & 0b — Setup & Persona Casting:**
 - Brainstorm sub-skill parses weights and depth, assigns expert personas
@@ -255,7 +283,7 @@ mcp__gemini-cli__ask-gemini(
 
 Save to `plan/murder_board.md`.
 
-> **If `--claude-only`**: Replace the Gemini murder board call above with a Claude Agent subagent:
+> **If `--claude-only` or Gemini is substituted** (via `--substitute "Gemini -> Opus"`): Replace the Gemini murder board call above with a Claude Agent subagent:
 > ```
 > Agent(
 >   subagent_type: "general-purpose",
@@ -453,6 +481,7 @@ Execute the `/magi-researchers:research-report` workflow:
 
 **Step 4 — MAGI Traceability Review (parallel cross-verification):**
 - **Inject personas**: If `brainstorm/personas.md` exists, prepend the assigned personas to Gemini and Codex review prompts for continuity
+- **Agent substitution**: If `--claude-only` or `--substitute` is active, substituted agents use Claude Agent subagents with their respective cognitive styles (Creative-Divergent for Gemini, Analytical-Convergent for Codex). Non-substituted agents use their MCP tools normally.
 - Gemini (BALTHASAR) reviews for scientific rigor: orphaned claims, orphaned plots, weak claim-evidence links, caption quality
 - Codex (CASPER) reviews for visualization quality: missing visualizations, plot-narrative mismatch, encoding improvements, reproducibility gaps
 - Claude (MELCHIOR) synthesizes both reviews — consensus issues are high-priority fixes, divergent suggestions evaluated on merit
