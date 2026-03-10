@@ -11,6 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/Axect/magi-researchers/stargazers"><img src="https://img.shields.io/github/stars/Axect/magi-researchers?style=social" alt="GitHub Stars" /></a>&nbsp;
+  <img src="https://img.shields.io/badge/version-0.9.0-orange" alt="v0.9.0" />&nbsp;
   <img src="https://img.shields.io/badge/claude--code-plugin-blueviolet" alt="Claude Code Plugin" />&nbsp;
   <img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python 3.11+" />&nbsp;
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT" />&nbsp;
@@ -20,10 +21,9 @@
 <p align="center">
   <a href="#get-started">Get Started</a> &bull;
   <a href="#why-magi">Why MAGI?</a> &bull;
-  <a href="#case-study-damped-oscillator-equation-discovery">Case Study</a> &bull;
+  <a href="#whats-new-v090">What's New</a> &bull;
   <a href="#features">Features</a> &bull;
   <a href="#usage">Usage</a> &bull;
-  <a href="#roadmap">Roadmap</a> &bull;
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
@@ -103,6 +103,15 @@ We gave all three single models and MAGI the same physics problem: *discover an 
 
 </details>
 
+## What's New (v0.9.0)
+
+- **Machine Contract Layer** — JSON Schemas for all pipeline artifacts, staleness fingerprinting (SHA-256), atomic results staging, and checkpoint manifests with hash validation
+- **Language-agnostic implementation** — Any language with scripted setup; workspace detection picks up your actual `src/` files, not assumptions
+- **Dedicated execution phase** — `research-execute` runs code deterministically from plan metadata with process-group isolation and structured error classification
+- **`--claude-only` mode** — Run the full pipeline with Claude alone when external MCP servers aren't available
+
+See [CHANGELOG.md](CHANGELOG.md) for the full version history.
+
 ## Features
 
 ### Research Pipeline
@@ -116,31 +125,28 @@ We gave all three single models and MAGI the same physics problem: *discover an 
 | **Test & Visualize** | Workspace-aware two-tier testing + publication-quality plots with Common Restrictions | `tests/` + `plots/` |
 | **Report** | Structured report with cross-verified claim-evidence integrity | `report.md` |
 
-### MAGI-in-MAGI (v0.5.0)
+### MAGI-in-MAGI
 
-Two models aren't enough for deep, multi-faceted research questions. `--depth max` scales to N independent domain specialists:
+`--depth max` scales to N independent domain specialists for deep, multi-faceted research:
 
-- **Hierarchical pipeline** — N persona subagents each run a full mini-MAGI brainstorm (Gemini + Codex + cross-review) in parallel, then a meta-layer synthesizes across all perspectives
-- **Adversarial meta-debate** — Gemini and Codex meta-review all N conclusions, Claude extracts the top 3 cross-persona disagreements, and a defend/concede/revise debate resolves them
-- **Enriched synthesis** — Final output includes cross-persona consensus, unique contributions, debate resolutions, emergent insights, and full MAGI process traceability
+- **Hierarchical pipeline** — N persona subagents each run a full mini-MAGI brainstorm in parallel, then a meta-layer synthesizes across all perspectives
+- **Adversarial meta-debate** — Models meta-review all N conclusions, extract top disagreements, and resolve them through defend/concede/revise debate
 - **`--personas N`** — Scale from 2 to 5 domain specialists (default: auto) covering theory, computation, empirics, application, and critique
 
-### Never Lose Your Work (v0.4.0)
+### Resilient Pipeline
 
-Long research sessions crash. Context windows expire. Networks drop. Now you can pick up right where you left off:
+- **`--resume`** — Interrupted mid-pipeline? Just pass `--resume <output_dir>` and MAGI detects your progress from existing files. Artifacts *are* the checkpoints — checkpoint manifests with SHA-256 hashes verify currency before skipping phases.
+- **Artifact contracts** — Before each phase, MAGI verifies that all required upstream files exist and aren't empty
+- **Atomic results staging** — Execution writes to a staging directory and promotes atomically on success, preventing half-written results from corrupting the pipeline
 
-- **`--resume`** — Interrupted mid-pipeline? Just pass `--resume <output_dir>` and MAGI detects your progress from existing files. No manual bookkeeping, no fragile state files — your artifacts *are* the checkpoints.
-- **Artifact contracts** — Before each phase, MAGI verifies that all required upstream files actually exist and aren't empty. Catches silent failures before they cascade into garbage outputs.
-- **Standalone phase gates** — Every sub-skill (`/research-implement`, `/research-test`) now generates its own quality gate, even when run independently outside the main pipeline.
+### Stress-Tested by Design
 
-### Stress-Tested by Design (v0.3.0)
-
-- **Weighted direction scoring** — Rank research ideas by novelty, feasibility, impact, rigor, and scalability with domain-tuned or custom weights
-- **Dynamic persona casting** — Each model gets a topic-specific expert identity (e.g., *"Bayesian statistician with causal inference expertise"*), sharpening ideation
+- **Weighted direction scoring** — Rank ideas by novelty, feasibility, impact, rigor, and scalability with domain-tuned or custom weights
+- **Dynamic persona casting** — Each model gets a topic-specific expert identity, sharpening ideation
 - **Adversarial debate** — At `--depth high`, models defend, concede, or revise on their top disagreements before synthesis
-- **Murder board** — Gemini attacks the research plan as a hostile reviewer; Claude documents mitigations for every flaw found
-- **Phase gates** — Automated quality checkpoints with conditional MAGI mini-review before each user approval step
-- **Depth control** — `--depth low` for fast/cheap runs, `medium` (default) for standard review, `high` for full adversarial analysis
+- **Murder board** — Gemini attacks the research plan as a hostile reviewer; Claude documents mitigations
+- **Phase gates** — Automated quality checkpoints with conditional MAGI mini-review before each approval step
+- **Depth control** — `low` for fast/cheap, `medium` (default) for standard review, `high` for full adversarial, `max` for hierarchical MAGI-in-MAGI
 
 ### Core Capabilities
 
@@ -154,15 +160,14 @@ Long research sessions crash. Context windows expire. Networks drop. Now you can
 <details>
 <summary><strong>Under the hood</strong></summary>
 
-- **Plot manifest** — Structured `plot_manifest.json` with metadata, section hints, and captions for automated report integration
-- **Common Restrictions** — Phase 4 enforces four output-interface contracts: `plot_manifest.json` (fixed schema), PNG + PDF/SVG dual format, execution evidence, dependency spec file. Internal process is autonomous.
-- **Workspace Detection** — Phase 3 and 4 detect languages and ecosystems from actual `src/` files (package managers first, then file extensions). Priority: reality (`src/`) > plan intent > domain defaults.
-- **Two-tier testing** — Tier 1 (unit, mock-based, always runs) and Tier 2 (integration, depends on `results/`, skipped gracefully if absent). Test frameworks match the detected workspace language.
-- **Deterministic execution** — Phase 3.5 reads `execution_cmd` and `dry_run_cmd` directly from `research_plan.md` YAML frontmatter. No heuristics, no entry-point guessing.
-- **`research_plan.md` frontmatter** — Carries `languages`, `ecosystem`, `execution_cmd`, `dry_run_cmd`, `expected_outputs`, and `estimated_runtime` fields as machine-readable metadata for downstream phases.
+- **JSON Schema validation** — Versioned schemas (`schemas/`) for `plot_manifest.json`, `execution_manifest.json`, `checkpoint.json`, and more; maintained validators ensure artifact integrity
+- **Staleness fingerprinting** — SHA-256 hashes of `src/` and plan files detect stale results before reuse
+- **Process-group isolation** — Execution runs in isolated process groups (`setsid`) with staggered teardown (SIGTERM → grace → SIGKILL) on timeout
+- **Workspace detection** — Detects languages and ecosystems from actual `src/` files (package managers first, then extensions). Priority: reality > plan intent > domain defaults
+- **Two-tier testing** — Tier 1 (unit, mock-based, always runs) and Tier 2 (integration, depends on `results/`, skipped gracefully if absent). Frameworks match the detected workspace.
+- **Deterministic execution** — `research-execute` reads `execution_manifest.json` emitted by the implementation phase. No heuristics, no entry-point guessing.
 - **Gemini fallback chain** — Resilient 3-tier model fallback: `gemini-3.1-pro-preview` → `gemini-2.5-pro` → Claude
 - **Cross-phase artifact contracts** — Each phase validates incoming artifacts before running (tool-based Glob/Read, not LLM guesswork)
-- **Depth-controlled token budget** — `--depth low` skips cross-review for fast/cheap runs; `--depth high` enables full adversarial debate
 - **`@filepath` artifact references** — MCP tool calls use `@filepath` syntax instead of inline content, so large artifacts are read directly from disk with zero truncation
 
 </details>
@@ -219,7 +224,7 @@ outputs/{topic_YYYYMMDD_vN}/
 ├── write/            # Intake, outline, draft, review, final document
 ├── plan/             # Research plan (with YAML frontmatter), murder board, mitigations, phase gate
 ├── src/              # Implementation (any language) + phase gate
-├── results/          # Generated artifacts from Phase 3.5 (data, checkpoints, logs)
+├── results/          # Generated artifacts from execution (data, checkpoints, logs)
 ├── tests/            # Test suite (Tier 1 unit + Tier 2 integration) + phase gate
 ├── plots/            # PNG + PDF + plot_manifest.json
 └── report.md         # Final structured report
@@ -323,15 +328,13 @@ Add to `.claude/settings.local.json`:
 
 ## Roadmap
 
-**Shipped:**&ensp; Multi-model brainstorming & cross-verification &bull; Domain & journal strategy templates &bull; Plot manifest & gap detection &bull; MAGI traceability review &bull; LaTeX math & Gemini fallback chain &bull; Weighted scoring & dynamic personas &bull; Adversarial debate &bull; Murder board & phase gates &bull; Depth-controlled token budget &bull; Session resume (`--resume`) &bull; Artifact contract validation &bull; Standalone phase gates for all sub-skills &bull; MAGI-in-MAGI hierarchical brainstorming &bull; `@filepath` artifact references for zero-truncation MCP calls &bull; Concept explanation skill with Teacher/Critic pipeline (`research-explain`) &bull; Collaborative writing skill (`research-write`) with paper & proposal modes, evidence-grounded prose, layered hybrid QA, and canonical artifact intake &bull; **Phase 3.5 `research-execute`** — deterministic code execution from plan frontmatter, dry-run verification, structured `results/` inventory &bull; **Language-agnostic implementation** — workspace detection (Reality > Intent > Fallback), any language with scripted setup &bull; **Two-tier testing** (Tier 1 mock-based unit / Tier 2 integration with graceful skip) &bull; **Common Restrictions** as output-interface contracts for Phase 4→5 pipeline integrity &bull; **Machine Contract Layer** (v0.9.0) — JSON Schemas for all pipeline artifacts, maintained validators, structured execution status (`pre_execution_status.json`), execution manifest separation, staleness fingerprinting, process-group isolation, atomic results staging, checkpoint manifests with hash validation, centralized flag manifest
-
-**Up next:**
-- [x] Example artifact gallery — real research outputs to showcase the pipeline
 - [ ] Terminal demo GIF — one-command walkthrough
 - [ ] More domain & journal strategy templates
 - [ ] Ubiquitous Context7 — live doc lookups during testing and report writing, not just implementation
 - [ ] Conditional variance enforcement — smart error-bar policy that catches missing uncertainty without blocking exploratory runs
 - [ ] Cost estimation — token budget preview before execution
+
+For shipped features, see [CHANGELOG.md](CHANGELOG.md).
 
 ## Contributing
 
