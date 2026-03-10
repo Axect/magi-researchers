@@ -11,6 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/Axect/magi-researchers/stargazers"><img src="https://img.shields.io/github/stars/Axect/magi-researchers?style=social" alt="GitHub Stars" /></a>&nbsp;
+  <a href="https://github.com/Axect/magi-researchers/tags"><img src="https://img.shields.io/github/v/tag/Axect/magi-researchers?label=version" alt="Version" /></a>&nbsp;
   <img src="https://img.shields.io/badge/claude--code-plugin-blueviolet" alt="Claude Code Plugin" />&nbsp;
   <img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python 3.11+" />&nbsp;
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT" />&nbsp;
@@ -18,9 +19,8 @@
 </p>
 
 <p align="center">
-  <a href="#get-started">Get Started</a> &bull;
   <a href="#why-magi">Why MAGI?</a> &bull;
-  <a href="#case-study-damped-oscillator-equation-discovery">Case Study</a> &bull;
+  <a href="#get-started">Get Started</a> &bull;
   <a href="#features">Features</a> &bull;
   <a href="#usage">Usage</a> &bull;
   <a href="#roadmap">Roadmap</a> &bull;
@@ -30,40 +30,6 @@
 ---
 
 > *Like the MAGI system in Evangelion — three supercomputers cross-verifying each other — this plugin orchestrates Claude, Gemini, and Codex for rigorous, multi-perspective research.*
-
-## Get Started
-
-**Prerequisites:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code) + Python 3.11+ with [uv](https://docs.astral.sh/uv/) + [Gemini CLI](https://github.com/google-gemini/gemini-cli) + [Codex CLI](https://github.com/openai/codex)
-
-**1. Install the plugin** (inside Claude Code):
-```
-/plugin marketplace add Axect/magi-researchers
-/plugin install magi-researchers@magi-researchers-marketplace
-```
-
-**2. Set up MCP servers** (one-time):
-```bash
-claude mcp add -s user gemini-cli -- npx -y gemini-mcp-tool
-claude mcp add -s user codex-cli -- npx -y @cexll/codex-mcp-server
-claude mcp add -s user context7 -- npx -y @upstash/context7-mcp@latest
-```
-
-**3. Run your first research:**
-```
-/magi-researchers:research "your research topic" --domain physics
-```
-
-MAGI generates cross-verified hypotheses, writes implementation code, renders publication-quality plots, and synthesizes a structured report — all saved to `outputs/{topic}/`.
-
-<details>
-<summary><strong>Alternative: Local Development</strong></summary>
-
-```bash
-git clone https://github.com/Axect/magi-researchers.git
-claude --plugin-dir /path/to/magi-researchers
-uv add matplotlib SciencePlots numpy
-```
-</details>
 
 ## Why MAGI?
 
@@ -103,6 +69,40 @@ We gave all three single models and MAGI the same physics problem: *discover an 
 
 </details>
 
+## Get Started
+
+**Prerequisites:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code) + Python 3.11+ with [uv](https://docs.astral.sh/uv/) + [Gemini CLI](https://github.com/google-gemini/gemini-cli) + [Codex CLI](https://github.com/openai/codex)
+
+**1. Install the plugin** (inside Claude Code):
+```
+/plugin marketplace add Axect/magi-researchers
+/plugin install magi-researchers@magi-researchers-marketplace
+```
+
+**2. Set up MCP servers** (one-time):
+```bash
+claude mcp add -s user gemini-cli -- npx -y gemini-mcp-tool
+claude mcp add -s user codex-cli -- npx -y @cexll/codex-mcp-server
+claude mcp add -s user context7 -- npx -y @upstash/context7-mcp@latest
+```
+
+**3. Run your first research:**
+```
+/magi-researchers:research "your research topic" --domain physics
+```
+
+MAGI generates cross-verified hypotheses, writes implementation code, renders publication-quality plots, and synthesizes a structured report — all saved to `outputs/{topic}/`.
+
+<details>
+<summary><strong>Alternative: Local Development</strong></summary>
+
+```bash
+git clone https://github.com/Axect/magi-researchers.git
+claude --plugin-dir /path/to/magi-researchers
+uv add matplotlib SciencePlots numpy
+```
+</details>
+
 ## Features
 
 ### Research Pipeline
@@ -113,43 +113,40 @@ We gave all three single models and MAGI the same physics problem: *discover an 
 | **Plan** | Concrete research plan with execution metadata, stress-tested by a hostile reviewer | `plan/` |
 | **Implement** | Language-agnostic implementation with dry-run verification and frontmatter update | `src/` |
 | **Execute** | Deterministic code execution from plan frontmatter; generates result artifacts | `results/` |
-| **Test & Visualize** | Workspace-aware two-tier testing + publication-quality plots with Common Restrictions | `tests/` + `plots/` |
+| **Test & Visualize** | Workspace-aware two-tier testing + publication-quality plots | `tests/` + `plots/` |
 | **Report** | Structured report with cross-verified claim-evidence integrity | `report.md` |
 
-### MAGI-in-MAGI (v0.5.0)
+### Highlights
 
-Two models aren't enough for deep, multi-faceted research questions. `--depth max` scales to N independent domain specialists:
+- **MAGI-in-MAGI** — `--depth max` scales to N domain specialists, each running a full mini-MAGI brainstorm in parallel with adversarial meta-debate
+- **Adversarial review** — Models debate, cross-verify, and attack each other's plans (murder board) before synthesis
+- **Resume anywhere** — `--resume` picks up from existing artifacts. No state files — your outputs *are* the checkpoints.
+- **Publication-quality output** — `matplotlib` + `scienceplots` (Nature theme), LaTeX math, PNG 300 dpi + vector PDF, structured reports with MAGI traceability
 
-- **Hierarchical pipeline** — N persona subagents each run a full mini-MAGI brainstorm (Gemini + Codex + cross-review) in parallel, then a meta-layer synthesizes across all perspectives
-- **Adversarial meta-debate** — Gemini and Codex meta-review all N conclusions, Claude extracts the top 3 cross-persona disagreements, and a defend/concede/revise debate resolves them
-- **Enriched synthesis** — Final output includes cross-persona consensus, unique contributions, debate resolutions, emergent insights, and full MAGI process traceability
-- **`--personas N`** — Scale from 2 to 5 domain specialists (default: auto) covering theory, computation, empirics, application, and critique
+<details>
+<summary><strong>All features</strong></summary>
 
-### Never Lose Your Work (v0.4.0)
+**Quality Assurance**
 
-Long research sessions crash. Context windows expire. Networks drop. Now you can pick up right where you left off:
-
-- **`--resume`** — Interrupted mid-pipeline? Just pass `--resume <output_dir>` and MAGI detects your progress from existing files. No manual bookkeeping, no fragile state files — your artifacts *are* the checkpoints.
-- **Artifact contracts** — Before each phase, MAGI verifies that all required upstream files actually exist and aren't empty. Catches silent failures before they cascade into garbage outputs.
-- **Standalone phase gates** — Every sub-skill (`/research-implement`, `/research-test`) now generates its own quality gate, even when run independently outside the main pipeline.
-
-### Stress-Tested by Design (v0.3.0)
-
-- **Weighted direction scoring** — Rank research ideas by novelty, feasibility, impact, rigor, and scalability with domain-tuned or custom weights
-- **Dynamic persona casting** — Each model gets a topic-specific expert identity (e.g., *"Bayesian statistician with causal inference expertise"*), sharpening ideation
-- **Adversarial debate** — At `--depth high`, models defend, concede, or revise on their top disagreements before synthesis
-- **Murder board** — Gemini attacks the research plan as a hostile reviewer; Claude documents mitigations for every flaw found
+- **Holistic & weighted scoring** — Default expert-judgment ranking; optionally supply explicit JSON weights or `adaptive` prompt-analyzed weights
+- **Dynamic persona casting** — Each model gets a topic-specific expert identity, sharpening ideation
 - **Phase gates** — Automated quality checkpoints with conditional MAGI mini-review before each user approval step
-- **Depth control** — `--depth low` for fast/cheap runs, `medium` (default) for standard review, `high` for full adversarial analysis
 
-### Core Capabilities
+**Resilience**
 
-- **Publication-quality plots** — `matplotlib` + `scienceplots` (Nature theme), PNG 300 dpi + vector PDF
+- **Artifact contracts** — Each phase validates upstream files before running. Catches silent failures before they cascade.
+- **Agent substitution** — `--substitute "Gemini -> Opus"` replaces a rate-limited model with Claude across all pipeline stages.
+- **Workspace anchor** — `.workspace.json` locks the output directory path, preventing artifact drift after context compression.
+- **Gemini fallback chain** — Resilient 3-tier model fallback: `gemini-3.1-pro-preview` → `gemini-2.5-pro` → Claude
+
+**More**
+
 - **MAGI traceability review** — All three models cross-verify the final report for orphaned claims and figures
 - **Report gap detection** — Auto-generates missing visualizations from existing data
 - **Domain templates** — Built-in context for Physics, AI/ML, Statistics, Mathematics, and Paper Writing
 - **Journal strategy** — Venue recommendations for [Physics](docs/journal-strategies.md#particle-physics-phenomenology), [AI/ML](docs/journal-strategies.md#aiml-conferences--journals), and [Interdisciplinary](docs/journal-strategies.md#interdisciplinary-science-ml--natural-sciences) research
-- **LaTeX math** — Proper inline and display equations across all outputs
+
+</details>
 
 <details>
 <summary><strong>Under the hood</strong></summary>
@@ -160,7 +157,6 @@ Long research sessions crash. Context windows expire. Networks drop. Now you can
 - **Two-tier testing** — Tier 1 (unit, mock-based, always runs) and Tier 2 (integration, depends on `results/`, skipped gracefully if absent). Test frameworks match the detected workspace language.
 - **Deterministic execution** — Phase 3.5 reads `execution_cmd` and `dry_run_cmd` directly from `research_plan.md` YAML frontmatter. No heuristics, no entry-point guessing.
 - **`research_plan.md` frontmatter** — Carries `languages`, `ecosystem`, `execution_cmd`, `dry_run_cmd`, `expected_outputs`, and `estimated_runtime` fields as machine-readable metadata for downstream phases.
-- **Gemini fallback chain** — Resilient 3-tier model fallback: `gemini-3.1-pro-preview` → `gemini-2.5-pro` → Claude
 - **Cross-phase artifact contracts** — Each phase validates incoming artifacts before running (tool-based Glob/Read, not LLM guesswork)
 - **Depth-controlled token budget** — `--depth low` skips cross-review for fast/cheap runs; `--depth high` enables full adversarial debate
 - **`@filepath` artifact references** — MCP tool calls use `@filepath` syntax instead of inline content, so large artifacts are read directly from disk with zero truncation
@@ -180,29 +176,47 @@ Long research sessions crash. Context windows expire. Networks drop. Now you can
 | `/magi-researchers:research-test` | Workspace-aware testing & visualization |
 | `/magi-researchers:research-report` | Report generation |
 
-### Flags
+### Depth Control
+
+The `--depth` flag controls how thoroughly models review each other's work:
+
+| Depth | What Happens | Cost |
+|:---|:---|:---|
+| `low` | Independent brainstorming, no cross-review | Cheapest |
+| `medium` (default) | Cross-model peer review + synthesis | Standard |
+| `high` | Full adversarial debate (defend/concede/revise) | Higher |
+| `max` | MAGI-in-MAGI: N specialist subagents, each running a full mini-MAGI | Highest |
+
+<details>
+<summary><strong>All flags</strong></summary>
 
 | Flag | Values | Default | Description |
 |:---|:---|:---|:---|
-| `--domain` | `physics` `ai_ml` `statistics` `mathematics` `paper` | auto-inferred | Research domain for context and weight defaults |
-| `--weights` | JSON object | domain default | Custom scoring weights (keys: `novelty`, `feasibility`, `impact`, `rigor`, `scalability`) |
-| `--depth` | `low` `medium` `high` `max` | `medium` | Review thoroughness — `max` enables hierarchical MAGI-in-MAGI pipeline |
+| `--domain` | `physics` `ai_ml` `statistics` `mathematics` `paper` | auto-inferred | Research domain for context |
+| `--weights` | JSON / `adaptive` | holistic | Scoring mode: omit for expert-judgment ranking, JSON for weighted, `adaptive` for prompt-analyzed |
+| `--depth` | `low` `medium` `high` `max` | `medium` | Review thoroughness |
 | `--personas` | `2`–`5` | `auto` | Number of domain-specialist subagents for `--depth max` |
 | `--resume` | `<output_dir>` | — | Resume an interrupted pipeline from the last completed phase |
-| `--claude-only` | flag | off | Replace Gemini/Codex with Claude Agent subagents for offline/single-model usage |
+| `--claude-only` | flag | off | Replace Gemini/Codex with Claude subagents for single-model usage |
+| `--substitute` | `"Gemini -> Opus"` `"Codex -> Opus"` | — | Replace a specific model with Claude when hitting rate limits |
+
+</details>
 
 ```bash
 # Quick brainstorm with default settings
 /magi-researchers:research "neural ODE solvers for stiff systems" --domain physics
 
-# Deep analysis with custom weights and adversarial debate
-/magi-researchers:research "causal inference in observational studies" --domain statistics --depth high --weights '{"novelty":0.2,"rigor":0.4,"feasibility":0.2,"impact":0.15,"scalability":0.05}'
+# Deep analysis with adversarial debate
+/magi-researchers:research "causal inference in observational studies" --domain statistics --depth high
 
 # Resume a crashed session — MAGI picks up where you left off
 /magi-researchers:research "neural ODE solvers" --resume outputs/neural_ode_solvers_20260225_v1
 
 # Hierarchical multi-persona analysis (MAGI-in-MAGI)
 /magi-researchers:research "variational inference for Bayesian deep learning" --domain ai_ml --depth max --personas 4
+
+# Substitute Gemini with Claude when hitting rate limits
+/magi-researchers:research "neural ODE solvers" --domain physics --substitute "Gemini -> Opus"
 
 # Fast ideation only (no cross-review, lowest cost)
 /magi-researchers:research-brainstorm "transformer alternatives for long sequences" --domain ai_ml --depth low
@@ -214,6 +228,7 @@ Long research sessions crash. Context windows expire. Networks drop. Now you can
 
 ```
 outputs/{topic_YYYYMMDD_vN}/
+├── .workspace.json   # Workspace anchor (absolute path for artifact safety)
 ├── brainstorm/       # Personas, ideas, cross-reviews, debate, synthesis
 ├── explain/          # Teacher/Critic analysis, strategy, final explanation
 ├── write/            # Intake, outline, draft, review, final document
@@ -231,6 +246,7 @@ Each phase produces artifacts that double as resume checkpoints — just pass `-
 <summary><strong>Full artifact tree</strong></summary>
 
 ```
+.workspace.json               # Workspace anchor (absolute output path)
 brainstorm/
 ├── weights.json              # Scoring weights
 ├── personas.md               # Expert personas
@@ -270,6 +286,7 @@ tests/
 <summary><strong>Full artifact tree — <code>--depth max</code></strong></summary>
 
 ```
+.workspace.json               # Workspace anchor (absolute output path)
 brainstorm/
 ├── weights.json              # Scoring weights
 ├── personas.md               # N domain-specialist personas
@@ -323,14 +340,13 @@ Add to `.claude/settings.local.json`:
 
 ## Roadmap
 
-**Shipped:**&ensp; Multi-model brainstorming & cross-verification &bull; Domain & journal strategy templates &bull; Plot manifest & gap detection &bull; MAGI traceability review &bull; LaTeX math & Gemini fallback chain &bull; Weighted scoring & dynamic personas &bull; Adversarial debate &bull; Murder board & phase gates &bull; Depth-controlled token budget &bull; Session resume (`--resume`) &bull; Artifact contract validation &bull; Standalone phase gates for all sub-skills &bull; MAGI-in-MAGI hierarchical brainstorming &bull; `@filepath` artifact references for zero-truncation MCP calls &bull; Concept explanation skill with Teacher/Critic pipeline (`research-explain`) &bull; Collaborative writing skill (`research-write`) with paper & proposal modes, evidence-grounded prose, layered hybrid QA, and canonical artifact intake &bull; **Phase 3.5 `research-execute`** — deterministic code execution from plan frontmatter, dry-run verification, structured `results/` inventory &bull; **Language-agnostic implementation** — workspace detection (Reality > Intent > Fallback), any language with scripted setup &bull; **Two-tier testing** (Tier 1 mock-based unit / Tier 2 integration with graceful skip) &bull; **Common Restrictions** as output-interface contracts for Phase 4→5 pipeline integrity &bull; **Machine Contract Layer** (v0.9.0) — JSON Schemas for all pipeline artifacts, maintained validators, structured execution status (`pre_execution_status.json`), execution manifest separation, staleness fingerprinting, process-group isolation, atomic results staging, checkpoint manifests with hash validation, centralized flag manifest
+**Latest — v0.10.0:** Holistic scoring (expert-judgment ranking as default), agent substitution (`--substitute`), workspace anchor, token-optimized skills. See [CHANGELOG.md](CHANGELOG.md) for full history.
 
 **Up next:**
-- [x] Example artifact gallery — real research outputs to showcase the pipeline
 - [ ] Terminal demo GIF — one-command walkthrough
 - [ ] More domain & journal strategy templates
-- [ ] Ubiquitous Context7 — live doc lookups during testing and report writing, not just implementation
-- [ ] Conditional variance enforcement — smart error-bar policy that catches missing uncertainty without blocking exploratory runs
+- [ ] Ubiquitous Context7 — live doc lookups during testing and report writing
+- [ ] Conditional variance enforcement — smart error-bar policy
 - [ ] Cost estimation — token budget preview before execution
 
 ## Contributing
