@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Brainstorm Weights",
+  "description": "Scoring weights and selection metadata for research direction ranking",
+  "type": "object",
+  "required": ["weights", "_meta"],
+  "additionalProperties": false,
+  "properties": {
+    "weights": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["novelty", "feasibility", "impact", "rigor", "scalability"],
+          "additionalProperties": false,
+          "properties": {
+            "novelty": { "type": "number", "minimum": 0.05, "maximum": 0.45 },
+            "feasibility": { "type": "number", "minimum": 0.05, "maximum": 0.45 },
+            "impact": { "type": "number", "minimum": 0.05, "maximum": 0.45 },
+            "rigor": { "type": "number", "minimum": 0.05, "maximum": 0.45 },
+            "scalability": { "type": "number", "minimum": 0.05, "maximum": 0.45 }
+          }
+        }
+      ],
+      "description": "null for holistic mode; object with 5 dimensions summing to 1.0 for weighted modes"
+    },
+    "_meta": {
+      "type": "object",
+      "required": ["method", "domain"],
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": ["holistic", "explicit", "adaptive-recommended", "domain-default", "custom"]
+        },
+        "domain": {
+          "type": "string",
+          "enum": ["physics", "ai_ml", "statistics", "mathematics", "paper"]
+        },
+        "domain_defaults": {
+          "type": "object",
+          "description": "Original domain baseline weights (adaptive mode only)"
+        },
+        "signals_detected": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Research-nature signals detected in the prompt (adaptive mode only)"
+        },
+        "adjustments_applied": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Per-dimension adjustment descriptions (adaptive mode only)"
+        }
+      },
+      "additionalProperties": false,
+      "if": {
+        "properties": { "method": { "const": "holistic" } }
+      },
+      "then": {
+        "required": ["method", "domain"]
+      }
+    }
+  },
+  "if": {
+    "properties": { "_meta": { "properties": { "method": { "const": "holistic" } } } }
+  },
+  "then": {
+    "properties": { "weights": { "type": "null" } }
+  },
+  "else": {
+    "properties": { "weights": { "type": "object" } }
+  }
+}
