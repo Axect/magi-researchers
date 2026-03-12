@@ -141,6 +141,29 @@ When writing mathematical expressions in any output document (brainstorm ideas, 
 - **Subagent prompts**: always include the absolute `{output_dir}` path from `.workspace.json`. Never pass a relative path.
 - **Subagent file paths must be absolute**: Every file path in a subagent prompt MUST be `{output_dir}/brainstorm/{filename}` (absolute). Never use bare filenames like `gemini_ideas.md` — always use `{output_dir}/brainstorm/gemini_ideas.md`. This prevents subagents from writing to the user's working directory (CWD) instead of the output directory.
 
+### Subagent Containment Rule
+
+**Only the main agent (Layer 0) creates directories.** All subagents (Layer 1 persona subagents, Layer 2 meta-reviewers, and any sub-subagents they spawn) are **consumers** of a pre-created directory structure, never creators.
+
+- **Subagents MUST NOT**:
+  1. Run Step 0 (Setup) — they must never create new `outputs/` directories, `.workspace.json` files, or `brainstorm/` folders.
+  2. Create any directory under `outputs/` — all `persona_{i}/` subdirectories are pre-created by the main agent before subagent launch.
+  3. Create `brainstorm/` or any other directory in the project root or CWD.
+  4. Sanitize the topic into a directory name — this is exclusively the main agent's responsibility.
+  5. Interpret `SKILL.md` Step 0 instructions as applicable to themselves — subagents execute only their assigned pipeline steps (A through E for persona subagents, or the specific review/debate task for Layer 2 subagents).
+
+- **Subagent prompts MUST include** this explicit negative instruction:
+  > "DO NOT create any directories. DO NOT run Step 0 setup. All directories already exist. Write files ONLY to the exact absolute paths listed below."
+
+- **Main agent pre-creates** all directories before launching subagents:
+  - For `--depth max`: `brainstorm/persona_{1..N}/` directories are created before Step 1-max-a.
+  - For all depths: `brainstorm/` is created in Step 0.
+
+- **Post-completion audit** (main agent responsibility): After all subagents complete, the main agent MUST:
+  1. `Glob` for `outputs/*_v*/` and compare against the expected single output directory.
+  2. Check for any `brainstorm/` directory in the project root.
+  3. Delete any spurious directories and warn the user if artifacts were misplaced.
+
 When this skill is invoked, follow these steps exactly:
 
 ### Step 0: Setup
@@ -386,9 +409,11 @@ Save results to:
 Spawn **N Task subagents simultaneously** (one per persona, `subagent_type: general-purpose`). Each subagent receives the persona definition and executes a self-contained mini-MAGI pipeline:
 
 **Each subagent prompt includes:**
-1. The persona definition (name, expertise, guiding question, primary lens) from `brainstorm/personas.md`
-2. The research topic and domain template (if available)
-3. The following 5-step execution plan:
+1. **Containment directive** (MUST be first): `"DO NOT create any directories. DO NOT run Step 0 setup. All directories already exist. Write files ONLY to the exact absolute paths listed below. Do NOT interpret SKILL.md setup instructions as applicable to you."`
+2. The **absolute `{output_dir}` path** and the **absolute persona subdirectory path** (`{output_dir}/brainstorm/persona_{i}/`)
+3. The persona definition (name, expertise, guiding question, primary lens) from `brainstorm/personas.md`
+4. The research topic and domain template (if available)
+5. The following 5-step execution plan:
 
    **A. Gemini Brainstorm** — Call `mcp__gemini-cli__brainstorm` with the persona's viewpoint. Save to `brainstorm/persona_{i}/gemini_ideas.md`.
 
@@ -415,6 +440,10 @@ Wait for all N subagents to complete before proceeding.
 
 ### Step 1-max-b: Layer 1 — Output Collection
 
+0. **Post-completion path audit** (per Subagent Containment Rule):
+   - `Glob` for `outputs/*_v*/` and verify only the expected output directory exists for this session's date/topic.
+   - Check for `brainstorm/` in the project root (`Glob` for `brainstorm/`).
+   - If spurious directories are found: delete them. If they contain artifacts that should have been in `{output_dir}`, move the files first, then delete the directory.
 1. Use Glob to verify that all N `brainstorm/persona_{i}/conclusion.md` files exist.
    - If any are missing, re-spawn the failed subagent(s) and wait for completion.
 2. Read all N `conclusion.md` files.
