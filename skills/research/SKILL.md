@@ -487,10 +487,43 @@ Execute the `/magi-researchers:research-report` workflow:
 - Claude (MELCHIOR) synthesizes both reviews — consensus issues are high-priority fixes, divergent suggestions evaluated on merit
 
 **Step 5 — Write Final Report:**
-- Save finalized `report.md`
+- Save finalized `report.md` with version tracking (`report_versions.json`)
 - Present summary with plot integration statistics
 
+**Step 6 — Feedback Loop:**
+- Report skill handles Tier 1 (Cosmetic) and Tier 2 (Visualization) internally
+- If Tier 3 escalation occurs, control returns to orchestrator Step R2
+
 **>>> USER CHECKPOINT: Review and finalize report <<<**
+
+---
+
+### Report Outer Loop (Tier 3 Handling)
+
+**Step R1: Checkpoint**
+
+Present report location, version, any Tier 1/2 revisions already applied. Options:
+- **Approve** → Completion
+- **Cosmetic/Visualization** → re-enter Report skill Step 6
+- **Substantive** → Step R2
+
+**Step R2: Pipeline Re-entry (max 2 iterations)**
+
+1. Classify re-entry point from feedback:
+
+   | Trigger | Re-entry Phase | Phases to re-run |
+   |:--------|:---------------|:-----------------|
+   | Methodology/approach change | Plan | Plan → Implement → Execute → Test → Report |
+   | Code bug, new analysis | Implement | Implement → Execute → Test → Report |
+   | Different parameters, rerun | Execute | Execute → Test → Report |
+   | New visualization strategy | Test | Test → Report |
+
+2. Present re-entry plan to user for confirmation.
+3. On confirmation:
+   a. Archive `report.md` → `report_v{N}.md`, update `report_versions.json`
+   b. Delete `report.md` (reset resume protocol)
+   c. Execute pipeline from re-entry phase
+   d. Report skill generates new version → return to Step R1
 
 ---
 
@@ -498,8 +531,9 @@ Execute the `/magi-researchers:research-report` workflow:
 
 Announce completion with:
 - Output directory location
+- Final report version and revision history
 - Summary of all generated artifacts
-- Any follow-up suggestions (e.g., expand implementation, add more tests, explore alternative directions)
+- Any follow-up suggestions
 
 ## Notes
 - If any phase fails, stop and inform the user with clear error context

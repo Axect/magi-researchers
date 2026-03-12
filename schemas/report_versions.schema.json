@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Report Version Manifest",
+  "description": "Tracks report versions created during the feedback loop",
+  "type": "object",
+  "required": ["schema_version", "current_version", "versions"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "current_version": { "type": "integer", "minimum": 1 },
+    "versions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["version", "file", "created_at", "feedback_tier", "feedback_summary"],
+        "properties": {
+          "version": { "type": "integer", "minimum": 1 },
+          "file": { "type": "string", "description": "Filename of this report version" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "feedback_tier": {
+            "oneOf": [
+              { "type": "null" },
+              { "type": "integer", "minimum": 1, "maximum": 3 }
+            ],
+            "description": "Feedback tier that triggered this version (1-3), or null for the initial report"
+          },
+          "feedback_summary": { "type": "string" }
+        }
+      }
+    }
+  }
+}

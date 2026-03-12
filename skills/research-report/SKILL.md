@@ -252,19 +252,87 @@ After both reviews are received, synthesize the feedback:
 
 ### Step 5: Write Final Report
 
-1. Save the completed report to `report.md` in the output directory root.
-2. Present a summary to the user:
-   - Report location
-   - Word count / section breakdown
-   - Number of plots integrated (from original manifest + newly generated)
-   - Any sections that are thin due to missing phase data
-   - Summary of traceability review findings and resolutions
+1. Determine the version number:
+   - If `report_versions.json` exists, read `current_version` and increment.
+   - Otherwise, this is version 1.
+2. If version > 1: archive current `report.md` → `report_v{N-1}.md`
+3. Save the completed report to `report.md`.
+4. Write/update `report_versions.json`:
+   ```json
+   {
+     "schema_version": "1.0.0",
+     "current_version": 1,
+     "versions": [{
+       "version": 1,
+       "file": "report.md",
+       "created_at": "ISO-8601",
+       "feedback_tier": null,
+       "feedback_summary": "Initial report"
+     }]
+   }
+   ```
+5. Present summary: location, word count, plot count, thin sections, traceability review findings.
 
-### Step 6: User Review
+### Step 6: User Feedback Loop
 
-- Ask if any sections need expansion or modification
-- Offer to regenerate specific sections with different emphasis
-- Offer to generate additional visualizations for specific findings
+Maximum 3 feedback iterations per entry into this step.
+
+**Step 6a: Solicit Feedback**
+
+Present the report and ask:
+"Report v{N} is ready at `report.md`. Please review and provide feedback, or say **approve** to finalize."
+
+**Step 6b: Classify Feedback**
+
+When user provides feedback (not "approve"):
+
+1. Classify into one of three tiers:
+   - **Tier 1 (Cosmetic)** — wording, tone, structure, formatting, caption rewording
+   - **Tier 2 (Visualization)** — new/modified plots, chart type changes, scale changes, plot-narrative linkage
+   - **Tier 3 (Substantive)** — code changes, re-execution, different methodology, new experiments
+
+2. Present classification: "I classify this as **Tier {N} ({name})**. Planned action: {description}. Proceed?"
+
+3. If user disagrees, re-classify.
+
+4. Mixed-tier feedback: decompose and apply Tier 1/2 first, then escalate Tier 3.
+
+**Step 6c: Apply — Tier 1 (Cosmetic)**
+
+1. Archive: `report.md` → `report_v{N}.md`
+2. Apply text changes directly to report
+3. Write updated `report.md`
+4. Update `report_versions.json` (increment version, tier=1, summary)
+5. Present diff summary → return to Step 6a
+
+**Step 6d: Apply — Tier 2 (Visualization)**
+
+1. Archive: `report.md` → `report_v{N}.md`
+2. For each visualization change:
+   a. Write matplotlib+scienceplots script
+   b. Execute with `uv run python {script_path}`
+   c. Save to `plots/` (PNG 300dpi + PDF)
+   d. Update `plots/plot_manifest.json`
+3. Re-draft affected report sections with updated plots
+4. Scoped MAGI traceability review (Step 4 procedure, but only modified sections + new plots):
+   - Gemini: scientific rigor on changed sections only
+   - Codex: visualization quality on new/modified plots only
+   - Claude: synthesize and apply
+5. Write updated `report.md`
+6. Update `report_versions.json` (increment version, tier=2, summary)
+7. Present changes summary → return to Step 6a
+
+**Step 6e: Apply — Tier 3 (Substantive / Escalation)**
+
+This skill cannot handle substantive changes alone.
+
+- **Standalone** (`/research-report`): Inform user which phase needs re-running. Suggest `/research --resume {output_dir}`. Exit loop.
+- **Pipeline** (`/research`): Return control to orchestrator for outer-loop handling (see orchestrator Step R2).
+
+**Step 6f: Finalize**
+
+When user approves or iteration limit reached:
+- Announce final version number and version history summary.
 
 ### LaTeX Formatting Rules
 When writing the report, use LaTeX for all mathematical expressions:
@@ -278,6 +346,17 @@ When writing the report, use LaTeX for all mathematical expressions:
 - Never write display equations inline as `$$..equation..$$` on a single line — always use line breaks between `$$` and the equation
 - Use display equations for: key formulas, derivations, loss functions, objective functions, main results
 - Use inline math for: variable names, parameter values, complexity notation, short expressions in running text
+
+## Output Files
+```
+report.md                          # Final report (always latest version)
+report_v{N}.md                     # Archived report versions (created on feedback)
+report_versions.json               # Version manifest with feedback history
+plots/
+├── *.png                          # Plot images (300 dpi)
+├── *.pdf                          # Plot vector versions
+└── plot_manifest.json             # Plot registry
+```
 
 ## Notes
 - Write in clear, academic-but-accessible style
