@@ -11,8 +11,8 @@ Generates and cross-validates research ideas using Gemini and Codex in parallel,
 ## Arguments
 - `$ARGUMENTS` — The research topic and optional flags:
   - `--domain` — Research domain (physics, ai_ml, statistics, mathematics, paper). Auto-inferred if omitted.
-  - `--weights` — Scoring mode for direction ranking:
-    - **Omitted (default — holistic mode)**: Claude ranks directions based on its own expert judgment, with detailed rationale for each ranking position. No numeric dimension weights are used.
+  - `--weights` — Scoring mode for finding ranking:
+    - **Omitted (default — holistic mode)**: Claude ranks findings based on its own expert judgment, with detailed rationale for each ranking position. No numeric dimension weights are used.
     - **JSON object** (e.g., `'{"novelty":0.4,"feasibility":0.2,"impact":0.2,"rigor":0.1,"scalability":0.1}'`): Weighted scoring — dimensions `novelty`, `feasibility`, `impact`, `rigor`, `scalability` with values summing to 1.0.
     - **`adaptive`**: Claude analyzes the prompt, adjusts domain defaults, and asks for user confirmation before scoring (see Step 0a).
   - `--depth` — Controls review depth (default: `medium`):
@@ -109,13 +109,13 @@ Save to `{output_dir}/brainstorm/{filename}` (absolute path). `{output_dir}` com
 
 Every claude-only/substituted subagent follows this structure: (1) T1 cognitive style directive. (2) Persona context: `[Persona: {name} — {expertise}]` + guiding question. (3) **Absolute `{output_dir}` path** (from `.workspace.json`). (4) Read domain template via Read tool (skip if none). (5) Task-specific instruction. (6) Output per T5 using absolute paths.
 
-**T7: Direction Description Fields**
+**T7: Finding Summary Footer**
 
-Each ranked research direction includes these fields:
-- **Motivation** — Why is this approach needed? What failure mode or gap does it address?
-- **Expected Effects** — Concrete benefits. When introducing a formula or concept for the first time, include plain-language explanation (1-2 sentences).
-- **Side Effects** — Risks, added complexity, prerequisite conditions. Reference specific review/debate points; do not fabricate. If none raised, state so.
-- **Key Evidence** — Core reasoning chain: which arguments led here, what was debated, and the resolution.
+Each ranked research finding ends with a T7 summary footer — a compact reference block (each field 1-2 sentences) placed AFTER the main narrative body. T7 is a summary, not the body itself:
+- **Motivation** — Why is this finding significant? What gap does it address? (1-2 sentences)
+- **Expected Effects** — Concrete benefits in brief. (1-2 sentences)
+- **Side Effects** — Risks or prerequisites. Reference specific review/debate points; do not fabricate. (1-2 sentences)
+- **Key Evidence** — Which arguments led here and what was debated. (1-2 sentences)
 - **Confidence** — High/Medium/Low tied to a specific warrant weakness (e.g., "Medium — assumes standard optimizer dynamics; second-order methods may change the analysis").
 
 ### LaTeX Formatting Rules
@@ -219,7 +219,7 @@ When this skill is invoked, follow these steps exactly:
      }
      ```
      **Holistic format is exactly the above — `weights` is `null` (not an empty object, not omitted), `_meta` contains only `method` and `domain`.** No other keys or variations.
-     Skip Step 0a entirely. In Step 1c / Step 1-max-d, Claude will rank directions using holistic expert judgment instead of numeric weighted scoring.
+     Skip Step 0a entirely. In Step 1c / Step 1-max-d, Claude will rank findings using holistic expert judgment instead of numeric weighted scoring.
 5. **Parse `--depth`**: Accept `low`, `medium`, `high`, or `max` (default: `medium`).
    - `low` — Skip Step 1b (cross-review), go directly to Step 1c (synthesis)
    - `medium` — Standard one-shot cross-review (current default behavior)
@@ -430,7 +430,7 @@ Spawn **N Task subagents simultaneously** (one per persona, `subagent_type: gene
    > - **C'** (T1-EE, persona_{i}): Read `{output_dir}/brainstorm/persona_{i}/codex_ideas.md`. Apply **T2-Science** review. Save to `brainstorm/persona_{i}/gemini_review_of_codex.md` per **T5**.
    > - **D'** (T1-GB, persona_{i}): Read `{output_dir}/brainstorm/persona_{i}/gemini_ideas.md`. Apply **T2-Feasibility** review. Save to `brainstorm/persona_{i}/codex_review_of_gemini.md` per **T5**.
 
-   **E. Persona Conclusion** — The subagent synthesizes its top 3 research directions. For each direction, provide:
+   **E. Persona Conclusion** — The subagent synthesizes its top 3 research findings. For each finding, provide:
    - **Mechanism** — How does this solve the problem? Walk through the cause-effect chain so a reader unfamiliar with the technique can understand the reasoning.
    - **Evidence** — What specific arguments from the brainstorm/review support this? Why are they convincing?
    - **Comparison** — Why this approach over the most obvious alternative?
@@ -448,8 +448,8 @@ Wait for all N subagents to complete before proceeding.
    - If any are missing, re-spawn the failed subagent(s) and wait for completion.
 2. Read all N `conclusion.md` files.
 3. Construct a **cross-persona summary** identifying:
-   - **Recurring themes** — directions proposed by 2+ personas
-   - **Unique directions** — ideas that appeared in only one persona's output
+   - **Recurring themes** — findings proposed by 2+ personas
+   - **Unique findings** — ideas that appeared in only one persona's output
    - **Explicit disagreements** — contradictory assessments across personas
 4. **Consolidate conclusions for Layer 2**: Create `brainstorm/all_conclusions.md` by concatenating
    all N conclusion files with clear separators:
@@ -478,7 +478,7 @@ Execute simultaneously:
 
 **Meta-Review prompt** (same for both, execute simultaneously):
 ```
-"You are reviewing the outputs of {N} domain-specialist research personas who independently analyzed: {topic}\n\nHere are all persona conclusions:\n@{output_dir}/brainstorm/all_conclusions.md\n\nProvide a meta-review covering:\n1. **Coverage analysis** — Which aspects are well-covered vs. underexplored?\n2. **Quality assessment** — Rate each persona's conclusions (depth, rigor, creativity) on a 1-10 scale\n3. **Cross-persona synthesis** — What emerges when combining all perspectives?\n4. **Top 3 disagreements** — Most significant contradictions with specific quotes\n5. **Recommended directions** — Top 5 research directions. For each, explain the mechanism."
+"You are reviewing the outputs of {N} domain-specialist research personas who independently analyzed: {topic}\n\nHere are all persona conclusions:\n@{output_dir}/brainstorm/all_conclusions.md\n\nProvide a meta-review covering:\n1. **Coverage analysis** — Which aspects are well-covered vs. underexplored?\n2. **Quality assessment** — Rate each persona's conclusions (depth, rigor, creativity) on a 1-10 scale\n3. **Cross-persona synthesis** — What emerges when combining all perspectives?\n4. **Top 3 disagreements** — Most significant contradictions with specific quotes\n5. **Recommended findings** — Top 5 research findings. For each, explain the mechanism."
 ```
 - **Gemini**: `mcp__gemini-cli__ask-gemini`, `model: "gemini-3.1-pro-preview"` → Save to `brainstorm/meta_review_gemini.md`
 - **Codex**: `mcp__codex-cli__ask-codex`, `model: "gpt-5.4"` → Save to `brainstorm/meta_review_codex.md`
@@ -514,25 +514,36 @@ Then execute the debate calls **simultaneously**. Each call includes: `[Meta-Rev
    - `meta_review_gemini.md`, `meta_review_codex.md`
    - `meta_debate_gemini.md`, `meta_debate_codex.md`
 2. Load `weights.json` and check `_meta.method`:
-   - **If `method` is `"holistic"`**: Use holistic ranking — Claude reads all persona conclusions, meta-reviews, and debate resolutions, then directly ranks research directions based on integrated expert judgment. **No numeric dimension scores are computed.** For each direction, provide a **Ranking Rationale** (3-5 sentences) that references specific persona arguments, cross-persona consensus/disagreement, and debate outcomes. Explicitly compare against adjacent-ranked directions.
-   - **If `method` is not `"holistic"`**: Compute **weighted scores** for each research direction (same 0-10 rating per dimension, weighted sum).
-3. Produce an **enriched `brainstorm/synthesis.md`** with the following structure:
+   - **If `method` is `"holistic"`**: Use holistic ranking — Claude reads all persona conclusions, meta-reviews, and debate resolutions, then directly ranks research findings based on integrated expert judgment. **No numeric dimension scores are computed.** For each finding, provide a **Ranking Rationale** (3-5 sentences) that references specific persona arguments, cross-persona consensus/disagreement, and debate outcomes. Explicitly compare against adjacent-ranked findings.
+   - **If `method` is not `"holistic"`**: Compute **weighted scores** for each research finding (same 0-10 rating per dimension, weighted sum).
+3. Produce an **enriched `brainstorm/synthesis.md`** — a research analysis that preserves the core scientific reasoning, mathematical formulations, testable predictions, and falsification conditions from persona conclusions. The synthesis must explain WHY each approach works (mechanism), not just WHAT to do (action plan). Structure:
    1. **Personas Used** — table of N personas with name, expertise summary, and primary lens
    2. **Scoring Method** — document the ranking approach:
-      - **Holistic mode**: State "Holistic Expert Judgment" and explain that directions were ranked by integrated assessment across all personas, meta-reviews, and debates without numeric weights
+      - **Holistic mode**: State "Holistic Expert Judgment" and explain that findings were ranked by integrated assessment across all personas, meta-reviews, and debates without numeric weights
       - **Weighted mode**: Show the weights used for ranking (from `weights.json`), including `_meta.method` (explicit, adaptive-recommended, domain-default, or custom)
-   3. **Top Research Directions** — ranked. For the **top 3 directions**, provide full descriptions; for lower-ranked directions, keep explanations brief (1-2 sentences per sub-section). Each direction includes:
-      - **[Holistic mode]** Ranking Rationale — 3-5 sentence justification referencing persona arguments, cross-persona consensus, and debate outcomes
-      - **[Weighted mode]** Score breakdown per dimension
-      - Which personas supported this direction
-      - **T7** direction fields (Motivation, Expected Effects, Side Effects, Key Evidence, Confidence)
-   4. **Cross-Persona Consensus** — ideas where 3+ personas independently converged
-   5. **Unique Contributions** — valuable ideas that only a single persona identified
-   6. **Debate Resolution** — for each of the 3 debated disagreements: the original tension, how each meta-reviewer responded (defend/concede/revise), and the synthesized resolution
-   7. **Emergent Insights** — patterns or connections visible only from the cross-persona vantage point that no individual persona captured
-   8. **Recommended Path Forward** — Claude's top recommendation with reasoning grounded in the multi-persona analysis
-   9. **MAGI Process Traceability** — table mapping each conclusion to its source persona, layer, and artifact file path
-4. Save to `brainstorm/synthesis.md`.
+   3. **Top Research Findings** (Core Findings, Top 5) — ranked. Present the top 5 findings using the full narrative structure below. Each finding: 300-600 words. For each finding:
+      - **(a) Mechanism Narrative** (150-250 words, continuous prose, REQUIRED) — Explain the causal or mathematical mechanism step by step; preserve key equations, variable meanings, and derivation paths from persona conclusions. If a persona conclusion contains a mathematical formulation, reproduce it here with attribution.
+      - **(b) Mathematical Core & Predictions** — Preserve key equations inline from persona conclusions. Include specific numerical predictions with error bars where available.
+      - **(c) Falsification Criteria** — What result would disprove this finding?
+      - **(d) T7 Summary Footer** — Compact reference (each field 1-2 sentences): Motivation, Expected Effects, Side Effects, Key Evidence, Confidence
+      - **(e) Ranking Rationale**:
+        - **[Holistic mode]** 3-5 sentence justification referencing persona arguments, cross-persona consensus, and debate outcomes
+        - **[Weighted mode]** Score breakdown per dimension
+      - Which personas supported this finding
+   4. **Appendix: Additional Findings** — For findings ranked 6+, provide a structured summary table: `| Finding | Core Claim (1 sentence) | Key Equation/Metric | Predicted Outcome | Source Persona(s) | Confidence |`. Do NOT omit mathematical content — condense it into the Key Equation column.
+   5. **Cross-Persona Consensus** — ideas where 3+ personas independently converged
+   6. **Unique Contributions** — valuable ideas that only a single persona identified
+   7. **Debate Resolution** — for each of the 3 debated disagreements: the original tension, how each meta-reviewer responded (defend/concede/revise), and the synthesized resolution
+   8. **Cross-Validation Connections** — Unexpected connections between different personas' conclusions: where independent analyses converge on the same prediction, contradict each other, or reveal complementary mechanisms. These cross-persona connections are the unique value of synthesis that cannot be found in any individual conclusion.
+   9. **Emergent Insights** — patterns or connections visible only from the cross-persona vantage point that no individual persona captured
+   10. **Recommended Path Forward** — Claude's top recommendation with reasoning grounded in the multi-persona analysis
+   11. **MAGI Process Traceability** — table mapping each conclusion to its source persona, layer, and artifact file path
+4. After completing the synthesis, verify:
+   - [ ] Each top finding explains WHY the approach works (causal mechanism), not just WHAT to measure
+   - [ ] Each top finding contains at least one equation or specific numerical prediction from persona conclusions
+   - [ ] Operational content (GPU hours, timeline, risk ratings) is below 15% of total length; if exceeded, move excess to an appendix
+   If any check fails, revise the relevant finding before finalizing.
+5. Save to `brainstorm/synthesis.md`.
 
 ### Step 1c: Claude Synthesis
 
@@ -544,38 +555,48 @@ Then execute the debate calls **simultaneously**. Each call includes: `[Meta-Rev
    - If `--depth high`: `debate_round2_gemini.md`, `debate_round2_codex.md`
    - Always: `weights.json`, `personas.md`
 2. Load `weights.json` and check `_meta.method`:
-   - **If `method` is `"holistic"`**: Use holistic ranking — Claude reads all ideas, reviews, and debates, then directly ranks research directions based on integrated expert judgment. **No numeric dimension scores are computed.** Instead, for each direction, provide a **Ranking Rationale** (3-5 sentences) explaining why it ranks at this position. The rationale must:
+   - **If `method` is `"holistic"`**: Use holistic ranking — Claude reads all ideas, reviews, and debates, then directly ranks research findings based on integrated expert judgment. **No numeric dimension scores are computed.** Instead, for each finding, provide a **Ranking Rationale** (3-5 sentences) explaining why it ranks at this position. The rationale must:
      - Reference specific arguments, evidence, or debate outcomes from the brainstorm pipeline
      - Consider multiple evaluation angles (novelty, feasibility, impact, rigor, scalability) without reducing them to numbers
-     - Explicitly compare against adjacent-ranked directions ("This ranks above X because... but below Y because...")
+     - Explicitly compare against adjacent-ranked findings ("This ranks above X because... but below Y because...")
      - Note any caveats or close calls in the ranking
-   - **If `method` is not `"holistic"`** (explicit, adaptive-recommended, domain-default, or custom): Use the weights to compute a **weighted score** for each research direction:
-     - For each candidate direction, rate it on each weight dimension (0-10 scale)
+   - **If `method` is not `"holistic"`** (explicit, adaptive-recommended, domain-default, or custom): Use the weights to compute a **weighted score** for each research finding:
+     - For each candidate finding, rate it on each weight dimension (0-10 scale)
      - Compute the weighted sum: `score = Σ(weight_i × rating_i)`
-     - Rank directions by weighted score
-3. Synthesize into a coherent research direction document that includes:
+     - Rank findings by weighted score
+3. Synthesize into a coherent research analysis that preserves the core scientific reasoning, mathematical formulations, testable predictions, and falsification conditions from brainstorm/review outputs. The synthesis must explain WHY each approach works (mechanism), not just WHAT to do (action plan). Structure:
    - **Personas Used** — brief summary of assigned Gemini and Codex personas
    - **Scoring Method** — document the ranking approach:
-     - **Holistic mode**: State "Holistic Expert Judgment" and briefly explain that directions were ranked by integrated assessment without numeric weights
+     - **Holistic mode**: State "Holistic Expert Judgment" and briefly explain that findings were ranked by integrated assessment without numeric weights
      - **Weighted mode**: Show the weights used for ranking (from `weights.json`), including `_meta.method` to document how weights were selected
-   - **Top Research Directions** (ranked). For the **top 3 directions**, provide full descriptions; for lower-ranked, keep brief. Each direction includes:
-      - **[Holistic mode]** Ranking Rationale — 3-5 sentence justification referencing pipeline evidence
-      - **[Weighted mode]** Score breakdown per dimension
-      - **T7** direction fields (Motivation, Expected Effects, Side Effects, Key Evidence, Confidence)
-   - **Key Technical Approaches** for each direction
+   - **Top Research Findings** (Core Findings, Top 5) — ranked. Present the top 5 findings using the full narrative structure below. Each finding: 300-600 words. For each finding:
+      - **(a) Mechanism Narrative** (150-250 words, continuous prose, REQUIRED) — Explain the causal or mathematical mechanism step by step; preserve key equations, variable meanings, and derivation paths. If the brainstorm/review output contains a mathematical formulation, reproduce it here with attribution.
+      - **(b) Mathematical Core & Predictions** — Preserve key equations inline. Include specific numerical predictions with error bars where available.
+      - **(c) Falsification Criteria** — What result would disprove this finding?
+      - **(d) T7 Summary Footer** — Compact reference (each field 1-2 sentences): Motivation, Expected Effects, Side Effects, Key Evidence, Confidence
+      - **(e) Ranking Rationale**:
+        - **[Holistic mode]** 3-5 sentence justification referencing pipeline evidence
+        - **[Weighted mode]** Score breakdown per dimension
+   - **Appendix: Additional Findings** — For findings ranked 6+, provide a structured summary table: `| Finding | Core Claim (1 sentence) | Key Equation/Metric | Predicted Outcome | Source Model(s) | Confidence |`. Do NOT omit mathematical content — condense it into the Key Equation column.
    - **Consensus Points** — ideas both models agreed on
    - **Divergence Points** — areas of disagreement and how to resolve them
    - **Debate Resolution** (`--depth high` only) — for each of the 3 debated disagreements, document the final resolution: who conceded, what was revised, and the synthesized position
+   - **Cross-Validation Connections** — Unexpected connections between different models' outputs: where independent analyses converge on the same prediction, contradict each other, or reveal complementary mechanisms. These cross-model connections are the unique value of synthesis that cannot be found in any individual brainstorm output.
    - **Emergent Insights** — patterns or connections visible only when combining both models' outputs that neither model captured individually
-   - **MAGI Process Traceability** — table mapping each ranked direction to its source model(s) and artifact file path(s) (e.g., which ideas came from Gemini vs. Codex, which reviews supported/challenged them)
+   - **MAGI Process Traceability** — table mapping each ranked finding to its source model(s) and artifact file path(s) (e.g., which ideas came from Gemini vs. Codex, which reviews supported/challenged them)
    - **Recommended Path Forward** — Claude's recommendation with reasoning
-4. Save to `brainstorm/synthesis.md`.
+4. After completing the synthesis, verify:
+   - [ ] Each top finding explains WHY the approach works (causal mechanism), not just WHAT to measure
+   - [ ] Each top finding contains at least one equation or specific numerical prediction from brainstorm/review outputs
+   - [ ] Operational content (GPU hours, timeline, risk ratings) is below 15% of total length; if exceeded, move excess to an appendix
+   If any check fails, revise the relevant finding before finalizing.
+5. Save to `brainstorm/synthesis.md`.
 
 ### Step 2: User Feedback
 
 Present the synthesis to the user with:
-- A concise summary of the top 3-5 research directions
-- Clear options for the user to choose, modify, or combine directions
+- A concise summary of the top 3-5 research findings
+- Clear options for the user to choose, modify, or combine findings
 - Ask for any additional constraints or preferences
 
 Wait for user input before proceeding.
