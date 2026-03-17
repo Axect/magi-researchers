@@ -13,16 +13,16 @@ Implements research code based on an existing research plan. Requires a `researc
 
 ## Instructions
 
+> **Shared rules**: Read `${CLAUDE_PLUGIN_ROOT}/shared/rules.md` before starting. §MCP, §Claude-Only apply to this skill.
+> **Inline fallback** (if shared rules unavailable): Gemini models: gemini-3.1-pro-preview → gemini-2.5-pro → Claude. Codex: gpt-5.4. Use `@filepath` for MCP file refs; subagents use `Read` tool.
+
 ### Claude-Only Mode
-When `--claude-only` is active (passed from the parent `/research` pipeline), all Gemini/Codex MCP calls in this skill are replaced with Claude Agent subagents (`subagent_type: general-purpose`). Subagents use the `Read` tool to access files instead of `@filepath`. Output filenames remain unchanged; each output starts with `> Source: Claude Agent subagent (claude-only mode, {style})`.
+See §Claude-Only in shared rules.
 
 ### MCP Tool Rules
-- **Context7**: Use `mcp__plugin_context7_context7__query-docs` for library documentation lookups. Call `resolve-library-id` first to get the library ID.
-- **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@plan/research_plan.md`)
-  instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
-- **Web Search**: Use web search freely whenever implementation requires checking library APIs, usage patterns, or recent best practices:
-  - **Claude**: Use the `WebSearch` tool directly
-  - **When to search**: library API changes, implementation examples, algorithm details, dependency compatibility, debugging known issues
+See §MCP in shared rules. Additionally:
+- **Context7**: Primary tool for library documentation lookups during implementation.
+- **When to search**: library API changes, implementation examples, algorithm details, dependency compatibility, debugging known issues
 
 ### Step 0: Locate Research Plan
 
@@ -37,6 +37,8 @@ When `--claude-only` is active (passed from the parent `/research` pipeline), al
    - Programming language and framework choices (from frontmatter `languages`/`ecosystem` fields)
    - Expected inputs and outputs
    - Dependencies needed
+5. **Parse mode flags from `$ARGUMENTS`**: If invoked standalone (not from the `/research` pipeline), check `$ARGUMENTS` for `--claude-only` and `--substitute` flags. When present, all Gemini/Codex MCP calls in this skill are replaced per the Claude-Only Mode rules above.
+6. **Resolve output directory**: If `.workspace.json` exists at the output directory root, read `output_dir` from it and use as the base for all file operations. If absent (standalone invocation), derive the absolute output path from the location of `research_plan.md`.
 
 ### Step 1: Workspace Detection & Environment Setup
 
@@ -58,7 +60,7 @@ When `--claude-only` is active (passed from the parent `/research` pipeline), al
 3. **Initialize the ecosystem** (only if `src/` is empty):
    - Run the appropriate setup commands for the chosen language:
      - Python: `uv init` (if no `pyproject.toml` exists) or `uv add {deps}`
-     - Rust: `cargo init src/` or structure as appropriate
+     - Rust: If `src/` already exists (pre-created by the pipeline), run `cargo init` in the output directory root (not inside `src/`) to avoid double-nesting (`src/src/`). The resulting `src/main.rs` is the correct layout.
      - R: create `DESCRIPTION` and `R/` subdirectory
      - Julia: `julia --project=src/ -e 'import Pkg; Pkg.init()'`
      - C/C++: create `CMakeLists.txt` or `Makefile`
@@ -107,8 +109,7 @@ estimated_runtime: "~30 minutes"     # rough estimate for user awareness
 ---
 ```
 
-If a `run_all.sh` (or equivalent) script does not yet exist, create it in the project root or
-`src/` so that the full pipeline runs with a single command.
+If a `run_all.sh` (or equivalent) script does not yet exist, create it in the **output directory root** (not inside `src/`). The `cwd` field in `execution_manifest.json` should be set accordingly. Always verify that `execution_cmd` can be run from the directory specified by `cwd`.
 
 ### Step 3b: Emit Execution Manifest
 
@@ -126,7 +127,7 @@ After updating the YAML frontmatter, also emit a structured `execution_manifest.
     {"path": "results/model.pt", "required": false}
   ],
   "estimated_runtime": "~30 minutes",
-  "cwd": "src/"
+  "cwd": "."
 }
 ```
 
@@ -141,6 +142,10 @@ Fields:
 
 > The YAML frontmatter in `research_plan.md` is retained for backward compatibility and human readability, but `execution_manifest.json` is the authoritative machine contract.
 
+**Pre-validation**: Before proceeding to Step 4, verify that the file or command referenced by `execution_cmd` exists at the expected path (e.g., `Glob` for `run_all.sh` or check that the binary is available). If the target does not exist, fix the manifest/frontmatter before running validation.
+
+> **Note**: If Step 4 (Validation) discovers issues that require changing the execution command, re-update the frontmatter (Step 3) and manifest (Step 3b) after the fix to keep them consistent.
+
 ### Step 4: Validation
 
 1. Run the dry-run command to confirm basic executability:
@@ -149,6 +154,7 @@ Fields:
    ```
    - Exit 0: validation passed.
    - Non-zero: fix the issue before presenting to the user.
+   Maximum 1 auto-fix attempt. If the fix still results in a non-zero exit, halt, present the full error to the user, and recommend returning to Step 2 for code revision. Do not loop.
 
 2. Present the implementation summary to the user:
    - List of files created with brief descriptions
@@ -174,25 +180,11 @@ Before presenting to the user, execute a lightweight quality checkpoint:
    - Send the implementation summary + source code to Codex for a focused review targeting the low-scoring checklist items:
    ```
    mcp__codex-cli__ask-codex(
-     prompt: "Review this research implementation for correctness, plan alignment, error handling, and dependency management. Focus on: {low_scoring_items}\n\n@{output_dir}/plan/research_plan.md\n@{output_dir}/src/*.py",
+     prompt: "Review this research implementation for correctness, plan alignment, error handling, and dependency management. Focus on: {low_scoring_items}\n\n@{output_dir}/plan/research_plan.md\n@{output_dir}/src/ (all source files matching the detected language: *.py, *.rs, *.jl, *.r, *.cpp, etc.)",
      model: "gpt-5.4"
    )
    ```
-   > **If `--claude-only`**: Replace the Codex call above with:
-   > ```
-   > Agent(
-   >   subagent_type: "general-purpose",
-   >   prompt: "You are an Analytical-Convergent code reviewer. Focus on correctness, practical constraints, and implementation quality.
-   >
-   > Use the Read tool to read:
-   > - {output_dir}/plan/research_plan.md
-   > - All .py files in {output_dir}/src/
-   >
-   > Review this research implementation for correctness, plan alignment, error handling, and dependency management. Focus on: {low_scoring_items}
-   >
-   > Return your review as structured text (do not save to a file)."
-   > )
-   > ```
+   > **If `--claude-only`**: Per §SubagentExec — **B** (AC, code reviewer): Read research plan + source files. Review correctness, plan alignment, error handling, dependency management focusing on {low_scoring_items}. Return structured text.
 
 3. **Go/No-Go synthesis**: Write a brief gate report with:
    - Confidence level and justification

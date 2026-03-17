@@ -42,7 +42,7 @@ Single-model research has blind spots. One model hallucinates a citation or miss
 | **Blind spots** | Undetected | Caught by competing models |
 | **Output** | Raw text | Structured report with consensus & divergence analysis |
 
-- **Claude** — *The Scientist.* Synthesis, planning, implementation, report generation.
+- **Claude (MELCHIOR)** — *The Scientist.* Active third MAGI personality — synthesis, planning, implementation, and original analytical contributions.
 - **Gemini** — *The Critic.* Creative brainstorming, cross-verification, broad knowledge.
 - **Codex** — *The Builder.* Feasibility analysis, code review, implementation focus.
 
@@ -340,7 +340,7 @@ Add to `.claude/settings.local.json`:
 
 ## Roadmap
 
-**Latest — v0.10.0:** Holistic scoring (expert-judgment ranking as default), agent substitution (`--substitute`), workspace anchor, token-optimized skills. See [CHANGELOG.md](CHANGELOG.md) for full history.
+**Latest — v0.13.0:** Shared rules compression — cross-cutting rules extracted to `shared/rules.md` with §-references, ~12% SKILL line reduction, 5 P0 contradiction fixes, inline fallback for resilience. See [CHANGELOG.md](CHANGELOG.md) for full history.
 
 **Up next:**
 - [ ] Terminal demo GIF — one-command walkthrough

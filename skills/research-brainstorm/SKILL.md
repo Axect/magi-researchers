@@ -161,7 +161,9 @@ When writing mathematical expressions in any output document (brainstorm ideas, 
   $$
   ```
 - Never write display equations inline as `$$..equation..$$` on a single line — always use line breaks
-- Include this formatting instruction in prompts to Gemini and Codex when the topic involves mathematical content
+- **Always** include this formatting instruction in prompts to Gemini and Codex (regardless of whether the topic appears mathematical — topics often produce equations unexpectedly)
+
+> **Hard requirement:** Unicode math symbols (σ₁, π₁, ℝ, ∈, ≈, ², etc.) are **NOT acceptable** in any output document. They render inconsistently across viewers and break PDF export. Always use LaTeX equivalents: `$\sigma_1$`, `$\pi_1$`, `$\mathbb{R}$`, `$\in$`, `$\approx$`, `$^2$`.
 
 ### Path Safety Rule
 
@@ -169,7 +171,7 @@ When writing mathematical expressions in any output document (brainstorm ideas, 
 
 - `{output_dir}` is the **absolute path** stored in `.workspace.json` at the output directory root.
 - **Before writing any file**: if `{output_dir}` is uncertain (e.g., after context compression), recover it by reading `.workspace.json`:
-  1. `Glob` for `outputs/*/.workspace.json`, select the most recently modified match.
+  1. `Glob` for `outputs/*/.workspace.json`. If multiple matches found, prefer the one whose `topic` field matches the current research topic. If still ambiguous, ask the user to confirm the output directory. If no `.workspace.json` is found, stop and ask the user to provide the output directory explicitly.
   2. `Read` the file and extract `output_dir`.
 - **Subagent prompts**: always include the absolute `{output_dir}` path from `.workspace.json`. Never pass a relative path.
 - **Subagent file paths must be absolute**: Every file path in a subagent prompt MUST be `{output_dir}/brainstorm/{filename}` (absolute). Never use bare filenames like `gemini_ideas.md` — always use `{output_dir}/brainstorm/gemini_ideas.md`. This prevents subagents from writing to the user's working directory (CWD) instead of the output directory.
@@ -200,6 +202,8 @@ When writing mathematical expressions in any output document (brainstorm ideas, 
 When this skill is invoked, follow these steps exactly:
 
 ### Step 0: Setup
+
+0. **Pipeline context detection**: If this skill was invoked as a sub-skill from `/research` (i.e., `{output_dir}` was provided by the calling context and `.workspace.json` already exists at the output root), skip directory creation (items 2-8 below). Read `{output_dir}` from `.workspace.json` and use `{output_dir}/brainstorm/` as the working directory. Only create a new versioned directory when invoked standalone.
 
 1. Parse the research topic from `$ARGUMENTS`. If a `--domain` flag is provided, note the domain (physics, ai_ml, statistics, mathematics, paper). Otherwise, infer the domain from the topic.
 2. Create the output directory: `outputs/{sanitized_topic}_{YYYYMMDD}_v{N}/brainstorm/`
@@ -321,10 +325,14 @@ When `--weights adaptive` is specified, Claude analyzes the research prompt to r
    | scalability   | 0.10          | 0.05        | -0.05 (narrow scope)         |
    ```
 
+After computing final weights, verify they sum to exactly 1.00 (round each to 2 decimal places if necessary; re-normalize if rounding causes drift). Display the sum in the comparison table.
+
 4. **Ask the user for confirmation** using `AskUserQuestion`:
    - Option A: **"Accept recommended weights"** (Recommended) — use the adaptive weights
    - Option B: **"Use domain defaults"** — use the unmodified domain baseline
    - Other: User provides custom weights as JSON
+
+If the user provides custom weights: validate that (1) keys are exactly `{novelty, feasibility, impact, rigor, scalability}`, and (2) values sum to 1.0 (within tolerance 0.01). If invalid, present the error and ask again. Maximum 1 retry; on continued failure, fall back to domain defaults with a note in `weights.json`.
 
 5. **Save to `brainstorm/weights.json`** with metadata based on the user's choice:
    ```json
@@ -391,6 +399,9 @@ Personas **complement** the domain template — they do not override it.
 3. Compare refined question to original:
    - If scope change is minor: use refined question silently, preserve original in `.workspace.json` as `original_topic`
    - If scope change is substantial (different domain, methodology, or success criteria): present to user and ask for confirmation before proceeding
+
+If the user rejects the refined scope, revert to the original topic string for all subsequent steps. If `original_topic` was stored in `.workspace.json`, remove it.
+
 4. Update the topic string used in Step 1-max-a onwards to use the refined question.
 
 ### Step 1a: Parallel Independent Brainstorming
@@ -414,6 +425,11 @@ Each brainstorm prompt must begin with: "Before listing ideas, state in one sent
 Save results to:
 - `brainstorm/gemini_ideas.md` — Gemini's (or Subagent A's) raw output with header noting source, persona, and timestamp
 - `brainstorm/codex_ideas.md` — Codex's (or Subagent B's) raw output with header noting source, persona, and timestamp
+
+**Post-generation validation** (always, all depths):
+After saving `gemini_ideas.md` and `codex_ideas.md`, verify each file is non-empty and contains at least 3 idea entries (separated by `---` or numbered headers). If either file is empty or truncated:
+- Retry the failed model call once with the same parameters.
+- If the retry is also insufficient, warn the user before proceeding to the next step.
 
 ### Step 1b: Cross-Check (`--depth medium` or `--depth high` only)
 
@@ -482,6 +498,7 @@ Spawn **N Task subagents simultaneously** (one per persona, `subagent_type: gene
 3. The persona definition (name, expertise, guiding question, primary lens) from `brainstorm/personas.md`
 4. The research topic and domain template (if available)
 5. The following 5-step execution plan:
+6. The active mode flags: `--claude-only: true/false` and/or `--substitute: [list]`. When `--claude-only` is active or a relevant agent is substituted, the subagent must replace MCP calls A/B and C+D with the corresponding Agent sub-subagents as described in the `> **If --claude-only**:` blocks above. When only one agent is substituted (e.g., `"Gemini -> Opus"`), replace only that agent's calls; use the other agent's MCP tool normally.
 
    **A. Gemini Brainstorm** — Call `mcp__gemini-cli__brainstorm` with the persona's viewpoint. Save to `brainstorm/persona_{i}/gemini_ideas.md`.
 
@@ -513,7 +530,7 @@ Wait for all N subagents to complete before proceeding.
    - Check for `brainstorm/` in the project root (`Glob` for `brainstorm/`).
    - If spurious directories are found: delete them. If they contain artifacts that should have been in `{output_dir}`, move the files first, then delete the directory.
 1. Use Glob to verify that all N `brainstorm/persona_{i}/conclusion.md` files exist.
-   - If any are missing, re-spawn the failed subagent(s) and wait for completion.
+   - If any are missing, re-spawn the failed subagent(s) (maximum 1 retry per subagent). If the retry also fails, proceed with the available N-1 (or fewer) persona outputs and note the gap in the synthesis. Do not abort the pipeline for a single persona failure.
 2. Read all N `conclusion.md` files.
 3. Construct a **cross-persona summary** identifying:
    - **Recurring themes** — findings proposed by 2+ personas

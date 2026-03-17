@@ -31,58 +31,19 @@ Orchestrates multi-agent collaborative writing from upstream research artifacts.
 
 ## Instructions
 
+> **Shared rules**: Read `${CLAUDE_PLUGIN_ROOT}/shared/rules.md` before starting. §MCP, §Claude-Only, §LaTeX, §Visualization, §Substitute apply to this skill.
+> **Inline fallback** (if shared rules unavailable): Gemini models: gemini-3.1-pro-preview → gemini-2.5-pro → Claude. Codex: gpt-5.4. All math in LaTeX only (no Unicode: σ₁→`$\sigma_1$`). Use `@filepath` for MCP file refs; subagents use `Read` tool.
+
 ### MCP Tool Rules
-- **Gemini**: Use the following model fallback chain. Try each model in order; if a call fails (error, timeout, or model-not-found), retry with the next model:
-  1. `model: "gemini-3.1-pro-preview"` (preferred)
-  2. `model: "gemini-2.5-pro"` (fallback)
-  3. Claude (last resort — skip Gemini MCP tool, use Claude directly)
-- **Codex**: Use `model: "gpt-5.4"` for all Codex MCP calls. Use `mcp__codex-cli__ask-codex` for analysis/review. If Codex fails 2+ times, fall back to Claude directly.
-- **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@write/outline.md`)
-  instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
-- **Web Search**: Use web search freely whenever factual verification, recent developments, or literature context would strengthen the writing:
-  - **Claude**: Use the `WebSearch` tool directly
-  - **Gemini**: Add `search: true` to `mcp__gemini-cli__ask-gemini` calls
-  - **Codex**: Add `search: true` to `mcp__codex-cli__ask-codex` calls
-  - **When to search**: citation verification, related work references, fact-checking claims, confirming state-of-the-art results, checking terminology conventions
-  - **Claude-only mode**: Claude Agent subagents cannot use WebSearch. The main Claude agent should search beforehand and include findings in the subagent prompt.
-- **Visualization**: Use `matplotlib` with `scienceplots` (`['science', 'nature']` style). Save plots as PNG (300 dpi) and PDF.
-- **LaTeX**: Use LaTeX for all mathematical expressions in output documents. Inline: `$...$`. Display equations: `$$` on its own line with the equation on a separate line:
-  ```
-  $$
-  equation
-  $$
-  ```
-  Never write display equations on a single line as `$$..equation..$$`.
+See §MCP, §Visualization, §LaTeX in shared rules. Additionally:
+- **Codex**: Use `mcp__codex-cli__ask-codex` for analysis/review.
+- **When to search**: citation verification, related work references, fact-checking claims, confirming state-of-the-art results, checking terminology conventions
 
 ### Claude-Only Mode
-
-When `--claude-only` is active, **all** Gemini/Codex MCP tool calls are replaced with Claude Agent subagents (`subagent_type: general-purpose`). The table below maps each original call to its replacement:
-
-| Original Call | Replacement | Cognitive Style |
-|---|---|---|
-| `mcp__gemini-cli__brainstorm` | Agent subagent A | **Creative-Divergent**: unconventional connections, "What if?" scenarios, wide exploration, questioning assumptions |
-| `mcp__codex-cli__brainstorm` | Agent subagent B | **Analytical-Convergent**: step-by-step feasibility, established methodologies, deep evaluation, practical constraints, risk assessment |
-| `mcp__gemini-cli__ask-gemini` | Agent subagent A | Same Creative-Divergent style |
-| `mcp__codex-cli__ask-codex` | Agent subagent B | Same Analytical-Convergent style |
-
-**Key rules for claude-only mode:**
-1. **File access**: Subagents use the `Read` tool to access files (no `@filepath` syntax).
-2. **Output filenames**: Keep original names (`gemini_outline.md`, `codex_outline.md`, etc.) — add a header `> Source: Claude Agent subagent (claude-only mode, {style})` to each output file.
-3. **Independence**: Both subagents are spawned simultaneously so neither can see the other's output.
+See §Claude-Only and §Substitute in shared rules.
 
 ### LaTeX Formatting Rules
-When writing mathematical expressions in any output document (outlines, drafts, final documents):
-- **Inline math**: Use `$...$` for short expressions within a sentence (e.g., `$\alpha = 0.05$`, `$O(n \log n)$`)
-- **Display equations**: Use `$$` on its own line, with the equation on a separate line:
-  ```
-  $$
-  \hat{\theta}_{\text{MLE}} = \arg\max_\theta \prod_{i=1}^{n} f(x_i \mid \theta)
-  $$
-  ```
-- Never write display equations inline as `$$..equation..$$` on a single line — always use line breaks
-- Use display equations for: key formulas, derivations, loss functions, objective functions, main results
-- Use inline math for: variable names, parameter values, complexity notation, short expressions in running text
-- Include this formatting instruction in prompts to Gemini and Codex when the topic involves mathematical content
+See §LaTeX in shared rules.
 
 When this skill is invoked, follow these steps exactly:
 
@@ -252,6 +213,8 @@ Parse the YAML frontmatter to extract:
 
 Read the Markdown body for section dependencies and evidence integration guidelines.
 
+Save a copy of the loaded template to `write/mode_template_cache.md` before proceeding to Step 1b. This cached copy is referenced by `@filepath` in subsequent model calls.
+
 #### Step 1b: MAGI Parallel Outline Generation
 
 Generate two independent outlines using the mode template, `write_inputs.json`, and audience context. Execute both calls **simultaneously**:
@@ -335,78 +298,9 @@ Citation ledger:
 ```
 Save to `write/codex_outline.md`.
 
-> **If `--claude-only`**: Replace both calls above with two Agent subagents, executed **simultaneously**:
->
-> **Subagent A (Creative-Divergent — Creative Outline):**
-> ```
-> Agent(
->   subagent_type: "general-purpose",
->   prompt: "You are a Creative-Divergent expert academic writer creating a document outline. Your approach emphasizes narrative flow, creative framing, and reader engagement. You think in 'What if?' scenarios and explore unconventional angles.
->
-> Use the Read tool to read:
-> - {source_dir}/write/mode_template_cache.md
-> - {source_dir}/write/write_inputs.json
-> - {source_dir}/write/citation_ledger.json
->
-> Given:
-> - Mode: {mode}
-> - Audience: {audience}
-> - Domain: {domain}
->
-> For each section defined in the mode template, produce:
-> 1. Section ID (from template)
-> 2. Title (descriptive, audience-appropriate)
-> 3. Purpose (1-2 sentences)
-> 4. Narrative role (from template + your interpretation)
-> 5. Key points (3-5 bullet points)
-> 6. Evidence to include (specific evidence IDs from write_inputs.json)
-> 7. Estimated words (within template budget)
-> 8. Transition from previous section
->
-> Also define the global argument thread: 2-3 sentences summarizing the narrative arc.
->
-> Save to {source_dir}/write/gemini_outline.md. Start with:
-> > Source: Claude Agent subagent (claude-only mode, Creative-Divergent)"
-> )
-> ```
->
-> **Subagent B (Analytical-Convergent — Structural Outline):**
-> ```
-> Agent(
->   subagent_type: "general-purpose",
->   prompt: "You are an Analytical-Convergent expert academic writer creating a document outline. Your approach emphasizes logical structure, evidence coverage, and completeness. You think step-by-step and focus on practical constraints.
->
-> Use the Read tool to read:
-> - {source_dir}/write/mode_template_cache.md
-> - {source_dir}/write/write_inputs.json
-> - {source_dir}/write/citation_ledger.json
->
-> Given:
-> - Mode: {mode}
-> - Audience: {audience}
-> - Domain: {domain}
->
-> For each section defined in the mode template, produce:
-> 1. Section ID (from template)
-> 2. Title (descriptive, audience-appropriate)
-> 3. Purpose (1-2 sentences)
-> 4. Narrative role (from template + your interpretation)
-> 5. Key points (3-5 bullet points)
-> 6. Evidence to include (specific evidence IDs from write_inputs.json)
-> 7. Estimated words (within template budget)
-> 8. Transition from previous section
->
-> Focus especially on:
-> - Evidence coverage: every high-confidence claim appears in at least one section
-> - No orphaned evidence: every evidence item is referenced
-> - Structural completeness: all required sections present
->
-> Also define the global argument thread.
->
-> Save to {source_dir}/write/codex_outline.md. Start with:
-> > Source: Claude Agent subagent (claude-only mode, Analytical-Convergent)"
-> )
-> ```
+> **If `--claude-only`**: Per §SubagentExec, spawn **simultaneously**:
+> - **A** (CD, Creative Outline): Read mode template, write_inputs.json, citation_ledger.json. Per section from template: 1.Section ID, 2.Title, 3.Purpose (1-2 sentences), 4.Narrative role, 5.Key points (3-5), 6.Evidence IDs from write_inputs, 7.Estimated words (within template budget), 8.Transition from previous. Plus: global argument thread (2-3 sentence narrative arc). Emphasize narrative flow and engagement. Save to `write/gemini_outline.md`.
+> - **B** (AC, Structural Outline): Read same 3 files. Same 8-field per-section structure + global argument thread. Focus: every high-confidence claim in ≥1 section, no orphaned evidence, all required sections present with adequate depth. Save to `write/codex_outline.md`.
 
 #### Step 1c: Synthesize Section Contracts
 
@@ -492,6 +386,7 @@ For each section (in drafting order):
      *{caption}*
      <!-- END EVIDENCE BLOCK -->
      ```
+     > **Anti-pattern:** Do NOT list figures in a table at the end of the document. Every figure must be embedded inline with `![caption](path)` immediately before or after the paragraph that discusses it. Orphaned figure tables are a document quality failure.
    - If `type == "metric"`: Generate an inline metric reference:
      ```markdown
      <!-- EVIDENCE BLOCK: ev-2 -->
@@ -510,7 +405,9 @@ For each section (in drafting order):
      See implementation in `{ref}`: {description}
      <!-- END EVIDENCE BLOCK -->
      ```
-3. Save the pre-assembled evidence blocks to `write/evidence_blocks/{section_id}.md`.
+3. Before embedding each plot evidence block, verify that the `ref` path exists (Glob check). If the file is missing, mark the evidence block as `<!-- EVIDENCE BLOCK: {id} (MISSING FILE: {ref}) -->` and log a warning.
+
+4. Save the pre-assembled evidence blocks to `write/evidence_blocks/{section_id}.md`.
 
 #### Step 2b: Section-by-Section Drafting
 
@@ -614,7 +511,7 @@ Evaluate each section on:
 1. **Word budget compliance**: Is each section within ±10% of its allocated word budget?
 2. **Evidence completeness**: Are all evidence items from the section contract actually referenced in the text?
 3. **Citation integrity**: Are all claims traceable to upstream artifacts? Flag any claims that appear fabricated.
-4. **LaTeX correctness**: Are mathematical expressions properly formatted (inline $...$ and display $$ on separate lines)?
+4. **LaTeX correctness**: Are mathematical expressions properly formatted (inline `$...$` and display `$$` on separate lines)? **Flag any bare Unicode math symbols** in prose (`α`, `σ`, `π`, `²`, `≈`, `∈`, `ℝ`) — these must be replaced with LaTeX equivalents.
 5. **Structural compliance**: Does the document follow the mode template's required section order?
 
 For each issue found, specify:
@@ -639,61 +536,9 @@ Intake data:
 ```
 Save to `write/codex_review.md`.
 
-> **If `--claude-only`**: Replace both calls above with two Agent subagents, executed **simultaneously**:
->
-> **Subagent A (Creative-Divergent — Content Quality Review):**
-> ```
-> Agent(
->   subagent_type: "general-purpose",
->   prompt: "You are a Creative-Divergent academic reviewer. You look for gaps in reasoning, missed connections, and opportunities for deeper analysis.
->
-> Use the Read tool to read:
-> - {source_dir}/write/draft.md
-> - {source_dir}/write/section_contracts.json
-> - {source_dir}/write/write_inputs.json
->
-> Review the {mode} draft for content quality. Evaluate each section on:
-> 1. Claim support — is every claim backed by evidence?
-> 2. Evidence integration — are figures discussed with concrete observations?
-> 3. Narrative flow — does the argument build progressively?
-> 4. Audience appropriateness for {audience}
-> 5. Completeness — any obvious gaps?
->
-> For each issue: Section ID, issue type, severity (critical/major/minor), specific text, and fix suggestion.
->
-> Also evaluate the global argument thread.
->
-> Save to {source_dir}/write/gemini_review.md. Start with:
-> > Source: Claude Agent subagent (claude-only mode, Creative-Divergent)"
-> )
-> ```
->
-> **Subagent B (Analytical-Convergent — Structure & Evidence Review):**
-> ```
-> Agent(
->   subagent_type: "general-purpose",
->   prompt: "You are an Analytical-Convergent technical editor. You focus on structural integrity, evidence completeness, and formatting precision.
->
-> Use the Read tool to read:
-> - {source_dir}/write/draft.md
-> - {source_dir}/write/section_contracts.json
-> - {source_dir}/write/write_inputs.json
->
-> Review the {mode} draft for structural integrity. Evaluate each section on:
-> 1. Word budget compliance (±10% of allocated budget)
-> 2. Evidence completeness — all contract evidence referenced?
-> 3. Citation integrity — all claims traceable to upstream artifacts?
-> 4. LaTeX correctness
-> 5. Structural compliance with mode template
->
-> For each issue: Section ID, issue type, severity (critical/major/minor), specific text, and fix suggestion.
->
-> Also check for orphaned evidence items.
->
-> Save to {source_dir}/write/codex_review.md. Start with:
-> > Source: Claude Agent subagent (claude-only mode, Analytical-Convergent)"
-> )
-> ```
+> **If `--claude-only`**: Per §SubagentExec, spawn **simultaneously**:
+> - **A** (CD, Content Quality): Read draft.md, section_contracts.json, write_inputs.json. Review: claim support, evidence integration, narrative flow, audience fit ({audience}), completeness. Per issue: Section ID, type (`unsupported_claim`|`weak_evidence`|`narrative_gap`|`audience_mismatch`|`missing_content`), severity (critical/major/minor), specific text, concrete fix. Also evaluate: does the global argument thread hold? Save to `write/gemini_review.md`.
+> - **B** (AC, Structure & Evidence): Read same 3 files. Review: word budget compliance (±10%), evidence completeness, citation integrity, LaTeX correctness (flag bare Unicode: α σ π ² ≈ ∈ ℝ), structural compliance. Per issue: Section ID, type (`budget_violation`|`missing_evidence`|`untraced_claim`|`latex_error`|`structural_error`), severity, text, fix. Also check for orphaned evidence in write_inputs.json. Save to `write/codex_review.md`.
 
 #### Step 3b: Devil's Advocate Review
 
@@ -729,29 +574,7 @@ Supporting evidence:
 ```
 Save each to `write/devils_advocate_{section_id}.md`.
 
-> **If `--claude-only`**: Replace with a Claude Agent subagent:
-> ```
-> Agent(
->   subagent_type: "general-purpose",
->   prompt: "You are an Adversarial-Critical reviewer. Your cognitive style is hostile but fair — you actively search for fatal flaws, overclaiming, and logical fallacies. You are NOT here to be helpful; you are here to break the argument.
->
-> Use the Read tool to read:
-> - {source_dir}/write/sections/{section_id}.md
-> - {source_dir}/write/evidence_blocks/{section_id}.md
->
-> Attack the '{section_title}' section on:
-> 1. Overclaiming — does the text promise more than evidence supports?
-> 2. Missing counterarguments
-> 3. Methodological gaps
-> 4. Evidence cherry-picking
-> 5. Logical fallacies
->
-> For each flaw: severity (Critical/Major/Minor) and concrete fix.
->
-> Save to {source_dir}/write/devils_advocate_{section_id}.md. Start with:
-> > Source: Claude Agent subagent (claude-only mode, Adversarial-Critical)"
-> )
-> ```
+> **If `--claude-only`**: Per §SubagentExec — **Adversarial-Critical** hostile reviewer of '{section_title}': Read `sections/{section_id}.md` + `evidence_blocks/{section_id}.md` + section contract. Attack for overclaiming, missing counterarguments, methodological gaps, evidence cherry-picking, logical fallacies. Per flaw: severity (Critical/Major/Minor) + concrete fix. Save to `write/devils_advocate_{section_id}.md`.
 
 #### Step 3c: Claude Synthesizes Reviews & Applies Fixes
 
@@ -769,6 +592,7 @@ Claude reads all review outputs and applies fixes:
    - Rewrite the section incorporating all accepted fixes
    - Ensure fixes don't introduce new problems (check word budget, evidence coverage)
    - Save the revised section to `write/sections/{section_id}.md` (overwrite)
+   > **Data integrity:** Figures added or regenerated during the write pipeline must be sourced from data in `src/` or test outputs in the upstream artifact directory. Do NOT fabricate data for illustrative plots. If no data exists for a needed visualization, note the gap textually rather than generating synthetic values.
 
 4. **Escalation trigger**: If any fix requires changing a section's scope or adding/removing key points not in the section contract, **update `section_contracts.json`** and flag this for the user:
    > "Section contract for '{section_id}' has been modified during review. Changes: [list]. These will be shown for approval in Phase 4."

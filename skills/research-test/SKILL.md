@@ -21,17 +21,15 @@ languages and ecosystems already present in `src/`. No specific framework is man
 
 ## Instructions
 
+> **Shared rules**: Read `${CLAUDE_PLUGIN_ROOT}/shared/rules.md` before starting. §MCP, §Claude-Only, §Visualization apply to this skill.
+> **Inline fallback** (if shared rules unavailable): Gemini models: gemini-3.1-pro-preview → gemini-2.5-pro → Claude. Codex: gpt-5.4. scienceplots `['science','nature']`, 300dpi PNG+PDF, Nature widths (3.5/7.2in). Subagents use `Read` tool.
+
 ### Claude-Only Mode
-When `--claude-only` is active (passed from the parent `/research` pipeline), all Gemini/Codex MCP
-calls in this skill are replaced with Claude Agent subagents (`subagent_type: general-purpose`).
-Subagents use the `Read` tool to access files instead of `@filepath`. Output filenames remain
-unchanged; each output starts with `> Source: Claude Agent subagent (claude-only mode, {style})`.
+See §Claude-Only in shared rules.
 
 ### MCP Tool Rules
-- **Gemini**: Use the following model fallback chain: `gemini-3.1-pro-preview` → `gemini-2.5-pro` → Claude
-- **File References**: Use `@filepath` in prompt parameters instead of pasting content inline.
-- **Web Search**: Use freely for testing best practices, benchmark references, visualization
-  techniques, domain-specific test patterns.
+See §MCP in shared rules. Additionally:
+- **When to search**: testing best practices, benchmark references, visualization techniques, domain-specific test patterns
 
 ---
 
@@ -96,29 +94,7 @@ interface between Phase 4 and Phase 5 (Report) — violating them breaks the pip
    )
    ```
 
-   > **If `--claude-only`**: Replace with:
-   > ```
-   > Agent(
-   >   subagent_type: "general-purpose",
-   >   prompt: "You are a Creative-Divergent test strategist. Think broadly about edge cases and failure modes.
-   >
-   > Use the Read tool to read:
-   > - {output_dir}/plan/research_plan.md
-   > - All source files in {output_dir}/src/
-   > - {output_dir}/results/pre_execution_status.json (if it exists; fall back to .md for legacy)
-   >
-   > Workspace context:
-   > - Detected languages/ecosystems: {detected}
-   > - results/ status: {SUCCESS|FAILED|ABSENT}
-   >
-   > Suggest a comprehensive test strategy in two tiers:
-   > 1. Unit tests (mock-based, no results/ dependency)
-   > 2. Integration/validation tests (may use results/ data)
-   >
-   > Recommend appropriate testing tools for the detected languages.
-   > Return structured text — do not save to a file."
-   > )
-   > ```
+   > **If `--claude-only`**: Per §SubagentExec — **A** (CD, test strategist): Read research plan, source files, pre_execution_status. Suggest 2-tier test strategy (unit + integration) with appropriate tools for detected languages. Return structured text.
 
 3. Synthesize the test plan, keeping two tiers explicit:
    - **Tier 1 — Unit tests** (always run):
@@ -189,6 +165,12 @@ interface between Phase 4 and Phase 5 (Report) — violating them breaks the pip
      | R | `ggplot2` |
      | Julia | `Plots.jl` or `Makie.jl` |
 
+   > **IMPORTANT:** For Python visualizations, `scienceplots` with `['science', 'nature']` style is **required**, not optional. Do NOT use manual `plt.rcParams` overrides — they conflict with scienceplots defaults.
+   >
+   > **Technical note (`text.usetex`):** The `['science', 'nature']` style enables `text.usetex=True`. All text in plots (axis labels, annotations, titles, legends) must be ASCII or LaTeX-escaped. Unicode characters like `π`, `²`, `⁴`, `≈` will cause `RuntimeError`. Use `r'$\pi$'`, `r'$^2$'`, `r'$^4$'`, `r'$\approx$'` instead.
+   >
+   > **Figure sizing:** Use Nature column widths — single column: 3.5 in, double column: 7.2 in.
+
 3. **Data source selection**:
    - `results/` status `SUCCESS` or `EXISTING`: load data from `results/` for plots
    - `results/` status `FAILED` or `PARTIAL`: use available partial data; note incomplete sections in captions
@@ -225,9 +207,18 @@ the plots.
      "section_hint": "results | methodology | validation | comparison | testing",
      "caption": "Publication-ready figure caption (2-3 sentences). Include key quantitative findings.",
      "markdown_snippet": "![Caption text](plots/{name}.png)",
-     "source_context": "What code/data generated this plot (include results/ file path if applicable)"
+     "source_context": "What code/data generated this plot (include results/ file path if applicable)",
+     "style": ["science", "nature"],
+     "dpi": 300,
+     "source_script": "plots/plot_{name}.py",
+     "source_function": "plot_{name}",
+     "generation_date": "YYYY-MM-DDTHH:MM:SS+00:00"
    }
    ```
+
+   The `style`, `dpi`, `source_script`, `source_function`, and `generation_date` fields are required for downstream report generation (Phase 5). `source_script` must be an actual file path to the Python script that generated the plot.
+
+   > **Note:** The `source_context` field provides a human-readable description. The `source_script` and `source_function` fields provide machine-readable paths for automated style validation by the Report phase (Step 0.5). Both must be populated.
 
 2. Write the complete manifest to `plots/plot_manifest.json`:
    ```json
@@ -261,7 +252,8 @@ Before presenting to the user, execute a lightweight quality checkpoint:
 | Tier 1 coverage | All major functions have unit tests; no significant gaps |
 | Edge case handling | Boundary conditions, degenerate inputs, and error paths are tested |
 | Tier 2 status | Integration tests present; skipped with clear reason if `results/` absent |
-| Common Restrictions | plot_manifest.json present, all plots in PNG + PDF/SVG, dependency spec updated |
+| Common Restrictions | plot_manifest.json present with all required fields (including `style`, `dpi`, `source_script`, `source_function`, `generation_date`), all plots in PNG + PDF/SVG, dependency spec updated |
+| Style compliance (Python) | All Python-generated plots use `scienceplots` `['science', 'nature']` style; no Unicode in labels; Nature column widths |
 | Result reproducibility | Tests are deterministic or use fixed seeds |
 
 2. **Conditional MAGI mini-review** (if confidence is `Medium` or `Low`):
@@ -272,21 +264,7 @@ Before presenting to the user, execute a lightweight quality checkpoint:
    )
    ```
 
-   > **If `--claude-only`**: Replace with:
-   > ```
-   > Agent(
-   >   subagent_type: "general-purpose",
-   >   prompt: "You are an Analytical-Convergent test reviewer.
-   >
-   > Use the Read tool to read:
-   > - {output_dir}/plots/plot_manifest.json
-   > - All test files in {output_dir}/tests/ (or equivalent)
-   > - {output_dir}/results/pre_execution_status.json (if it exists; fall back to .md for legacy)
-   >
-   > Review tests and visualizations. Focus on: {low_scoring_items}
-   > Return structured text — do not save to a file."
-   > )
-   > ```
+   > **If `--claude-only`**: Per §SubagentExec — **B** (AC, test reviewer): Read plot manifest, test files, pre_execution_status. Review focusing on {low_scoring_items}. Return structured text.
 
 3. Write gate report to `tests/phase_gate.md`.
 
@@ -310,6 +288,7 @@ Present to the user:
 - For mixed-language projects: aggregate all test results into a single summary; maintain a single
   `plot_manifest.json` regardless of which language generated the plots.
 - If scienceplots is not installed for Python: `uv add SciencePlots`.
+- For non-Python plots (R/ggplot2, Julia/Makie, etc.): the `style` field in the manifest should describe the equivalent style used (e.g., `["ggplot2-publication"]`). Report-level scienceplots enforcement applies only to matplotlib-generated plots; non-Python plots are exempt from scienceplots but must still meet the Common Restrictions (dual format, 300 dpi, proper labeling).
 - **Domain visualization hints** (guidelines, not rules):
   - Physics: comparison with analytical/theoretical results
   - AI/ML: learning curves, metric tables, comparison charts

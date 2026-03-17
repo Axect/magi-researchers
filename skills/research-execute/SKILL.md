@@ -38,7 +38,7 @@ performed by Claude directly.
    estimated_runtime: "~30 minutes"
    ---
    ```
-2b. **Prefer `execution_manifest.json`**: Check if `execution_manifest.json` exists in the output directory root. If it does, read execution fields from this file instead of the YAML frontmatter:
+3. **Prefer `execution_manifest.json`**: Check if `execution_manifest.json` exists in the output directory root. If it does, read execution fields from this file instead of the YAML frontmatter:
    ```json
    {
      "schema_version": "1.0.0",
@@ -54,10 +54,10 @@ performed by Claude directly.
    }
    ```
    If `execution_manifest.json` exists, it takes precedence over YAML frontmatter fields. If it does not exist, fall back to the YAML frontmatter (backward compatibility).
-3. If the frontmatter is **missing or has no `execution_cmd`**: announce the problem to the user and
+4. If the frontmatter is **missing or has no `execution_cmd`**: announce the problem to the user and
    ask them to provide the execution command manually. Do not guess. Suggest adding the frontmatter
    to `research_plan.md` following the schema above.
-4. Verify `src/` exists and contains at least one file.
+5. Verify `src/` exists and contains at least one file.
 
 ### Step 1: Early Exit — results/ Already Populated
 
@@ -74,8 +74,19 @@ If populated:
 - **Staleness check**: Compute SHA-256 hashes of all files in `src/` and `plan/research_plan.md`. Compare against hashes stored in `results/.source_hashes.json` (if it exists).
   - If hashes match: results are current. Announce: `"results/ already contains artifacts and source code is unchanged. Skipping re-execution."`
   - If hashes differ or `.source_hashes.json` is missing: Announce: `"results/ contains artifacts but source code has changed since they were generated. Re-execution recommended."` Ask the user: "(a) Re-execute with current code, or (b) Keep existing results?"
-  - If user chooses (b): Write `results/pre_execution_status.json` with state `EXISTING` and `"next_action": "proceed"`.
-- Write `results/pre_execution_status.json` with state `EXISTING` if not already present.
+  - If user chooses (b): proceed to the write below.
+- Write `results/pre_execution_status.json` (if not already present) with the canonical EXISTING schema:
+  ```json
+  {
+    "state": "EXISTING",
+    "error_class": null,
+    "severity": null,
+    "retryable": false,
+    "downstream_allowed": true,
+    "traceback_ref": null,
+    "next_action": "proceed"
+  }
+  ```
 - Proceed directly to **Step 6 (Summary)**.
 
 ### Step 2: Dry-Run Verification
@@ -114,7 +125,7 @@ Ready to execute:
   Estimated runtime: {estimated_runtime or "unknown"}
   Output will be captured to: results/run_log.txt
 
-Proceeding — interrupt with Ctrl+C if needed.
+Pause for user confirmation before running.
 ```
 
 If `estimated_runtime` suggests a long job (> 15 minutes), add:
@@ -122,10 +133,10 @@ If `estimated_runtime` suggests a long job (> 15 minutes), add:
 ```
 ⚠ This job may take a long time. If you prefer to run it manually:
   1. Run externally: {execution_cmd}
-  2. Then call `/research-execute --resume` to skip re-execution and record results.
+  2. Copy results to the `results/` directory, then call `/research-execute [output_dir]` — the skill will detect existing results and skip re-execution automatically (Step 1 Early Exit).
 ```
 
-Pause for user confirmation before running.
+**Wait for explicit user confirmation before executing.**
 
 ### Step 4: Execute Full Run
 
@@ -135,6 +146,8 @@ Create `results/` directory if it does not exist, then run:
 - If `cwd` is specified, `cd` to that directory before executing the command.
 - If `env` is specified (object of key-value pairs), prepend each as environment variable exports to the command (e.g., `FOO=bar BAZ=qux {execution_cmd}`).
 - If `timeout_override_ms` is specified, use it instead of the default 30-minute timeout below.
+
+**Command validation**: Before executing, inspect `execution_cmd` for shell metacharacters (`;`, `&&`, `||`, `|`, `$(`, `` ` ``, `>`, `<`, `&`). If any are found beyond simple pipes to `tee`, warn the user and require explicit confirmation before proceeding. Validate that the `cwd` field (if present) is a relative subdirectory path with no `..` traversal and that the directory exists.
 
 Execute in an isolated process group to prevent orphaned child processes on timeout:
 
@@ -181,6 +194,7 @@ To prevent half-written results from triggering false early-exit on subsequent r
 **Step 4-TIMEOUT path**:
 1. Append `"EXECUTION TIMED OUT."` to `results/run_log.txt`.
 2. Inventory what `results/` contains so far.
+   Also check `results/.staging/` — if atomic staging was active, partial artifacts may be there instead of `results/`. Include both locations in the inventory presented to the user.
 3. Ask user: "The job timed out. Would you like to (a) run it externally and then resume, or (b) continue to testing with partial results?"
 4. Record the user's choice in `results/pre_execution_status.json` → proceed to Step 4-PARTIAL.
 
@@ -188,16 +202,20 @@ To prevent half-written results from triggering false early-exit on subsequent r
 Write `results/pre_execution_status.json`:
 ```json
 {
-  "state": "FAILED",
+  "state": "FAILED | PARTIAL",
   "error_class": "dependency|compilation|runtime|timeout|resource|fatal|unknown",
   "severity": "recoverable|blocking|fatal",
   "retryable": true,
-  "downstream_allowed": true,
+  "downstream_allowed": true | false,
   "traceback_ref": "results/run_log.txt",
   "next_action": "retry|abort|user_decision"
 }
 ```
-Choose the appropriate `error_class` and `severity` based on the failure mode. For timeouts, use `"error_class": "timeout"` and `"state": "PARTIAL"`. Set `"downstream_allowed": true` if partial artifacts exist, `false` if nothing usable was produced. Set `"retryable": true` for transient failures (timeout, resource), `false` for deterministic failures (compilation, logic).
+Choose the appropriate `state`, `error_class`, and `severity` based on the failure mode:
+- **Timeouts**: `"state": "PARTIAL"`, `"error_class": "timeout"`
+- **Non-zero exit with partial artifacts**: `"state": "PARTIAL"`
+- **Non-zero exit with no usable output**: `"state": "FAILED"`
+Set `"downstream_allowed": true` if partial artifacts exist that downstream phases can use, `false` if nothing usable was produced. Set `"retryable": true` for transient failures (timeout, resource), `false` for deterministic failures (compilation, logic).
 
 Announce clearly to the user. Do NOT block the pipeline — proceed to **Step 6**.
 
@@ -206,7 +224,8 @@ Announce clearly to the user. Do NOT block the pipeline — proceed to **Step 6*
 If execution succeeded:
 1. Glob `results/**/*` and categorize by extension.
 2. If `expected_outputs` is specified in frontmatter, verify each file exists. Report any missing ones.
-3. Write `results/pre_execution_status.json`:
+3. **Silent failure detection**: If exit code was 0 but one or more `required: true` expected outputs are missing, treat this as state `PARTIAL` (not `SUCCESS`). Write `pre_execution_status.json` with `"state": "PARTIAL"`, `"error_class": "silent_failure"`, `"severity": "recoverable"`, and `"downstream_allowed": true`. Announce the discrepancy to the user.
+4. Write `results/pre_execution_status.json`:
    ```json
    {
      "state": "SUCCESS",
@@ -219,8 +238,10 @@ If execution succeeded:
    }
    ```
 
+   > **Note for downstream consumers:** When reading `pre_execution_status.json`, always check the `state` field value — do not treat file existence alone as an indicator of success. See `research-test` Step 0 for the correct guard logic.
+
    > **Legacy fallback**: If `pre_execution_status.md` exists (legacy v0.8.x workspace), read it and treat any line containing SUCCESS/FAILED/PARTIAL/EXISTING as the state. New runs always write `.json`.
-4. **Save source fingerprints** for future staleness detection:
+5. **Save source fingerprints** for future staleness detection:
    - Compute SHA-256 hashes of all files in `src/` and `plan/research_plan.md`
    - Save to `results/.source_hashes.json`:
      ```json
@@ -233,7 +254,7 @@ If execution succeeded:
        }
      }
      ```
-5. Announce success with the artifact summary.
+6. Announce success with the artifact summary.
 
 ### Step 6: Summary
 

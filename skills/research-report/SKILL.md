@@ -13,22 +13,15 @@ Generates a structured markdown research report from all previous phase outputs.
 
 ## Instructions
 
+> **Shared rules**: Read `${CLAUDE_PLUGIN_ROOT}/shared/rules.md` before starting. §MCP, §Claude-Only, §Visualization, §LaTeX apply to this skill.
+> **Inline fallback** (if shared rules unavailable): Gemini models: gemini-3.1-pro-preview → gemini-2.5-pro → Claude. Codex: gpt-5.4. All math in LaTeX only (no Unicode). scienceplots `['science','nature']`, 300dpi PNG+PDF, Nature widths (3.5/7.2in). Subagents use `Read` tool.
+
 ### Claude-Only Mode
-When `--claude-only` is active (passed from the parent `/research` pipeline), all Gemini/Codex MCP calls in this skill are replaced with Claude Agent subagents (`subagent_type: general-purpose`). Subagents use the `Read` tool to access files instead of `@filepath`. Output filenames remain unchanged; each output starts with `> Source: Claude Agent subagent (claude-only mode, {style})`.
+See §Claude-Only in shared rules.
 
 ### MCP Tool Rules
-- **Gemini**: Use the following model fallback chain. Try each model in order; if a call fails (error, timeout, or model-not-found), retry with the next model:
-  1. `model: "gemini-3.1-pro-preview"` (preferred)
-  2. `model: "gemini-2.5-pro"` (fallback)
-  3. Claude (last resort — skip Gemini MCP tool, use Claude directly)
-- **Visualization**: Use `matplotlib` with `scienceplots` (`['science', 'nature']` style). Save plots as PNG (300 dpi) and PDF.
-- **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@report.md`)
-  instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
-- **Web Search**: Use web search freely whenever report writing requires citation verification, related work context, or factual accuracy checks:
-  - **Claude**: Use the `WebSearch` tool directly
-  - **Gemini**: Add `search: true` to `mcp__gemini-cli__ask-gemini` calls
-  - **Codex**: Add `search: true` to `mcp__codex-cli__ask-codex` calls
-  - **When to search**: citation verification, related work references, fact-checking claims, confirming state-of-the-art results
+See §MCP, §Visualization in shared rules. Additionally:
+- **When to search**: citation verification, related work context, factual accuracy checks
 
 ### Step 0: Gather Materials & Health Check
 
@@ -50,13 +43,45 @@ When `--claude-only` is active (passed from the parent `/research` pipeline), al
    - `plots/` visualizations
 3. **Read the plot manifest** (`plots/plot_manifest.json`):
    - If the manifest exists, parse it as the primary source of plot information.
-   - If the manifest does NOT exist but `plots/` contains files, create the manifest by inventorying all `.png`/`.pdf` files in `plots/` and generating metadata (description, section_hint, caption, markdown_snippet) for each.
+   - If the manifest does NOT exist but `plots/` contains files, create the manifest by inventorying all `.png`/`.pdf` files in `plots/` and generating metadata for each:
+     - `description`, `section_hint`, `caption`, `markdown_snippet` (existing fields)
+     - `style`: array of style sheets used (e.g., `["science", "nature"]`)
+     - `dpi`: output resolution (e.g., `300`)
+     - `source_script`: path to the Python script that generated this plot
+     - `source_function`: function name within the script (if applicable)
+     - `generation_date`: ISO-8601 timestamp of plot generation
    - If neither exists, note that no visualizations are available yet (they may be generated in the mini-loop).
 4. **Plot health check**: For each plot listed in the manifest, verify:
    - The PNG file exists and is non-empty (file size > 0)
    - If any plot file is missing or corrupt, note it for re-generation in Step 2.
 5. Read the report template from `${CLAUDE_PLUGIN_ROOT}/templates/report_template.md`.
 6. Determine the domain and load the relevant domain template from `${CLAUDE_PLUGIN_ROOT}/templates/domains/` for tone/style guidance.
+
+### Step 0.5: Plot Style Validation & Regeneration
+
+Before assembling content, validate that all existing plots comply with the required style:
+
+1. **Scan existing plots**: For each plot in `plots/` (or referenced in `plot_manifest.json`):
+   - Locate the generating script (check `source_script` in manifest, or search `src/` and `plots/` for Python files that produce each plot filename)
+   - Verify the script imports `scienceplots` and calls `plt.style.use(['science', 'nature'])`
+   - Verify no manual `plt.rcParams` overrides that conflict with scienceplots (e.g., font family, linewidth, figure.facecolor)
+   - Verify `figsize` uses Nature column widths (single: 3.5 in, double: 7.2 in)
+   - Verify output is saved at 300 dpi with both PNG and PDF formats
+
+2. **Flag non-compliant plots**: If any plot fails validation:
+   a. Write a regeneration script using the required style:
+      ```python
+      import matplotlib.pyplot as plt
+      import scienceplots
+      plt.style.use(['science', 'nature'])
+      # ... (reuse data loading from original script)
+      ```
+   b. Ensure all text in the script is ASCII or LaTeX-escaped (no Unicode `π`, `²`, etc.)
+   c. Execute with `uv run python {script_path}`
+   d. Verify the regenerated plots exist and are non-empty
+   e. Update `plots/plot_manifest.json` with style metadata
+
+3. **If no plots exist yet**: Skip to Step 1 (plots will be generated in Step 3 if needed).
 
 ### Step 1: Content Assembly & Plot Mapping
 
@@ -119,6 +144,7 @@ Using the template structure from `${CLAUDE_PLUGIN_ROOT}/templates/report_templa
   - Embed the plot using the manifest's `markdown_snippet`
   - Follow with interpretation of what the plot shows
 - Do NOT use passive references like "see figure below" — actively discuss what the data shows with specific numbers
+> **Anti-pattern:** Do NOT list figures in a table at the end of the report. Every figure must be embedded inline with `![caption](path)` immediately before or after the paragraph that discusses it. Orphaned figure tables at the end of the report are a report quality failure.
 
 **Section 6 — Testing:**
 - Test strategy overview
@@ -182,60 +208,16 @@ mcp__gemini-cli__ask-gemini(
 **Codex (CASPER) — Visualization Quality Review:**
 ```
 mcp__codex-cli__ask-codex(
-  prompt: "You are a data visualization reviewer. Analyze this research report for visualization quality and completeness. Identify:\n\n1. **Missing visualizations**: Quantitative results or comparisons described in text that would benefit from a chart/plot but have none\n2. **Plot-narrative mismatch**: Figures whose captions or surrounding text don't accurately describe what the plot shows\n3. **Visualization improvements**: Existing plots that could use better chart types, scales, or encodings for clarity\n4. **Reproducibility gaps**: Plots that lack source context or data references needed to regenerate them\n\nFor each issue found, specify the section, the problematic text or figure, and a concrete fix.\n\nReport draft:\n@{output_dir}/report.md\n\nPlot manifest:\n@{output_dir}/plots/plot_manifest.json",
+  prompt: "You are a data visualization reviewer. Analyze this research report for visualization quality and completeness. Identify:\n\n1. **Missing visualizations**: Quantitative results or comparisons described in text that would benefit from a chart/plot but have none\n2. **Plot-narrative mismatch**: Figures whose captions or surrounding text don't accurately describe what the plot shows\n3. **Visualization improvements**: Existing plots that could use better chart types, scales, or encodings for clarity\n4. **Reproducibility gaps**: Plots that lack source context or data references needed to regenerate them\n5. **Style compliance**: Are all figures generated with the required scienceplots style? Check for: serif fonts, thin lines, Nature-compatible sizing (single: 3.5in, double: 7.2in), 300 dpi, PDF availability. Flag any plot that appears to use matplotlib defaults or custom rcParams overrides.\n\nFor each issue found, specify the section, the problematic text or figure, and a concrete fix.\n\nReport draft:\n@{output_dir}/report.md\n\nPlot manifest:\n@{output_dir}/plots/plot_manifest.json",
   model: "gpt-5.4"
 )
 ```
 
 > Note: If Codex MCP is unavailable, fall back to `mcp__gemini-cli__ask-gemini` with the Gemini fallback chain and visualization-focused framing.
 
-> **If `--claude-only`**: Replace both BALTHASAR and CASPER calls above with two Agent subagents, executed **simultaneously**:
->
-> **Subagent A (Creative-Divergent, BALTHASAR — Scientific Rigor Review):**
-> ```
-> Agent(
->   subagent_type: "general-purpose",
->   prompt: "You are BALTHASAR, a Creative-Divergent scientific reviewer. You look for gaps in reasoning, missed connections, and opportunities for deeper analysis.
->
-> Use the Read tool to read:
-> - {output_dir}/report.md
-> - {output_dir}/plots/plot_manifest.json
-> - {output_dir}/brainstorm/personas.md (if it exists, adopt the Gemini/Subagent A persona for continuity)
->
-> Analyze this research report for claim-evidence integrity. Identify:
-> 1. **Orphaned claims**: Text assertions lacking a supporting figure, table, or data reference
-> 2. **Orphaned plots**: Figures embedded but never discussed or interpreted
-> 3. **Weak links**: Claims that reference a figure but the figure doesn't clearly support the claim
-> 4. **Caption quality**: Are figure captions precise, quantitative, and publication-ready?
->
-> For each issue, specify the section, problematic text/figure, and a concrete fix.
->
-> Return your review as structured text (do not save to a file)."
-> )
-> ```
->
-> **Subagent B (Analytical-Convergent, CASPER — Visualization Quality Review):**
-> ```
-> Agent(
->   subagent_type: "general-purpose",
->   prompt: "You are CASPER, an Analytical-Convergent visualization reviewer. You focus on data presentation quality, reproducibility, and practical completeness.
->
-> Use the Read tool to read:
-> - {output_dir}/report.md
-> - {output_dir}/plots/plot_manifest.json
-> - {output_dir}/brainstorm/personas.md (if it exists, adopt the Codex/Subagent B persona for continuity)
->
-> Analyze this research report for visualization quality and completeness. Identify:
-> 1. **Missing visualizations**: Quantitative results described in text that need a chart/plot
-> 2. **Plot-narrative mismatch**: Figures whose captions don't match what the plot shows
-> 3. **Visualization improvements**: Better chart types, scales, or encodings for clarity
-> 4. **Reproducibility gaps**: Plots lacking source context or data references
->
-> For each issue, specify the section, problematic text/figure, and a concrete fix.
->
-> Return your review as structured text (do not save to a file)."
-> )
-> ```
+> **If `--claude-only`**: Per §SubagentExec, spawn **simultaneously**:
+> - **A** (CD, BALTHASAR — Scientific Rigor): Read `report.md` + `plots/plot_manifest.json`. Review: 1.Orphaned claims (text without supporting figure/table/data), 2.Orphaned plots (embedded but never discussed), 3.Weak links (claim→figure mismatch), 4.Caption quality (precise, quantitative, publication-ready?). Per issue: section, problematic text/figure, concrete fix. Return structured text.
+> - **B** (AC, CASPER — Visualization Quality): Read `report.md` + `plots/plot_manifest.json`. Review: 1.Missing visualizations, 2.Plot-narrative mismatch, 3.Visualization improvements (chart type, scales, encodings), 4.Reproducibility gaps, 5.Style compliance (serif fonts, Nature sizing 3.5in/7.2in, 300dpi, PDF available, no matplotlib defaults/custom rcParams). Per issue: section, text/figure, concrete fix. Return structured text.
 
 **Claude (MELCHIOR) — Synthesis & Revision:**
 
@@ -260,17 +242,23 @@ After both reviews are received, synthesize the feedback:
 4. Write/update `report_versions.json`:
    ```json
    {
-     "schema_version": "1.0.0",
+     "schema_version": "1.1.0",
      "current_version": 1,
      "versions": [{
        "version": 1,
        "file": "report.md",
        "created_at": "ISO-8601",
        "feedback_tier": null,
-       "feedback_summary": "Initial report"
+       "feedback_summary": "Initial report",
+       "changes": []
      }]
    }
    ```
+   The `changes` array tracks structured diffs for each version. Each entry has:
+   - `type`: one of `"plot_restyle"`, `"plot_new"`, `"text_fix"`, `"section_rewrite"`, `"style_fix"`, `"gap_fill"`
+   - `files` (for plot changes): array of affected plot filenames
+   - `section` (for text changes): section number or name
+   - `reason`: brief explanation of why the change was made
 5. Present summary: location, word count, plot count, thin sections, traceability review findings.
 
 ### Step 6: User Feedback Loop
@@ -335,17 +323,7 @@ When user approves or iteration limit reached:
 - Announce final version number and version history summary.
 
 ### LaTeX Formatting Rules
-When writing the report, use LaTeX for all mathematical expressions:
-- **Inline math**: Use `$...$` for short expressions within a sentence (e.g., `$\alpha = 0.05$`, `$O(n \log n)$`)
-- **Display equations**: Use `$$` on its own line, with the equation on a separate line:
-  ```
-  $$
-  \hat{\theta}_{\text{MLE}} = \arg\max_\theta \prod_{i=1}^{n} f(x_i \mid \theta)
-  $$
-  ```
-- Never write display equations inline as `$$..equation..$$` on a single line — always use line breaks between `$$` and the equation
-- Use display equations for: key formulas, derivations, loss functions, objective functions, main results
-- Use inline math for: variable names, parameter values, complexity notation, short expressions in running text
+See §LaTeX in shared rules.
 
 ## Output Files
 ```
@@ -362,7 +340,11 @@ plots/
 - Write in clear, academic-but-accessible style
 - Use markdown formatting effectively (headers, lists, code blocks, tables)
 - Include all plot references as relative paths
-- If some phases were skipped, note this in the report and mark sections as "Not Available"
+- **Standalone experiments** (executed directly, not through the brainstorm → plan pipeline): Do NOT leave sections as "Not Available." Instead, adapt them to the content that exists:
+  - Section 2 (Brainstorming Summary) → Repurpose as "Analysis Framework" or "MAGI Panel Analysis" with the three-model deep analysis
+  - Section 3 (Methodology) → Keep as-is (always applicable)
+  - Section 6 (Testing) → Repurpose as "Validation" (e.g., RMT checks, Parseval identity, conservation laws)
+  - Adapt section titles and content to match what was actually done
 - The report should stand alone as a complete document
 - When writing about plots, always include concrete quantitative observations — never just "As shown in Figure X"
 - The gap detection loop is optional: if all claims are well-supported and all plots are referenced, skip directly to traceability review

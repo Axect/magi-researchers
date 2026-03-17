@@ -21,36 +21,21 @@ Runs the complete research pipeline: Brainstorming → Planning → Implementati
     - `medium` — Standard one-shot cross-review (default)
     - `high` — Cross-review + adversarial debate (most thorough, highest cost)
     - `max` — Hierarchical MAGI-in-MAGI: N persona subagents run parallel mini-MAGI pipelines, then meta-review + adversarial debate across all perspectives (deepest, highest cost)
-  - `--personas N|auto` — Number of domain-specialist subagents for `--depth max` (default: `auto`, range: 2-5). When `auto`, Claude analyzes the topic to determine the optimal persona count. Ignored for other depth levels.
+  - `--personas N|auto` — Number of domain-specialist subagents for `--depth max` (default: `auto`, range: 2-4). When `auto`, Claude analyzes the topic to determine the optimal persona count. Ignored for other depth levels.
   - `--claude-only` — Replace all Gemini/Codex MCP calls with Claude Agent subagents across all phases. Use when external model endpoints are unavailable. Forwarded to all sub-skills automatically.
   - `--substitute "Agent -> Opus"` — Replace a specific MAGI agent with Claude (Opus). Accepted: `"Gemini -> Opus"`, `"Codex -> Opus"`. Can be specified multiple times. Forwarded to all sub-skills. If both agents are substituted, equivalent to `--claude-only`. Mutually exclusive with `--claude-only` (`--claude-only` takes precedence).
   - `--resume <output_dir>` — Resume an interrupted pipeline from a previous output directory. See **Resume Protocol** below.
 
 ## Instructions
 
+> **Shared rules**: Read `${CLAUDE_PLUGIN_ROOT}/shared/rules.md` before starting. §MCP, §Visualization, §LaTeX, §PhaseGate, §Substitute apply to this skill.
+> **Inline fallback** (if shared rules unavailable): Gemini models: gemini-3.1-pro-preview → gemini-2.5-pro → Claude. Codex: gpt-5.4. All math in LaTeX only (no Unicode). scienceplots `['science','nature']`, 300dpi PNG+PDF, Nature widths (3.5/7.2in). Use `@filepath` for MCP file refs; subagents use `Read` tool.
+
 ### MCP Tool Rules
-- **Gemini**: Use the following model fallback chain. Try each model in order; if a call fails (error, timeout, or model-not-found), retry with the next model:
-  1. `model: "gemini-3.1-pro-preview"` (preferred)
-  2. `model: "gemini-2.5-pro"` (fallback)
-  3. Claude (last resort — skip Gemini MCP tool, use Claude directly)
-- **Codex**: Use `model: "gpt-5.4"` for all Codex MCP calls. Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review. If Codex fails 2+ times, fall back to Claude directly.
-- **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@plan/research_plan.md`)
-  instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
-- **Context7**: Use `mcp__plugin_context7_context7__query-docs` for library documentation lookups during implementation.
-- **Web Search**: Use web search freely whenever factual verification, recent developments, or literature context would strengthen the analysis:
-  - **Claude**: Use the `WebSearch` tool directly
-  - **Gemini**: Add `search: true` to `mcp__gemini-cli__ask-gemini` or `mcp__gemini-cli__brainstorm` calls
-  - **Codex**: Add `search: true` to `mcp__codex-cli__ask-codex` or `mcp__codex-cli__brainstorm` calls
-  - **When to search**: prior work verification, methodological precedents, dataset/library availability, related approaches, fact-checking quantitative claims
-  - **Claude-only mode**: Claude Agent subagents cannot use WebSearch. The main Claude agent should search beforehand and include findings in the subagent prompt.
-- **Visualization**: Use `matplotlib` with `scienceplots` (`['science', 'nature']` style). Save plots as PNG (300 dpi) and PDF.
-- **LaTeX**: Use LaTeX for all mathematical expressions in output documents. Inline: `$...$`. Display equations: `$$` on its own line with the equation on a separate line:
-  ```
-  $$
-  equation
-  $$
-  ```
-  Never write display equations on a single line as `$$..equation..$$`.
+See §MCP, §Visualization, §LaTeX in shared rules. Additionally:
+- **Codex**: Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review.
+- **Context7**: Use during implementation phase for library documentation lookups.
+- **When to search**: prior work verification, methodological precedents, dataset/library availability, related approaches, fact-checking quantitative claims
 
 ### Path Safety Rule
 
@@ -67,23 +52,7 @@ When this skill is invoked, execute the full research pipeline below. **Always p
 ---
 
 ### Phase Gate Protocol
-
-Phase gates are lightweight quality checkpoints inserted **before** each USER CHECKPOINT. Each gate follows the same structure but uses phase-specific criteria.
-
-**Gate procedure:**
-1. **Self-assessment**: Claude evaluates the phase output against the checklist below and assigns a confidence level: `High`, `Medium`, or `Low`.
-2. **Conditional MAGI mini-review** (if confidence is `Medium` or `Low`):
-   - Send the phase output to one MAGI model for a focused review (Gemini for scientific/plan quality, Codex for implementation/test quality)
-   - **If `--claude-only` or the relevant agent is substituted** (via `--substitute`): Replace the substituted MAGI model's call with a Claude Agent subagent (`subagent_type: general-purpose`). Use the appropriate cognitive style: Creative-Divergent for scientific/plan review (Gemini substitute), Analytical-Convergent for implementation/test review (Codex substitute). The subagent reads files via the `Read` tool instead of `@filepath`.
-   - The review prompt should target the specific checklist items that scored low
-3. **Go/No-Go synthesis**: Claude writes a brief gate report with:
-   - Confidence level and justification
-   - Checklist scores (pass/partial/fail for each item)
-   - Issues found (if any) and applied fixes
-   - Go/No-Go decision
-4. Save to `{phase_dir}/phase_gate.md` (e.g., `plan/phase_gate.md`)
-
-**Phase-specific checklists:**
+See §PhaseGate in shared rules. Phase-specific checklists:
 
 | Phase | Checklist Items |
 |:------|:----------------|
@@ -91,8 +60,6 @@ Phase gates are lightweight quality checkpoints inserted **before** each USER CH
 | **Implement** | Code correctness, alignment with plan, error handling, dependency management |
 | **Execute** | Exit code 0, `results/` populated (or EXISTING/PARTIAL with user acknowledgment), `pre_execution_status.json` written |
 | **Test** | Tier 1 unit test coverage, edge case handling, Common Restrictions fulfilled (plot_manifest.json, dual format, dependency spec), result reproducibility |
-
-> If a gate returns **No-Go**, Claude must fix the identified issues before presenting to the user. Maximum 1 fix iteration per gate.
 
 ---
 
@@ -188,11 +155,12 @@ Before starting each phase (2 through 5), verify that the required predecessor a
 3. If the domain has a template in `${CLAUDE_PLUGIN_ROOT}/templates/domains/`, read it as context.
 4. **Parse `--weights`**: If provided, validate and store. If omitted, domain defaults will be used by the brainstorm sub-skill.
 5. **Parse `--depth`**: Accept `low`, `medium` (default), `high`, or `max`.
-6. **Parse `--personas N|auto`**: Accept integer 2-5 or the string `auto` (default: `auto`). Only used when `--depth max`; ignored otherwise.
+6. **Parse `--personas N|auto`**: Accept integer 2-4 or the string `auto` (default: `auto`). Only used when `--depth max`; ignored otherwise.
    - If `auto`: Defer persona count determination to the Brainstorm phase (sub-skill Step 0b), where Claude analyzes the topic to select the optimal N.
    - If an explicit integer is given: Use that value directly.
 7. **Parse `--claude-only`**: Boolean flag (default: `false`). When present, all Gemini/Codex MCP calls across all phases are replaced with Claude Agent subagents. This flag is forwarded to every sub-skill invocation.
 8. **Parse `--substitute`**: Accept zero or more `--substitute "Agent -> Opus"` flags. Valid agent names: `Gemini`, `Codex`. Valid target: `Opus`. Forwarded to every sub-skill invocation. Mutually exclusive with `--claude-only` (`--claude-only` takes precedence). If both agents are substituted, treat as `--claude-only`.
+> **Flag forwarding**: `--claude-only` and `--substitute` flags are forwarded to **every** sub-skill invocation (brainstorm, plan, implement, execute, test, report). Each sub-skill applies the replacement rules to its own MCP calls.
 9. Announce to the user: topic, domain, output directory, **active weights** (user-provided, holistic, or domain default), **depth level**, **persona count** (if `max`; show `auto` if no explicit `--personas` was given), **claude-only mode** (if active), and **agent substitutions** (if any).
 
 ---
@@ -283,27 +251,7 @@ mcp__gemini-cli__ask-gemini(
 
 Save to `plan/murder_board.md`.
 
-> **If `--claude-only` or Gemini is substituted** (via `--substitute "Gemini -> Opus"`): Replace the Gemini murder board call above with a Claude Agent subagent:
-> ```
-> Agent(
->   subagent_type: "general-purpose",
->   prompt: "You are an Adversarial-Critical reviewer. Your cognitive style is hostile but fair — you actively search for fatal flaws, unstated assumptions, and failure modes. You are NOT here to be helpful; you are here to break the plan.
->
-> Use the Read tool to read: {output_dir}/plan/research_plan.md
->
-> Attack the plan on these dimensions:
-> 1. **Methodological flaws**: Are there fundamental errors in the proposed approach?
-> 2. **Missing assumptions**: What unstated assumptions could invalidate results?
-> 3. **Scalability risks**: Will this approach break on realistic problem sizes?
-> 4. **Data/resource gaps**: Are required datasets, compute, or libraries actually available?
-> 5. **Novelty concerns**: Has this exact approach been tried and failed before?
->
-> For each flaw found, rate its severity (Critical/Major/Minor) and explain the likely failure mode.
->
-> Save to {output_dir}/plan/murder_board.md. Start with:
-> > Source: Claude Agent subagent (claude-only mode, Adversarial-Critical)"
-> )
-> ```
+> **If `--claude-only` or Gemini is substituted**: Per §SubagentExec — **Adversarial-Critical** reviewer: Read `research_plan.md`. Attack on methodological flaws, missing assumptions, scalability risks, data/resource gaps, novelty concerns. Save to `plan/murder_board.md`.
 
 **Step 2c — Mitigations:**
 
@@ -444,11 +392,13 @@ Execute the `/magi-researchers:research-test` workflow:
   "completed_at": "{ISO-8601 timestamp}",
   "input_hashes": {
     "src/": "sha256:{combined_hash}",
-    "results/pre_execution_status.json": "sha256:{hash}"
+    "results/pre_execution_status.json": "sha256:{hash} (omit key if file absent)"
   },
   "output_artifacts": ["plots/plot_manifest.json"]
 }
 ```
+
+If `results/pre_execution_status.json` does not exist, omit it from `input_hashes` rather than storing a placeholder.
 
 **>>> USER CHECKPOINT: Review test results and visualizations <<<**
 
@@ -458,12 +408,19 @@ Execute the `/magi-researchers:research-test` workflow:
 
 **Artifact Contract**: Verify all of the following exist (Glob for each): `brainstorm/synthesis.md`, `plan/research_plan.md`, at least one source file in `src/`, and `plots/plot_manifest.json`. On failure, follow the Artifact Contract Protocol above.
 
+If `--depth max` was used: also check for `brainstorm/all_conclusions.md`, `brainstorm/meta_review_gemini.md`, `brainstorm/meta_review_codex.md`, `brainstorm/meta_debate_gemini.md`, `brainstorm/meta_debate_codex.md` (these replace `debate_round2_*.md` files)
+
 Execute the `/magi-researchers:research-report` workflow:
 
 **Step 0 — Gather & Health Check:**
 - Inventory all phase outputs
 - Read `plots/plot_manifest.json` (create if missing but plots exist)
 - Verify all plot files are present and valid
+
+**Step 0.5 — Plot Style Validation:**
+- Validate all existing plots for scienceplots compliance (`['science', 'nature']` style)
+- Regenerate non-compliant plots before content assembly
+- Update `plots/plot_manifest.json` with style metadata
 
 **Step 1 — Content Assembly & Plot Mapping:**
 - Read all phase artifacts
@@ -483,11 +440,12 @@ Execute the `/magi-researchers:research-report` workflow:
 - **Inject personas**: If `brainstorm/personas.md` exists, prepend the assigned personas to Gemini and Codex review prompts for continuity
 - **Agent substitution**: If `--claude-only` or `--substitute` is active, substituted agents use Claude Agent subagents with their respective cognitive styles (Creative-Divergent for Gemini, Analytical-Convergent for Codex). Non-substituted agents use their MCP tools normally.
 - Gemini (BALTHASAR) reviews for scientific rigor: orphaned claims, orphaned plots, weak claim-evidence links, caption quality
-- Codex (CASPER) reviews for visualization quality: missing visualizations, plot-narrative mismatch, encoding improvements, reproducibility gaps
+- Codex (CASPER) reviews for visualization quality: missing visualizations, plot-narrative mismatch, encoding improvements, reproducibility gaps, **and scienceplots style compliance**
 - Claude (MELCHIOR) synthesizes both reviews — consensus issues are high-priority fixes, divergent suggestions evaluated on merit
 
 **Step 5 — Write Final Report:**
 - Save finalized `report.md` with version tracking (`report_versions.json`)
+- Schema version is `1.1.0`; each version entry includes a structured `changes` array tracking what was modified
 - Present summary with plot integration statistics
 
 **Step 6 — Feedback Loop:**
@@ -522,6 +480,7 @@ Present report location, version, any Tier 1/2 revisions already applied. Option
 3. On confirmation:
    a. Archive `report.md` → `report_v{N}.md`, update `report_versions.json`
    b. Delete `report.md` (reset resume protocol)
+   > **Rollback note**: If the re-entry pipeline fails before a new `report.md` is produced, inform the user that the previous report is preserved as `report_v{N}.md` and can be restored by copying it back to `report.md`.
    c. Execute pipeline from re-entry phase
    d. Report skill generates new version → return to Step R1
 

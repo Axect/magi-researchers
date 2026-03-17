@@ -5,6 +5,84 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.13.0] — 2026-03-17
+
+### Added
+- **`shared/rules.md`** — Single source of truth for cross-cutting rules: §MCP (Gemini fallback chain, Codex model, file refs, web search), §Visualization (scienceplots, 300dpi, Nature widths), §LaTeX (Unicode ban, display equation format), §Claude-Only (MCP→Agent mapping, 4 key rules), §Substitute, §SubagentExec (6-step template), §PhaseGate (4-step procedure)
+- **Inline fallback** — All 6 modified SKILL files carry a 1-line fallback (MCP chain, Codex model, LaTeX ban, scienceplots essentials) for resilience when `shared/rules.md` is not loaded
+- **Brainstorm: LaTeX Unicode hard ban** — Explicit `> Hard requirement` block added to brainstorm skill
+- **Brainstorm: Pipeline context detection** — Sub-skill invocations skip directory creation when `.workspace.json` already exists
+- **Brainstorm: Weight normalization verification** — Verify sum equals 1.00 after rounding
+
+### Changed
+- **SKILL compression** — 7 SKILL files compressed via §-references and claude-only block reduction (4,807 → 4,201 lines, net −606 / −12.6% including shared/rules.md)
+- **Claude-only blocks** — Verbose 30–55 line `Agent()` blocks compressed to 3–4 line §SubagentExec references while preserving deliverable specs, evaluation criteria, issue taxonomies, and role-specific debate criteria
+- **Brainstorm: Ambiguous workspace resolution** — `.workspace.json` Glob now prefers topic-matching workspace; asks user on ambiguity
+
+### Fixed
+- **P0: orchestrator `--personas` range** — `2-5` → `2-4` (matched Arguments section)
+- **P0: execute Step 3** — "Proceeding" replaced with explicit user confirmation pause
+- **P0: execute Step 4-PARTIAL `state`** — Fixed to conditional `FAILED|PARTIAL` (was hardcoded `FAILED`)
+- **P0: execute Step 4-PARTIAL `downstream_allowed`** — Fixed to conditional based on partial artifact presence (was hardcoded `true`)
+- **P0: implement Step 3b `cwd`** — `"src/"` → `"."` (execution from output root, not src/)
+
+---
+
+## [0.12.0] — 2026-03-16
+
+### Added
+- **MELCHIOR Active Synthesis Protocol** — Claude/Opus elevated from mechanical aggregator to active third MAGI personality with depth-conditional roles (Curator, Critical Editor, Adversarial Critic, Philosopher-Arbiter)
+- **Convergence Interrogation** — Type A/B classification for convergent findings (genuine vs. shared-bias convergence)
+- **Intertextual Addition** — Mandatory `[MELCHIOR]` original contribution injected into synthesis
+- **MELCHIOR Verdict** — Per-finding `(f) [MELCHIOR] Verdict` section with Endorse/Revise/Reject and reasoning
+
+---
+
+## [0.11.0] — 2026-03-12
+
+### Changed
+- **Narrative-first synthesis structure** — Synthesis output redesigned to produce research analysis instead of project management documents
+- **"Direction" → "Finding" terminology** — Forces present/past tense descriptions instead of future-tense project proposals
+- **Per-finding narrative structure** — Mechanism Narrative (150–250 words prose) → Mathematical Core & Predictions → Falsification Criteria → T7 Footer
+- **T7 demoted** — From body structure to 1–2 sentence summary footer
+- **Expanded findings** — Top 5 full findings + appendix table (was: top 3 full + rest brief)
+- **3-item self-check** — Mechanism exists, equation exists, ops content < 15%
+
+---
+
+## [0.10.2] — 2026-03-12
+
+### Fixed
+- **Subagent containment** — Added containment directive, prompt-level guards, and post-completion path audit to prevent persona/meta-reviewer subagents from creating duplicate output directories
+
+### Added
+- **3-tier report feedback loop** — Report generation with iterative version tracking
+
+---
+
+## [0.10.1] — 2026-03-11
+
+### Fixed
+- **Path safety** — Added `brainstorm/` prefix to all claude-only and MCP `@filepath` references; strengthened T5 template and Path Safety Rule for absolute paths
+- **Weights schema** — Created `weights.schema.json` to enforce consistent holistic/explicit format
+- **Persona cap** — Maximum personas reduced from 5 to 4
+- **Opus fallback** — Fallback targets Opus subagent instead of Gemini/Claude directly
+
+### Added
+- **Emergent Insights and MAGI Process Traceability** added to Step 1c synthesis template
+
+---
+
+## [0.10.0] — 2026-03-11
+
+### Added
+- **Holistic scoring** (default) — When `--weights` is omitted, the synthesizing agent ranks ideas using expert judgment instead of numeric dimension weights
+- **Agent substitution** — `--substitute "Gemini -> Opus"` replaces a rate-limited model with Claude across all pipeline stages (brainstorming, cross-review, debate, meta-review)
+- **Workspace anchor** — `.workspace.json` locks the absolute output directory path, preventing artifact drift after context compression
+- **Token-optimized skills** — Reusable templates (T1–T7) reduce brainstorm skill size by ~35%
+
+---
+
 ## [0.9.0] — 2026-03-09
 
 ### Fixed
@@ -235,6 +313,11 @@ Initial release.
 
 ---
 
+[0.12.0]: https://github.com/Axect/magi-researchers/compare/v0.11.0...v0.12.0
+[0.11.0]: https://github.com/Axect/magi-researchers/compare/v0.10.2...v0.11.0
+[0.10.2]: https://github.com/Axect/magi-researchers/compare/v0.10.1...v0.10.2
+[0.10.1]: https://github.com/Axect/magi-researchers/compare/v0.10.0...v0.10.1
+[0.10.0]: https://github.com/Axect/magi-researchers/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/Axect/magi-researchers/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/Axect/magi-researchers/compare/v0.7.1...v0.8.1
 [0.7.1]: https://github.com/Axect/magi-researchers/compare/v0.7.0...v0.7.1

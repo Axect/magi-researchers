@@ -5,7 +5,7 @@ Generates high-quality explanations of concepts using Gemini and Codex in parall
 
 ## Usage
 ```
-/research-explain "concept" [--domain physics|ai_ml|statistics|mathematics|paper] [--audience general-public|high-school|undergraduate|phd-student|researcher|expert|"free text"] [--weights '{"clarity":0.2,"accuracy":0.2}'] [--depth low|medium|high|max] [--personas N] [--claude-only]
+/research-explain "concept" [--domain physics|ai_ml|statistics|mathematics|paper] [--audience general-public|high-school|undergraduate|phd-student|researcher|expert|"free text"] [--weights '{"clarity":0.2,"accuracy":0.2}'] [--depth low|medium|high|max] [--personas N] [--claude-only] [--substitute "Gemini -> Opus"]
 ```
 
 ## Arguments
@@ -25,65 +25,52 @@ Generates high-quality explanations of concepts using Gemini and Codex in parall
     - `medium` — Full MAGI (parallel brainstorm + cross-review) → explanation
     - `high` — MAGI + adversarial debate → explanation with misconceptions section
     - `max` — Hierarchical MAGI-in-MAGI: N persona subagents → meta-review + debate → multi-perspective deep dive
-  - `--personas N|auto` — Number of explanation-specialist subagents for `--depth max` (default: `auto`, range: 2-5). When `auto`, Claude analyzes the concept to determine the optimal persona count. Ignored for other depth levels.
+  - `--personas N|auto` — Number of explanation-specialist subagents for `--depth max` (default: `auto`, range: 2-4). When `auto`, Claude analyzes the concept to determine the optimal persona count. Ignored for other depth levels.
   - `--claude-only` — Replace all Gemini/Codex MCP calls with Claude Agent subagents. Use when external model endpoints are unavailable or for a Claude-only workflow. Two subagents with distinct cognitive styles (Creative-Divergent and Analytical-Convergent) ensure perspective diversity.
+  - `--substitute "Agent -> Opus"` — Replace a specific MAGI agent with Claude (Opus). Accepted: `"Gemini -> Opus"`, `"Codex -> Opus"`. Can be specified multiple times. If both substituted, equivalent to `--claude-only`.
 
 ## Instructions
 
+> **Shared rules**: Read `${CLAUDE_PLUGIN_ROOT}/shared/rules.md` before starting. §MCP, §Claude-Only, §LaTeX, §Substitute apply to this skill.
+> **Inline fallback** (if shared rules unavailable): Gemini models: gemini-3.1-pro-preview → gemini-2.5-pro → Claude. Codex: gpt-5.4. All math in LaTeX only (no Unicode: σ₁→`$\sigma_1$`). Use `@filepath` for MCP file refs; subagents use `Read` tool.
+
 ### MCP Tool Rules
-- **Gemini**: Use the following model fallback chain. Try each model in order; if a call fails (error, timeout, or model-not-found), retry with the next model:
-  1. `model: "gemini-3.1-pro-preview"` (preferred)
-  2. `model: "gemini-2.5-pro"` (fallback)
-  3. Claude (last resort — skip Gemini MCP tool, use Claude directly)
-- **Codex**: Use `model: "gpt-5.4"` for all Codex MCP calls. Use `mcp__codex-cli__ask-codex` for analysis/review. If Codex fails 2+ times, fall back to Claude directly.
-- **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@explain/codex_ideas.md`)
-  instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
-- **Web Search**: Use web search freely whenever factual verification, recent developments, or literature context would strengthen the explanation:
-  - **Claude**: Use the `WebSearch` tool directly
-  - **Gemini**: Add `search: true` to `mcp__gemini-cli__ask-gemini` calls
-  - **Codex**: Add `search: true` to `mcp__codex-cli__ask-codex` calls
-  - **When to search**: concept definitions, pedagogical resources, common misconceptions, recent breakthroughs, related concepts, fact-checking claims
-  - **Claude-only mode**: Claude Agent subagents cannot use WebSearch. The main Claude agent should search beforehand and include findings in the subagent prompt.
+See §MCP in shared rules. Additionally:
+- **Codex**: Use `mcp__codex-cli__ask-codex` for analysis/review.
+- **Visualization** (if plots are generated): See §Visualization.
+- **When to search**: concept definitions, pedagogical resources, common misconceptions, recent breakthroughs, related concepts, fact-checking claims
 
 ### Claude-Only Mode
-
-When `--claude-only` is active, **all** Gemini/Codex MCP tool calls are replaced with Claude Agent subagents (`subagent_type: general-purpose`). The table below maps each original call to its replacement:
-
-| Original Call | Replacement | Cognitive Style |
-|---|---|---|
-| `mcp__gemini-cli__ask-gemini` | Agent subagent A | **Creative-Divergent**: unconventional connections, "What if?" scenarios, wide exploration, questioning assumptions |
-| `mcp__codex-cli__ask-codex` | Agent subagent B | **Analytical-Convergent**: step-by-step feasibility, established methodologies, deep evaluation, practical constraints, risk assessment |
-
-**Key rules for claude-only mode:**
-1. **File access**: Subagents use the `Read` tool to access files (no `@filepath` syntax).
-2. **Output filenames**: Keep original names (`gemini_ideas.md`, `codex_ideas.md`, etc.) — add a header `> Source: Claude Agent subagent (claude-only mode, {style})` to each output file.
-3. **Independence**: Both subagents are spawned simultaneously so neither can see the other's output.
-4. **`--depth max` internal subagents**: Within each persona's mini-MAGI pipeline, use **Expansive Explorer** (replaces Gemini) and **Grounded Builder** (replaces Codex) cognitive styles to maintain internal diversity.
+See §Claude-Only and §Substitute in shared rules. This skill uses Teacher/Critic asymmetric roles (see Step 0b).
 
 ### LaTeX Formatting Rules
-When writing mathematical expressions in any output document (explanation, synthesis, etc.):
-- **Inline math**: Use `$...$` for short expressions within a sentence (e.g., `$x^2 + y^2 = r^2$`)
-- **Display equations**: Use `$$` on its own line, with the equation on a separate line:
-  ```
-  $$
-  \mathcal{L} = -\frac{1}{4} F_{\mu\nu} F^{\mu\nu} + \bar{\psi}(i\gamma^\mu D_\mu - m)\psi
-  $$
-  ```
-- Never write display equations inline as `$$..equation..$$` on a single line — always use line breaks
-- Include this formatting instruction in prompts to Gemini and Codex when the topic involves mathematical content
+See §LaTeX in shared rules.
 
 When this skill is invoked, follow these steps exactly:
 
 ### Step 0: Setup
 
 1. Parse the concept to explain from `$ARGUMENTS`. If a `--domain` flag is provided, note the domain (physics, ai_ml, statistics, mathematics, paper). Otherwise, infer the domain from the concept.
-2. Create the output directory: `outputs/{sanitized_concept}_{YYYYMMDD}_v{N}/explain/`
+2. **Pipeline context detection**: If an `{output_dir}` was provided by the calling context and `.workspace.json` already exists at the output root, skip directory creation and write to `{output_dir}/explain/` instead of creating a new versioned directory.
+3. Create the output directory: `outputs/{sanitized_concept}_{YYYYMMDD}_v{N}/explain/`
    - Sanitize the concept: lowercase, replace spaces with underscores, remove special characters, truncate to 50 chars.
    - Use today's date in YYYYMMDD format.
    - Version: Glob for `outputs/{sanitized_concept}_{YYYYMMDD}_v*/` and set N = max existing + 1 (start at v1).
-3. If a domain template exists at `${CLAUDE_PLUGIN_ROOT}/templates/domains/{domain}.md`, read it for context.
-4. **Parse `--audience`**: Accept `general-public`, `high-school`, `undergraduate`, `phd-student`, `researcher`, `expert`, or any quoted free-text string (default: `phd-student`). The audience propagates into every prompt, persona casting, weight defaults, and the final explanation.
-5. **Parse `--weights`**:
+4. Write `.workspace.json` at the output directory root:
+   ```json
+   {
+     "output_dir": "{absolute_path}",
+     "skill": "research-explain",
+     "concept": "{original_concept}",
+     "domain": "{domain}",
+     "audience": "{audience}",
+     "depth": "{depth}",
+     "created_at": "{ISO-8601}"
+   }
+   ```
+5. If a domain template exists at `${CLAUDE_PLUGIN_ROOT}/templates/domains/{domain}.md`, read it for context.
+6. **Parse `--audience`**: Accept `general-public`, `high-school`, `undergraduate`, `phd-student`, `researcher`, `expert`, or any quoted free-text string (default: `phd-student`). The audience propagates into every prompt, persona casting, weight defaults, and the final explanation.
+7. **Parse `--weights`**:
    - **If `--weights` is explicitly provided**: Validate that keys are a subset of {`clarity`, `accuracy`, `depth`, `accessibility`, `completeness`, `engagement`} and values sum to 1.0. Save immediately to `explain/weights.json` with metadata:
      ```json
      {
@@ -104,15 +91,15 @@ When this skill is invoked, follow these steps exactly:
    - `researcher`: `{"clarity": 0.10, "accuracy": 0.25, "depth": 0.25, "accessibility": 0.05, "completeness": 0.25, "engagement": 0.10}`
    - `expert`: `{"clarity": 0.05, "accuracy": 0.30, "depth": 0.25, "accessibility": 0.05, "completeness": 0.30, "engagement": 0.05}`
    - For free-text audiences: Use `phd-student` as the baseline, then adjust in Step 0a based on the audience description.
-6. **Parse `--depth`**: Accept `low`, `medium`, `high`, or `max` (default: `medium`).
+8. **Parse `--depth`**: Accept `low`, `medium`, `high`, or `max` (default: `medium`).
    - `low` — Skip Phase 1 entirely; Claude generates explanation directly (jump to Step 2)
    - `medium` — Full MAGI + one-shot cross-review → strategy synthesis → explanation
    - `high` — Full MAGI + cross-review + adversarial debate → strategy synthesis → explanation with misconceptions
    - `max` — Hierarchical MAGI-in-MAGI pipeline (Steps 1-max-a through 1-max-d replace Steps 1a/1b/1b+/1c)
-7. **Parse `--personas N|auto`**: Accept integer 2-5 or the string `auto` (default: `auto`). Only used when `--depth max`; ignored otherwise.
-   - If `auto`: Defer persona count determination to Step 0b, where Claude analyzes the concept's complexity, number of distinct pedagogical angles, and audience needs to select the optimal N (2-5).
+9. **Parse `--personas N|auto`**: Accept integer 2-4 or the string `auto` (default: `auto`). Only used when `--depth max`; ignored otherwise.
+   - If `auto`: Defer persona count determination to Step 0b, where Claude analyzes the concept's complexity, number of distinct pedagogical angles, and audience needs to select the optimal N (2-4).
    - If an explicit integer is given: Use that value directly.
-8. **Parse `--claude-only`**: Boolean flag (default: `false`). When present, all Gemini/Codex MCP calls are replaced with Claude Agent subagents. See the **Claude-Only Mode** section above for the replacement table and cognitive style definitions.
+10. **Parse `--claude-only`**: Boolean flag (default: `false`). When present, all Gemini/Codex MCP calls are replaced with Claude Agent subagents. See the **Claude-Only Mode** section above for the replacement table and cognitive style definitions.
 
 ### Step 0a: Adaptive Weight Recommendation
 
@@ -158,6 +145,8 @@ When `--weights` is omitted, Claude analyzes the concept and audience to recomme
    - Option A: **"Accept recommended weights"** (Recommended) — use the adaptive weights
    - Option B: **"Use audience defaults"** — use the unmodified audience baseline
    - Other: User provides custom weights as JSON
+
+   If the user provides custom weights: validate keys and sum. Maximum 1 retry on invalid input; fall back to audience defaults on continued failure.
 
 5. **Save to `explain/weights.json`** with metadata based on the user's choice:
    ```json
@@ -210,15 +199,13 @@ After setup, Claude analyzes the concept, domain, and audience to assign special
    - Selection heuristic:
      - **N=2**: Simple concept within a single field (e.g., "what is a derivative?")
      - **N=3**: Standard concept spanning theory, intuition, and application (e.g., "entropy in information theory")
-     - **N=4**: Multi-faceted concept requiring historical, theoretical, applied, and pedagogical perspectives (e.g., "gauge symmetry in physics")
-     - **N=5**: Highly interdisciplinary or deeply misunderstood concept where a dedicated misconception-buster adds value (e.g., "quantum entanglement")
+     - **N=4**: Multi-faceted concept requiring historical, theoretical, applied, and pedagogical perspectives, or highly interdisciplinary/deeply misunderstood concept (e.g., "gauge symmetry in physics", "quantum entanglement")
    - Announce the chosen N and reasoning to the user before proceeding.
-   - If `--personas` was given as an explicit integer (2-5), use that value directly and skip this analysis.
+   - If `--personas` was given as an explicit integer (2-4), use that value directly and skip this analysis.
 3. Cast **N explanation-specialist personas** (model-independent — each persona runs both Gemini and Codex):
    - **N=2**: Intuitive Explainer, Rigorous Formalist
    - **N=3**: Intuitive Explainer, Rigorous Formalist, Applied Practitioner
-   - **N=4**: + Historical/Conceptual Genealogist
-   - **N=5**: + Misconception Hunter / Devil's Advocate
+   - **N=4**: + Historical/Conceptual Genealogist or Misconception Hunter / Devil's Advocate (based on concept)
 4. Each persona definition must include:
    - **Name/title** — **Use a real historical figure (위인) whose work aligns with this persona's domain** (e.g., "Richard Feynman — Intuitive Physics Explainer", "Emmy Noether — Abstract Structure Specialist", "John Tukey — Practical Data Analyst"). The figure's intellectual legacy should resonate with the persona's explanatory lens.
    - **Expertise areas** (3-5 bullet points)
@@ -294,63 +281,9 @@ You are a pedagogical analyst and explanation critic. Generate a comprehensive c
 
 > Note: If Codex MCP is unavailable, fall back to `mcp__gemini-cli__ask-gemini` with the Gemini fallback chain and critic-focused framing.
 
-> **If `--claude-only`**: Replace both calls above with two Agent subagents, executed **simultaneously**:
->
-> **Subagent A (Creative-Divergent, Teacher — replaces Gemini):**
-> ```
-> Agent(
->   subagent_type: "general-purpose",
->   prompt: "You are a Creative-Divergent thinker and master Teacher. Prioritize unconventional analogies, vivid examples, 'What if?' thought experiments, and building intuition from multiple angles.
->
-> [Persona: {teacher_persona_name} — {teacher_persona_expertise}]
-> Guiding question: {teacher_guiding_question}
-> Target audience: {audience}
->
-> Use the Read tool to read the domain template at {domain_template_path} (skip if no template exists).
->
-> Concept to explain: {concept}
->
-> Generate a comprehensive draft explanation of this concept for the specified audience. Your explanation should include:
-> 1. **Core Explanation**: Build understanding from first principles appropriate to the audience level
-> 2. **Key Intuitions**: 2-3 most important intuitions
-> 3. **Mathematical Formalism** (if applicable): Include relevant equations with LaTeX (inline: $...$, display: $$ on separate lines)
-> 4. **Concrete Examples**: 2-3 worked examples or real-world applications
-> 5. **Connections**: How this relates to concepts the audience likely already knows
->
-> Save your complete output to {output_dir}/explain/gemini_ideas.md. Start the file with:
-> > Source: Claude Agent subagent (claude-only mode, Creative-Divergent, Teacher)
-> > Persona: {teacher_persona_name}
-> > Timestamp: {ISO timestamp}"
-> )
-> ```
->
-> **Subagent B (Analytical-Convergent, Critic — replaces Codex):**
-> ```
-> Agent(
->   subagent_type: "general-purpose",
->   prompt: "You are an Analytical-Convergent thinker and pedagogical Critic. Prioritize systematic analysis, identifying gaps, stress-testing explanations, and rigorous evaluation of understanding.
->
-> [Persona: {critic_persona_name} — {critic_persona_expertise}]
-> Guiding question: {critic_guiding_question}
-> Target audience: {audience}
->
-> Use the Read tool to read the domain template at {domain_template_path} (skip if no template exists).
->
-> Concept to explain: {concept}
->
-> Generate a comprehensive critical analysis covering:
-> 1. **Prerequisites Map**: Concepts the audience must understand first, in dependency order
-> 2. **Common Misconceptions** (at least 5): Each with: statement, why plausible, why wrong, corrective reframing
-> 3. **Confusion Neighbors**: Commonly confused concepts with distinguishing features
-> 4. **Precision-Accessibility Tradeoffs**: Where must we sacrifice precision for this audience?
-> 5. **Calibration Questions** (5-10): Test genuine understanding with expected and common wrong answers
->
-> Save your complete output to {output_dir}/explain/codex_ideas.md. Start the file with:
-> > Source: Claude Agent subagent (claude-only mode, Analytical-Convergent, Critic)
-> > Persona: {critic_persona_name}
-> > Timestamp: {ISO timestamp}"
-> )
-> ```
+> **If `--claude-only`**: Per §SubagentExec, spawn **simultaneously**:
+> - **A** (CD, Teacher): Draft explanation of {concept} for {audience} using persona. Read domain template. Deliverables: 1.Core Explanation (first principles, analogies, progressive complexity), 2.Key Intuitions (2-3), 3.Mathematical Formalism (LaTeX), 4.Concrete Examples (2-3 worked), 5.Connections to audience's existing knowledge. Use persona's communication style. Save to `explain/gemini_ideas.md`.
+> - **B** (AC, Critic): Critical analysis for {concept}/{audience} using persona. Deliverables: 1.Prerequisites Map (dependency order; note which audience likely has), 2.Common Misconceptions (≥5; each: statement → why plausible → why wrong → corrective reframing), 3.Confusion Neighbors (per pair: "IS NOT" + key distinguishing feature), 4.Precision-Accessibility Tradeoffs, 5.Calibration Questions (5-10; each: question + correct answer + common wrong answers + what each wrong answer reveals). Save to `explain/codex_ideas.md`.
 
 Save results to:
 - `explain/gemini_ideas.md` — Teacher's (or Subagent A's) draft explanation with header noting source, persona, and timestamp
@@ -359,6 +292,8 @@ Save results to:
 ### Step 1b: Cross-Check (`--depth medium` or `--depth high` only)
 
 > **If `--depth low`**: Skip this step entirely and proceed to Step 2.
+
+**Pre-check**: Verify `gemini_ideas.md` and `codex_ideas.md` both exist and are non-empty before proceeding. If either is missing, re-run only the failed agent from Step 1a.
 
 After both Phase 1a results are saved, execute these two calls **simultaneously**. **Prepend the assigned persona** to each review prompt:
 
@@ -412,62 +347,9 @@ For each issue found, provide:
 
 > Note: If Codex MCP is unavailable, fall back to `mcp__gemini-cli__ask-gemini` with the Gemini fallback chain.
 
-> **If `--claude-only`**: Replace both calls above with two Agent subagents, executed **simultaneously**:
->
-> **Subagent A (Creative-Divergent, Teacher reviewing Critic):**
-> ```
-> Agent(
->   subagent_type: "general-purpose",
->   prompt: "You are a Creative-Divergent reviewer and master Teacher. Question assumptions and look for pedagogical opportunities.
->
-> [Persona: {teacher_persona_name} — {teacher_persona_expertise}]
-> Target audience: {audience}
->
-> Use the Read tool to read: {output_dir}/explain/codex_ideas.md
->
-> Review the Critic's analysis of an explanation for: {concept}
->
-> For each item:
-> 1. **Misconceptions**: Real at this audience level? Any missing? Would your explanation trigger them?
-> 2. **Prerequisites**: Agree/disagree with ordering? Over/underestimated for audience?
-> 3. **Confusion Neighbors**: Right ones? Suggest additions/removals.
-> 4. **Precision-Accessibility Tradeoffs**: Fair? Where would you push back?
-> 5. **Calibration Questions**: Would your explanation prepare the audience for these?
->
-> Also note what should change in your draft explanation based on this analysis.
->
-> Save your review to {output_dir}/explain/gemini_review_of_codex.md. Start with:
-> > Source: Claude Agent subagent (claude-only mode, Creative-Divergent, Teacher)"
-> )
-> ```
->
-> **Subagent B (Analytical-Convergent, Critic reviewing Teacher):**
-> ```
-> Agent(
->   subagent_type: "general-purpose",
->   prompt: "You are an Analytical-Convergent reviewer and pedagogical Critic. Evaluate rigor, accuracy, and audience calibration systematically.
->
-> [Persona: {critic_persona_name} — {critic_persona_expertise}]
-> Target audience: {audience}
->
-> Use the Read tool to read: {output_dir}/explain/gemini_ideas.md
->
-> Review the Teacher's draft explanation of: {concept}
->
-> Evaluate on:
-> 1. **Accuracy**: Incorrect statements, misleading oversimplifications, or bad analogies?
-> 2. **Completeness**: Essential gaps?
-> 3. **Audience Calibration**: Appropriate for {audience}?
-> 4. **Misconception Risk**: Does the explanation reinforce misconceptions?
-> 5. **Analogy Fidelity**: Do analogies accurately map? Where do they break?
-> 6. **Progressive Structure**: Right build order? Logical jumps?
->
-> For each issue: specific passage, why problematic, suggested fix.
->
-> Save your review to {output_dir}/explain/codex_review_of_gemini.md. Start with:
-> > Source: Claude Agent subagent (claude-only mode, Analytical-Convergent, Critic)"
-> )
-> ```
+> **If `--claude-only`**: Per §SubagentExec, spawn **simultaneously**:
+> - **A** (CD, Teacher reviewing Critic): Read `codex_ideas.md`. Review all 5 sections: misconceptions (real at this level? missing?), prerequisites (ordering? over/underestimated?), confusion neighbors (additions/removals?), precision-accessibility tradeoffs (fair?), calibration questions (answerable from your explanation?). Also: what should change in your draft? Save to `explain/gemini_review_of_codex.md`.
+> - **B** (AC, Critic reviewing Teacher): Read `gemini_ideas.md`. Evaluate 6 dimensions: accuracy, completeness, audience calibration, misconception risk, analogy fidelity (where do analogies break?), progressive structure (logical jumps?). Per issue: specific passage + why problematic + suggested fix. Save to `explain/codex_review_of_gemini.md`.
 
 Save results to:
 - `explain/gemini_review_of_codex.md`
@@ -538,59 +420,9 @@ Teacher's review of your analysis:
 )
 ```
 
-> **If `--claude-only`**: Replace both debate calls above with two Agent subagents, executed **simultaneously**:
->
-> **Subagent A (Creative-Divergent, Teacher Round 2):**
-> ```
-> Agent(
->   subagent_type: "general-purpose",
->   prompt: "You are a Creative-Divergent debater and master Teacher. Defend pedagogical choices with evidence from learning science, but concede when accuracy is genuinely at risk.
->
-> [Persona: {teacher_persona_name}]
-> Target audience: {audience}
->
-> You and the Critic reviewed each other's work on explaining: {concept}
->
-> Use the Read tool to read:
-> - {output_dir}/explain/disagreements.md
-> - {output_dir}/explain/gemini_review_of_codex.md
-> - {output_dir}/explain/codex_review_of_gemini.md
->
-> For each disagreement:
-> 1. **Defend** your pedagogical choice if it best serves understanding
-> 2. **Concede** if the Critic reveals genuine accuracy/misconception risk
-> 3. **Revise** to balance clarity and accuracy if appropriate
->
-> Save to {output_dir}/explain/debate_round2_gemini.md. Start with:
-> > Source: Claude Agent subagent (claude-only mode, Creative-Divergent, Teacher)"
-> )
-> ```
->
-> **Subagent B (Analytical-Convergent, Critic Round 2):**
-> ```
-> Agent(
->   subagent_type: "general-purpose",
->   prompt: "You are an Analytical-Convergent debater and pedagogical Critic. Defend accuracy objections with specific examples of learner confusion, but concede when pedagogical choices genuinely aid understanding.
->
-> [Persona: {critic_persona_name}]
-> Target audience: {audience}
->
-> You and the Teacher reviewed each other's work on explaining: {concept}
->
-> Use the Read tool to read:
-> - {output_dir}/explain/disagreements.md
-> - {output_dir}/explain/codex_review_of_gemini.md
-> - {output_dir}/explain/gemini_review_of_codex.md
->
-> For each disagreement:
-> 1. **Defend** your objection if accuracy/misconception risk is genuine
-> 2. **Concede** if the Teacher's choice genuinely aids understanding
-> 3. **Revise** to respect both rigor and accessibility if appropriate
->
-> Save to {output_dir}/explain/debate_round2_codex.md. Start with:
-> > Source: Claude Agent subagent (claude-only mode, Analytical-Convergent, Critic)"
-> )
-> ```
+> **If `--claude-only`**: Per §SubagentExec, spawn **simultaneously**:
+> - **A** (CD, Teacher Round 2): Read `disagreements.md` + `gemini_review_of_codex.md` + `codex_review_of_gemini.md`. Per disagreement: Defend (with learning science evidence) / Concede (if genuine accuracy or misconception risk) / Revise (balance clarity + accuracy). Save to `explain/debate_round2_gemini.md`.
+> - **B** (AC, Critic Round 2): Read same 3 files. Per disagreement: Defend (with specific examples of how learners are misled) / Concede (if pedagogical choice genuinely aids understanding without accuracy cost) / Revise (balance rigor + accessibility). Save to `explain/debate_round2_codex.md`.
 
 Save results to:
 - `explain/debate_round2_gemini.md`
@@ -611,91 +443,17 @@ Spawn **N Task subagents simultaneously** (one per persona, `subagent_type: gene
 
    **B. Codex Critical Analysis** — Call `mcp__codex-cli__ask-codex` with the persona's viewpoint to generate a critical analysis (prerequisites, misconceptions, confusion neighbors) from this perspective. Save to `explain/persona_{i}/codex_ideas.md`.
 
-   > **If `--claude-only`**: Replace A and B above with two Agent sub-subagents, executed **simultaneously** within the persona subagent:
-   >
-   > **A'. Expansive Explorer (replaces Gemini):**
-   > ```
-   > Agent(
-   >   subagent_type: "general-purpose",
-   >   prompt: "You are an Expansive Explorer. Push boundaries of explanation, explore unconventional analogies, and propose creative ways to build intuition. Challenge conventional pedagogical approaches.
-   >
-   > [Persona: {persona_i_name} — {persona_i_expertise}]
-   > Guiding question: {persona_i_guiding_question}
-   > Target audience: {audience}
-   >
-   > Use the Read tool to read the domain template at {domain_template_path} (skip if none).
-   >
-   > Concept to explain: {concept}
-   >
-   > Generate a comprehensive explanation draft from this persona's perspective. Include core explanation, key intuitions, mathematical formalism (if applicable, using LaTeX), concrete examples, and connections to known concepts.
-   >
-   > Save to {output_dir}/explain/persona_{i}/gemini_ideas.md. Start with:
-   > > Source: Claude Agent subagent (claude-only mode, Expansive Explorer)"
-   > )
-   > ```
-   >
-   > **B'. Grounded Builder (replaces Codex):**
-   > ```
-   > Agent(
-   >   subagent_type: "general-purpose",
-   >   prompt: "You are a Grounded Builder. Focus on systematic analysis of explanation quality: prerequisite chains, misconception risks, precision-accessibility tradeoffs, and calibration questions.
-   >
-   > [Persona: {persona_i_name} — {persona_i_expertise}]
-   > Guiding question: {persona_i_guiding_question}
-   > Target audience: {audience}
-   >
-   > Use the Read tool to read the domain template at {domain_template_path} (skip if none).
-   >
-   > Concept to explain: {concept}
-   >
-   > Generate a critical analysis from this persona's perspective covering: prerequisites map, common misconceptions (5+), confusion neighbors, precision-accessibility tradeoffs, and calibration questions (5-10).
-   >
-   > Save to {output_dir}/explain/persona_{i}/codex_ideas.md. Start with:
-   > > Source: Claude Agent subagent (claude-only mode, Grounded Builder)"
-   > )
-   > ```
+   > **If `--claude-only`**: Per §SubagentExec, spawn **simultaneously** within each persona subagent:
+   > - **A'** (Expansive Explorer): Explanation draft from persona's perspective. Same 5-section deliverables as Step 1a Agent A. Save to `explain/persona_{i}/gemini_ideas.md`.
+   > - **B'** (Grounded Builder): Critical analysis from persona's perspective. Same 5-section deliverables as Step 1a Agent B. Save to `explain/persona_{i}/codex_ideas.md`.
 
    **C+D. Cross-Review (simultaneous):**
    - Gemini (Teacher) reviews Codex analysis using `@{output_dir}/explain/persona_{i}/codex_ideas.md` → save to `explain/persona_{i}/gemini_review_of_codex.md`
    - Codex (Critic) reviews Gemini draft using `@{output_dir}/explain/persona_{i}/gemini_ideas.md` → save to `explain/persona_{i}/codex_review_of_gemini.md`
 
-   > **If `--claude-only`**: Replace C+D above with two Agent sub-subagents, executed **simultaneously**:
-   >
-   > **C'. Expansive Explorer reviews Grounded Builder's analysis:**
-   > ```
-   > Agent(
-   >   subagent_type: "general-purpose",
-   >   prompt: "You are an Expansive Explorer reviewer. Question pedagogical constraints and look for missed teaching opportunities.
-   >
-   > [Persona: {persona_i_name}]
-   > Target audience: {audience}
-   >
-   > Use the Read tool to read: {output_dir}/explain/persona_{i}/codex_ideas.md
-   >
-   > Review this critical analysis for pedagogical soundness, completeness, and audience appropriateness. Identify strengths, weaknesses, and improvements.
-   >
-   > Save to {output_dir}/explain/persona_{i}/gemini_review_of_codex.md. Start with:
-   > > Source: Claude Agent subagent (claude-only mode, Expansive Explorer)"
-   > )
-   > ```
-   >
-   > **D'. Grounded Builder reviews Expansive Explorer's draft:**
-   > ```
-   > Agent(
-   >   subagent_type: "general-purpose",
-   >   prompt: "You are a Grounded Builder reviewer. Evaluate accuracy, misconception risk, and audience calibration rigorously.
-   >
-   > [Persona: {persona_i_name}]
-   > Target audience: {audience}
-   >
-   > Use the Read tool to read: {output_dir}/explain/persona_{i}/gemini_ideas.md
-   >
-   > Review this explanation draft for accuracy, completeness, audience appropriateness, and misconception risk. Identify strengths, weaknesses, and improvements.
-   >
-   > Save to {output_dir}/explain/persona_{i}/codex_review_of_gemini.md. Start with:
-   > > Source: Claude Agent subagent (claude-only mode, Grounded Builder)"
-   > )
-   > ```
+   > **If `--claude-only`**: Per §SubagentExec, spawn **simultaneously**:
+   > - **C'** (Expansive Explorer): Review `codex_ideas.md` — same 5 review dimensions as Step 1b Agent A. Save to `explain/persona_{i}/gemini_review_of_codex.md`.
+   > - **D'** (Grounded Builder): Review `gemini_ideas.md` — same 6 evaluation dimensions as Step 1b Agent B. Per issue: passage + why + fix. Save to `explain/persona_{i}/codex_review_of_gemini.md`.
 
    **E. Persona Conclusion** — The subagent synthesizes its top explanation strategies and key pedagogical insights, noting areas of internal agreement and disagreement between the two models (or two cognitive styles in claude-only mode). Save to `explain/persona_{i}/conclusion.md`.
 
@@ -704,7 +462,7 @@ Wait for all N subagents to complete before proceeding.
 ### Step 1-max-b: Layer 1 — Output Collection
 
 1. Use Glob to verify that all N `explain/persona_{i}/conclusion.md` files exist.
-   - If any are missing, re-spawn the failed subagent(s) and wait for completion.
+   - If any are missing, re-spawn the failed subagent(s) and wait for completion. Maximum 1 retry per failed subagent. If retry also fails, proceed with N-1 persona outputs and note the gap.
 2. Read all N `conclusion.md` files.
 3. Construct a **cross-persona summary** identifying:
    - **Recurring explanation strategies** — approaches proposed by 2+ personas
@@ -773,51 +531,9 @@ Provide a meta-review covering:
 ```
 Save to `explain/meta_review_codex.md`.
 
-> **If `--claude-only`**: Replace both meta-review calls above with two Agent subagents, executed **simultaneously**:
->
-> **Subagent A (Creative-Divergent, replaces Gemini Meta-Review):**
-> ```
-> Agent(
->   subagent_type: "general-purpose",
->   prompt: "You are a Creative-Divergent meta-reviewer. Look for emergent pedagogical patterns, underexplored explanation angles, and unconventional combinations across perspectives.
->
-> Use the Read tool to read: {output_dir}/explain/all_conclusions.md
->
-> You are reviewing the outputs of {N} explanation-specialist personas who independently analyzed how to explain: {concept} to audience: {audience}
->
-> Provide a meta-review covering:
-> 1. **Coverage analysis** — Which aspects are well-covered vs. underexplored?
-> 2. **Quality assessment** — Rate each persona's strategy (clarity, accuracy, audience calibration) on a 1-10 scale
-> 3. **Cross-persona synthesis** — What emerges when combining all perspectives?
-> 4. **Top 3 disagreements** — Identify the 3 most significant contradictions with specific quotes
-> 5. **Recommended explanation strategy** — Your top approach
->
-> Save to {output_dir}/explain/meta_review_gemini.md. Start with:
-> > Source: Claude Agent subagent (claude-only mode, Creative-Divergent)"
-> )
-> ```
->
-> **Subagent B (Analytical-Convergent, replaces Codex Meta-Review):**
-> ```
-> Agent(
->   subagent_type: "general-purpose",
->   prompt: "You are an Analytical-Convergent meta-reviewer. Focus on pedagogical rigor, accuracy verification, and practical audience calibration across perspectives.
->
-> Use the Read tool to read: {output_dir}/explain/all_conclusions.md
->
-> You are reviewing the outputs of {N} explanation-specialist personas who independently analyzed how to explain: {concept} to audience: {audience}
->
-> Provide a meta-review covering:
-> 1. **Coverage analysis** — Which aspects are well-covered vs. underexplored?
-> 2. **Quality assessment** — Rate each persona's strategy (clarity, accuracy, audience calibration) on a 1-10 scale
-> 3. **Cross-persona synthesis** — What emerges when combining all perspectives?
-> 4. **Top 3 disagreements** — Identify the 3 most significant contradictions with specific quotes
-> 5. **Recommended explanation strategy** — Your top approach
->
-> Save to {output_dir}/explain/meta_review_codex.md. Start with:
-> > Source: Claude Agent subagent (claude-only mode, Analytical-Convergent)"
-> )
-> ```
+> **If `--claude-only`**: Per §SubagentExec, spawn **simultaneously**:
+> - **A** (CD): Read `all_conclusions.md`. Deliverables: 1.Coverage analysis, 2.Quality assessment (rate each persona 1-10 on clarity/accuracy/calibration), 3.Cross-persona synthesis, 4.Top 3 disagreements (with specific quotes), 5.Recommended explanation strategy. Save to `explain/meta_review_gemini.md`.
+> - **B** (AC): Read `all_conclusions.md`. Same 5-section deliverables with rigor/accuracy focus. Save to `explain/meta_review_codex.md`.
 
 **Phase B — Disagreement Extraction:**
 
@@ -867,53 +583,9 @@ For each disagreement:
 ```
 Save to `explain/meta_debate_codex.md`.
 
-> **If `--claude-only`**: Replace both debate calls above with two Agent subagents, executed **simultaneously**:
->
-> **Subagent A (Creative-Divergent, replaces Gemini Debate):**
-> ```
-> Agent(
->   subagent_type: "general-purpose",
->   prompt: "You are a Creative-Divergent debater. Defend pedagogical choices with imaginative reasoning and evidence from learning science, but concede when accuracy demands it.
->
-> [Meta-Reviewer]
-> Target audience: {audience}
->
-> Use the Read tool to read: {output_dir}/explain/debate_context_for_gemini.md
->
-> You reviewed {N} persona conclusions on explaining {concept} and identified top disagreements. The file contains the disagreement summary followed by the opposing meta-review.
->
-> For each disagreement:
-> 1. **Defend** your position with pedagogical evidence
-> 2. **Concede** if the opposing argument better serves understanding
-> 3. **Revise** to a synthesized position if appropriate
->
-> Save to {output_dir}/explain/meta_debate_gemini.md. Start with:
-> > Source: Claude Agent subagent (claude-only mode, Creative-Divergent)"
-> )
-> ```
->
-> **Subagent B (Analytical-Convergent, replaces Codex Debate):**
-> ```
-> Agent(
->   subagent_type: "general-purpose",
->   prompt: "You are an Analytical-Convergent debater. Defend accuracy and rigor with evidence, but concede when pedagogical choices genuinely serve understanding without significant accuracy cost.
->
-> [Meta-Reviewer]
-> Target audience: {audience}
->
-> Use the Read tool to read: {output_dir}/explain/debate_context_for_codex.md
->
-> You reviewed {N} persona conclusions on explaining {concept} and identified top disagreements. The file contains the disagreement summary followed by the opposing meta-review.
->
-> For each disagreement:
-> 1. **Defend** your position with evidence
-> 2. **Concede** if the opposing argument better serves understanding
-> 3. **Revise** to a synthesized position if appropriate
->
-> Save to {output_dir}/explain/meta_debate_codex.md. Start with:
-> > Source: Claude Agent subagent (claude-only mode, Analytical-Convergent)"
-> )
-> ```
+> **If `--claude-only`**: Per §SubagentExec, spawn **simultaneously**:
+> - **A** (CD): Read `debate_context_for_gemini.md`. Per disagreement: Defend (with pedagogical evidence) / Concede (if opposing better serves audience understanding) / Revise (new synthesized position). Save to `explain/meta_debate_gemini.md`.
+> - **B** (AC): Read `debate_context_for_codex.md`. Per disagreement: Defend (with evidence) / Concede (if opposing better serves audience understanding) / Revise (new synthesized position). Save to `explain/meta_debate_codex.md`.
 
 ### Step 1-max-d: Layer 3 — Final Enriched Strategy Synthesis (`--depth max`)
 
