@@ -340,7 +340,7 @@ Add to `.claude/settings.local.json`:
 
 ## Roadmap
 
-**Latest — v0.13.0:** Shared rules compression — cross-cutting rules extracted to `shared/rules.md` with §-references, ~12% SKILL line reduction, 5 P0 contradiction fixes, inline fallback for resilience. See [CHANGELOG.md](CHANGELOG.md) for full history.
+**Latest — v0.14.0:** Report quality hardening — draft validation gate (Step 3.5), depth-scaled plot budgets, schema v1.1.0 with style metadata & structured change tracking, feedback tier keyword signals. See [CHANGELOG.md](CHANGELOG.md) for full history.
 
 **Up next:**
 - [ ] Terminal demo GIF — one-command walkthrough

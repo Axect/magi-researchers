@@ -24,7 +24,7 @@ def validate_draft_full(draft_path: str, contracts_path: str, inputs_path: str) 
         draft_text = Path(draft_path).read_text()
     except FileNotFoundError:
         return {
-            "status": "FAILED",
+            "status": "fail",
             "errors": [f"Draft not found: {draft_path}"],
             "warnings": [],
             "stats": {},
@@ -35,7 +35,7 @@ def validate_draft_full(draft_path: str, contracts_path: str, inputs_path: str) 
             contracts = json.load(f)
     except (json.JSONDecodeError, FileNotFoundError) as e:
         return {
-            "status": "FAILED",
+            "status": "fail",
             "errors": [f"Cannot read contracts: {e}"],
             "warnings": [],
             "stats": {},
@@ -43,7 +43,7 @@ def validate_draft_full(draft_path: str, contracts_path: str, inputs_path: str) 
 
     if not isinstance(contracts, dict):
         return {
-            "status": "FAILED",
+            "status": "fail",
             "errors": ["section_contracts.json must be a JSON object"],
             "warnings": [],
             "stats": {},
@@ -54,7 +54,7 @@ def validate_draft_full(draft_path: str, contracts_path: str, inputs_path: str) 
             inputs = json.load(f)
     except (json.JSONDecodeError, FileNotFoundError) as e:
         return {
-            "status": "FAILED",
+            "status": "fail",
             "errors": [f"Cannot read inputs: {e}"],
             "warnings": [],
             "stats": {},
@@ -62,7 +62,7 @@ def validate_draft_full(draft_path: str, contracts_path: str, inputs_path: str) 
 
     if not isinstance(inputs, dict):
         return {
-            "status": "FAILED",
+            "status": "fail",
             "errors": ["write_inputs.json must be a JSON object"],
             "warnings": [],
             "stats": {},
@@ -126,7 +126,7 @@ def validate_draft_full(draft_path: str, contracts_path: str, inputs_path: str) 
     stats["evidence_blocks"] = len(evidence_blocks_found)
     stats["total_evidence"] = len(all_evidence_ids)
 
-    status = "FAILED" if errors else "PASSED"
+    status = "fail" if errors else "pass"
     return {
         "status": status,
         "errors": errors,
@@ -139,7 +139,7 @@ def validate_draft(draft_path: str, contracts_path: str, inputs_path: str) -> bo
     """Validate draft and print human-readable results. Returns True on pass."""
     result = validate_draft_full(draft_path, contracts_path, inputs_path)
 
-    if result["status"] == "FAILED":
+    if result["status"] == "fail":
         print("VALIDATION FAILED:")
         for e in result["errors"]:
             print(f"  - {e}")
@@ -167,7 +167,7 @@ if __name__ == "__main__":
     if use_json:
         result = validate_draft_full(args[0], args[1], args[2])
         print(json.dumps(result, indent=2))
-        sys.exit(0 if result["status"] == "PASSED" else 1)
+        sys.exit(0 if result["status"] == "pass" else 1)
     else:
         success = validate_draft(args[0], args[1], args[2])
         sys.exit(0 if success else 1)

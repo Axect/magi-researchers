@@ -188,10 +188,31 @@ After completing the initial draft, perform a gap analysis:
 
 3. **If no gaps are found** (or iteration limit reached): Proceed to Step 4.
 
-**Loop constraints:**
-- Maximum 2 iterations of gap detection + generation
-- Each iteration should generate at most 3 new plots
+**Loop constraints (scaled by depth):**
+
+| Depth | Max iterations | Max plots per iteration | Total plot budget |
+|-------|---------------|------------------------|-------------------|
+| `min` | 1 | 2 | 2 |
+| `default` | 2 | 3 | 6 |
+| `high` | 3 | 4 | 12 |
+| `max` | 3 | 5 | 15 |
+
+- If depth is not set, use `default`.
 - New plots must use existing data from `src/` or test outputs — do NOT fabricate data
+
+### Step 3.5: Draft Validation Gate
+
+Before the MAGI traceability review, run the automated validator to catch structural issues early:
+
+1. Execute: `uv run python ${CLAUDE_PLUGIN_ROOT}/utils/validate_draft.py {output_dir}/report.md --json`
+2. Parse the JSON output and check `status`:
+   - `"pass"` → Proceed to Step 4.
+   - `"fail"` → Fix all errors before proceeding:
+     - **Missing evidence blocks**: Add `<!-- EVIDENCE BLOCK: ev-X -->` annotations for unsupported claims
+     - **LaTeX violations**: Convert single-line display math to proper `$$...$$` on separate lines
+     - **Missing sections**: Fill in required sections (see standalone experiment guidance in Notes)
+     - **Word budget overruns**: Trim sections exceeding their budget by >10%
+3. Re-run the validator after fixes. Do NOT proceed to Step 4 with a `"fail"` status.
 
 ### Step 4: MAGI Traceability Review
 
@@ -274,10 +295,18 @@ Present the report and ask:
 
 When user provides feedback (not "approve"):
 
-1. Classify into one of three tiers:
-   - **Tier 1 (Cosmetic)** — wording, tone, structure, formatting, caption rewording
-   - **Tier 2 (Visualization)** — new/modified plots, chart type changes, scale changes, plot-narrative linkage
-   - **Tier 3 (Substantive)** — code changes, re-execution, different methodology, new experiments
+1. Classify into one of three tiers using these keyword signals:
+
+   **Tier 1 (Cosmetic)** — wording, tone, structure, formatting, caption rewording
+   - Signals: "reword", "rephrase", "move section", "fix typo", "shorten", "expand on", "rename", "reformat", "caption"
+
+   **Tier 2 (Visualization)** — new/modified plots, chart type changes, scale changes, plot-narrative linkage
+   - Signals: "add plot", "change chart", "log scale", "bar chart instead", "overlay", "heatmap", "color", "axis", "resize figure", "add error bars"
+
+   **Tier 3 (Substantive)** — code changes, re-execution, different methodology, new experiments
+   - Signals: "rerun", "different method", "add experiment", "change algorithm", "new baseline", "fix the code", "wrong results"
+
+   If the feedback does not clearly match any tier's signals, **ask the user to confirm** before proceeding.
 
 2. Present classification: "I classify this as **Tier {N} ({name})**. Planned action: {description}. Proceed?"
 

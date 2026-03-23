@@ -5,6 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.14.0] — 2026-03-23
+
+### Added
+- **Step 3.5: Draft Validation Gate** — `validate_draft.py` auto-runs before MAGI traceability review (Step 4), catching structural issues (missing evidence blocks, LaTeX violations, missing sections, word budget overruns) early
+- **Depth-scaled plot budget** — Gap detection loop constraints now scale by `--depth` (min: 2 plots, default: 6, high: 12, max: 15) instead of a fixed 6-plot cap
+- **Feedback tier keyword signals** — Step 6b now includes explicit keyword lists for Tier 1/2/3 classification, with fallback to user confirmation when ambiguous
+
+### Changed
+- **`plot_manifest.schema.json` v1.1.0** — Added `style`, `dpi`, `source_script`, `source_function`, `generation_date` fields for automated style validation
+- **`report_versions.schema.json` v1.1.0** — Added structured `changes` array (type/files/section/reason) replacing flat `feedback_summary`-only tracking
+
+### Fixed
+- **`validate_draft.py` status strings** — `"PASSED"`/`"FAILED"` → `"pass"`/`"fail"` to match SKILL.md contract
+
+---
+
 ## [0.13.0] — 2026-03-17
 
 ### Added

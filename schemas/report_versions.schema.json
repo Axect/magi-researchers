@@ -6,7 +6,7 @@
   "required": ["schema_version", "current_version", "versions"],
   "additionalProperties": false,
   "properties": {
-    "schema_version": { "const": "1.0.0" },
+    "schema_version": { "const": "1.1.0" },
     "current_version": { "type": "integer", "minimum": 1 },
     "versions": {
       "type": "array",
@@ -24,7 +24,34 @@
             ],
             "description": "Feedback tier that triggered this version (1-3), or null for the initial report"
           },
-          "feedback_summary": { "type": "string" }
+          "feedback_summary": { "type": "string" },
+          "changes": {
+            "type": "array",
+            "description": "Structured diffs tracking what changed in this version",
+            "items": {
+              "type": "object",
+              "required": ["type", "reason"],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["plot_restyle", "plot_new", "text_fix", "section_rewrite", "style_fix", "gap_fill"]
+                },
+                "files": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Affected plot filenames (for plot-related changes)"
+                },
+                "section": {
+                  "type": "string",
+                  "description": "Section number or name (for text-related changes)"
+                },
+                "reason": {
+                  "type": "string",
+                  "description": "Brief explanation of why the change was made"
+                }
+              }
+            }
+          }
         }
       }
     }
