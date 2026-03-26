@@ -92,6 +92,41 @@ When constructing a `--claude-only` Agent subagent replacement, follow this temp
 
 ---
 
+## §SchemaValidation
+
+At each phase transition, validate all JSON artifacts produced by the completing phase against their schemas using `utils/validate_schema.py`:
+
+```bash
+uv run python utils/validate_schema.py {output_dir}
+```
+
+**Auto-detected artifacts**: `weights.json`, `plot_manifest.json`, `execution_manifest.json`, `report_versions.json`, `write_inputs.json`, `citation_ledger.json`, `section_contracts.json`, `*_checkpoint.json`.
+
+**Rules:**
+1. Run validation **after** a phase writes its artifacts and **before** presenting the phase checkpoint to the user.
+2. If validation **fails**: fix the malformed artifact(s) and re-validate. Maximum 1 fix iteration.
+3. If validation **passes**: proceed to the user checkpoint. No action needed.
+4. For artifacts not auto-detected (custom JSON files): skip validation — only schema-mapped artifacts are checked.
+5. Use `--json` flag when capturing results programmatically: `uv run python utils/validate_schema.py --json {output_dir}`.
+
+---
+
+## §AntiConsensus
+
+LLM agents are biased toward agreement. The following rules counteract premature consensus, evidence-free concessions, and forced hybrid compromises.
+
+**Rule 1 — Agreement costs evidence.** When a reviewer agrees with a claim from another model, the reviewer MUST provide at least one piece of independent supporting evidence — a different reasoning path, a different source, or a concrete scenario — that the original proponent did not cite. "I agree because it seems reasonable" is not permitted. If no independent evidence can be found, use the INSUFFICIENT verdict instead.
+
+**Rule 2 — Concessions require a named defeater.** In the DCR debate framework, a Concede MUST name the specific evidence or logical step from the opponent that defeated the original position. If the conceding party cannot articulate what changed their mind, the concession is invalid — revert to Defend or acknowledge the topic as unresolved. "The opponent makes a fair point" without specifics is capitulation, not concession.
+
+**Rule 3 — Hybrid proposals carry burden of proof.** Any "hybrid," "combined," or "best-of-both-worlds" proposal must independently justify itself: (a) a concrete scenario where the hybrid outperforms each pure approach, (b) a concrete scenario where the hybrid underperforms, and (c) a mechanism explaining the synergy beyond "A's strength + B's strength." If these cannot be provided, the hybrid must be withdrawn in favor of one pure position.
+
+**Rule 4 — False consensus is classified and penalized.** During Convergence Interrogation, agreements where neither model provides concrete mechanism, independent evidence, or a specific supporting scenario are classified as **Type C convergence (False Consensus)**. Type C findings have their confidence automatically downgraded one level. If a Type C finding reaches the Top 3 in synthesis, MELCHIOR must construct an adversarial objection against it.
+
+**Rule 5 — Unresolved disagreements are preserved.** It is better to report a genuine disagreement than to manufacture false consensus. Disagreements where neither side has sufficient evidence to prevail should be recorded as "**Unresolved — insufficient evidence on both sides**" and presented to the user as open questions, not papered over with compromises.
+
+---
+
 ## §PhaseGate
 
 Phase gates are lightweight quality checkpoints before each USER CHECKPOINT:

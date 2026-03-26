@@ -5,6 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.15.0] — 2026-03-27
+
+### Added
+- **Schema Auto-Validators** — `utils/validate_schema.py` validates all JSON artifacts against the 8 existing schemas at phase transitions. Auto-detects schema from filename, supports directory scanning, `--json` output, and explicit `--schema` flag. Closes the gap between "documented schemas" and "enforced contracts"
+- **`§SchemaValidation` in `shared/rules.md`** — Phase transition protocol: validate after phase writes, before user checkpoint. Referenced by all SKILL files
+- **`§AntiConsensus` in `shared/rules.md`** — 5 rules counteracting LLM agreement bias: evidence-gated agreement, concession tax, hybrid tribunal, false consensus detection, unresolved disagreement preservation
+- **T2 Review Verdict** — Cross-review templates now require explicit AGREE/DISAGREE/INSUFFICIENT verdict per idea, with independent evidence required for agreement
+- **T3 Concession Tax** — DCR debate concessions must name the specific defeating evidence; concessions without named defeaters revert to Defend
+- **T3 Hybrid Tribunal** — Hybrid proposals must prove independent value via outperformance scenario, underperformance scenario, and synergy mechanism; failure to satisfy → withdrawal
+- **Type C convergence (False Consensus)** — New classification in Convergence Interrogation for agreements without concrete mechanism or independent evidence; auto-downgrades confidence one level
+
+### Changed
+- **`jsonschema>=4.20` dependency** — Added for JSON Schema draft 2020-12 validation support
+
+---
+
 ## [0.14.0] — 2026-03-23
 
 ### Added

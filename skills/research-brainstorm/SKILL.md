@@ -97,7 +97,11 @@ The following templates are referenced by ID throughout this document. When exec
   (1) Restate the proponent's mechanism in your own words.
   (2) Identify strengths and weaknesses — for each, explain concretely in what scenario it manifests and why it matters.
   (3) Pose one counterfactual: "If component X were removed, would the claim still hold?"
-  (4) Suggest improvements.
+  (4) **Verdict** — choose exactly one per §AntiConsensus:
+      - **AGREE**: State your independent supporting evidence (different from the proponent's). Agreement without independent evidence is not permitted.
+      - **DISAGREE**: State what is wrong and under what conditions your objection would be invalidated.
+      - **INSUFFICIENT**: Evidence is too weak to judge either way. State what evidence would resolve the ambiguity.
+  (5) Suggest improvements.
 - **T2-Feasibility**: Review for implementation feasibility, computational practicality, available tools/datasets, and timeline realism.
   **Pre-review**: Before reviewing, write a 2-sentence summary of the document being reviewed (title + main thesis). This confirms you are reviewing the correct file.
   For each idea, separated by `---`:
@@ -105,11 +109,27 @@ The following templates are referenced by ID throughout this document. When exec
   (1) Restate the proponent's mechanism.
   (2) Strengths and weaknesses with concrete scenarios.
   (3) Name the warrant connecting the claimed benefit to the proposed mechanism.
-  (4) Suggest improvements.
+  (4) **Verdict** — choose exactly one per §AntiConsensus:
+      - **AGREE**: State your independent supporting evidence (different from the proponent's). Agreement without independent evidence is not permitted.
+      - **DISAGREE**: State what is wrong and under what conditions your objection would be invalidated.
+      - **INSUFFICIENT**: Evidence is too weak to judge either way. State what evidence would resolve the ambiguity.
+  (5) Suggest improvements.
 
 **T3: DCR Debate Framework**
 
 For each disagreement: (1) **Defend** your position if correct, providing additional evidence. (2) **Concede** if the opposing argument is stronger, explaining why. (3) **Revise** your assessment to a new position if appropriate. Walk through reasoning step by step — explain the logic chain so a reader can follow exactly why you defend, concede, or revise.
+
+**Concession Tax** (per §AntiConsensus): Every Concede MUST include:
+- (a) Which specific piece of evidence or logical step in the opponent's argument defeated your position.
+- (b) "Would I still hold my original position without that evidence?" — answer Yes or No.
+- (c) If No: acknowledge the original idea was weakly grounded; this lowers the finding's confidence in synthesis.
+A concession that cannot name the defeating evidence is not a concession — it is capitulation. Revert to Defend if you cannot articulate why the opponent is right.
+
+**Hybrid Tribunal** (per §AntiConsensus): If you propose a "hybrid," "combined," or "best-of-both" approach:
+- (a) Name one concrete scenario where the hybrid outperforms each pure approach independently.
+- (b) Name one concrete scenario where the hybrid is worse than at least one pure approach.
+- (c) Explain the hybrid's own mechanism — not just "A's strength + B's strength," but how the combination produces a result neither achieves alone.
+- (d) If (a)–(c) cannot be satisfied, withdraw the hybrid and choose one pure position to defend.
 
 **T4: Mechanism Requirement**
 
@@ -612,6 +632,7 @@ Apply **Convergence Interrogation** and **Intertextual Addition** as defined bel
 For each finding that appears in both models' outputs, classify as:
 - **Type A convergence**: Models arrived via different reasoning paths or evidence. No confidence adjustment.
 - **Type B convergence**: Both models cite the same named source, method, or prior result. Apply confidence note: "Type B convergence — shared training reference, not independent validation."
+- **Type C convergence (False Consensus)**: Both models agree, but neither provides a concrete mechanism, independent evidence, or specific scenario — agreement is based on surface plausibility or deference to the other model. Apply per §AntiConsensus: confidence is automatically downgraded one level (High → Medium, Medium → Low). If a Type C finding ranks in the Top 3, MELCHIOR MUST construct an adversarial objection against it regardless of depth level.
 
 **Intertextual Addition** (mandatory, all depths):
 You MUST add at least one perspective, connection, or counter-argument from your own knowledge that no model raised. Mark with **[MELCHIOR]**. This is NOT derived from model outputs — it is your independent intellectual contribution as the third MAGI personality.
@@ -690,6 +711,7 @@ You are MELCHIOR — the third personality in the MAGI triad, not a neutral aggr
 For each finding that appears in both models' outputs, classify as:
 - **Type A convergence**: Models arrived via different reasoning paths or evidence. No confidence adjustment.
 - **Type B convergence**: Both models cite the same named source, method, or prior result. Apply confidence note: "Type B convergence — shared training reference, not independent validation."
+- **Type C convergence (False Consensus)**: Both models agree, but neither provides a concrete mechanism, independent evidence, or specific scenario — agreement is based on surface plausibility or deference to the other model. Apply per §AntiConsensus: confidence is automatically downgraded one level (High → Medium, Medium → Low). If a Type C finding ranks in the Top 3, MELCHIOR MUST construct an adversarial objection against it regardless of depth level.
 
 **Intertextual Addition** (mandatory, all depths):
 You MUST add at least one perspective, connection, or counter-argument from your own knowledge that no model raised. Mark with **[MELCHIOR]**. This is NOT derived from model outputs — it is your independent intellectual contribution as the third MAGI personality.
