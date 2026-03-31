@@ -5,6 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.16.0] — 2026-03-31
+
+### Added
+- **Mechanism Depth Test** — New verification checklist item (Step 1c & Step 1-max-d): substitute key mechanism term with generic phrase; if the finding still makes the same prediction, demote from finding to framing. Catches tautological explanations ranked as top findings
+- **Type D Convergence (Shared Blind Spot)** — Fourth convergence classification in Convergence Interrogation: detects when all models agree on an unvalidated methodological assumption (metric, null model, framework) without independent derivation. Triggers mandatory MELCHIOR audit or confidence downgrade
+- **Decisive Experiment field** — Required field at the top of T8 Next Three Steps: identifies the single most confidence-shifting experiment regardless of cost, anchoring the action plan in causal logic before feasibility narrows scope
+- **Tiered Timeline** — T8 Next Three Steps replaces fixed "2 weeks" with Tier A (< 1 day) / Tier B (~ 1 week) / Tier C (~ 1 month), requiring at least one step from each tier
+- **Intervention/Ablation/Null step types** — T8 step taxonomy expanded from {Empirical, Design, Review} to include {Intervention, Ablation, Null} for causal experiments
+- **[MELCHIOR] Comprehensive Self-Review** — Mandatory holistic quality gate after synthesis writing, before mechanical checklist. Evaluates five axes: Question Fidelity, Inter-Finding Coherence, Aggregate Mechanism Audit, Causal vs Diagnostic Balance, Blind Spot Confession. REVISE verdict triggers mandatory revision before finalization
+
+### Changed
+- **T8 Tier 3 auto-classification** — Updated criteria: findings must produce at least one Tier A step AND one Intervention/Ablation/Null step, or be auto-classified as Tier 3 (speculative)
+- **Convergence Interrogation references** — Updated from Type A/B to Type A/B/D throughout verification checklists
+
+---
+
 ## [0.15.0] — 2026-03-27
 
 ### Added

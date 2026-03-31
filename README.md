@@ -340,7 +340,7 @@ Add to `.claude/settings.local.json`:
 
 ## Roadmap
 
-**Latest — v0.14.0:** Report quality hardening — draft validation gate (Step 3.5), depth-scaled plot budgets, schema v1.1.0 with style metadata & structured change tracking, feedback tier keyword signals. See [CHANGELOG.md](CHANGELOG.md) for full history.
+**Latest — v0.16.0:** Trust the top findings — Mechanism Depth Test catches tautological explanations, Type D convergence detects shared methodological blind spots, Decisive Experiment + tiered timeline overhauls action plans, MELCHIOR Comprehensive Self-Review adds holistic quality gate to synthesis. See [CHANGELOG.md](CHANGELOG.md) for full history.
 
 **Up next:**
 - [ ] Terminal demo GIF — one-command walkthrough

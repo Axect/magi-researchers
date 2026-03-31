@@ -165,11 +165,23 @@ After the ranked findings and before "Recommended Path Forward", include these t
    Cross-model rejection block. List ideas that one model generated but other model(s) explicitly rejected during cross-review, with rejection reasons. Criteria: rejection must be from a model that has NOT seen the generating model's output (independent rejection). Format: "**Do Not Pursue**: [idea] — Rejected by [model] because: [reason]."
 
 3. **Next Three Steps**:
-   For each top-ranked finding (Tier 1 and Tier 2), provide three concrete actions achievable within 2 weeks. Each step specifies:
-   - **Type**: Empirical (run experiment) / Design (write protocol) / Review (read/verify)
+
+   **Decisive Experiment** (required, exactly one, placed FIRST):
+   Before the tiered steps, identify the single experiment that would most shift confidence in the top finding, **regardless of cost or timeline**. Format:
+   > **Decisive Experiment**: [description] — This would resolve [specific uncertainty] because [causal reasoning]. Feasibility: [Low/Medium/High].
+
+   This anchors the action plan in causal logic before feasibility narrows the scope. Even if feasibility is Low, stating the decisive experiment clarifies what the incremental steps are approximating.
+
+   **Tiered Action Steps** — For each top-ranked finding (Tier 1 and Tier 2), provide three concrete actions across a tiered timeline:
+   - **Tier A** (< 1 day, existing data/models): Quick validation or diagnostic using what is already available.
+   - **Tier B** (~ 1 week, existing models + new analysis): Deeper analysis, new measurements on existing checkpoints, or small-scale experiments.
+   - **Tier C** (~ 1 month, new training/infrastructure): Training controlled variants, large-scale experiments, or new model development.
+   Require at least one step from each tier. Each step specifies:
+   - **Type**: Empirical (run experiment) / Design (write protocol) / Review (read/verify) / **Intervention** (train a controlled variant) / **Ablation** (remove/modify a component) / **Null** (construct a null model or negative control)
    - **Action**: verb + object + success criterion
-   Example: "[Empirical] Fine-tune ESM-2 on 500 PDB structures using HuggingFace free tier — success: validation loss < baseline within 1 week."
-   Findings that cannot produce three actionable steps are automatically classified as Tier 3 (speculative, condensed treatment).
+   Example: "[Tier A, Empirical] Compute CI ratio on existing checkpoints at 5 temperatures — success: monotonic trend confirms or refutes the prediction within 1 hour."
+   Example: "[Tier C, Intervention] Train local-window attention transformer interpolating between PixelCNN and LatticeGPT receptive fields — success: CI scales with window size ($R^2 > 0.8$)."
+   Findings that cannot produce at least one Tier A step and one Intervention/Ablation/Null step are automatically classified as Tier 3 (speculative, condensed treatment).
 
 ### LaTeX Formatting Rules
 When writing mathematical expressions in any output document (brainstorm ideas, synthesis, etc.):
@@ -633,6 +645,7 @@ For each finding that appears in both models' outputs, classify as:
 - **Type A convergence**: Models arrived via different reasoning paths or evidence. No confidence adjustment.
 - **Type B convergence**: Both models cite the same named source, method, or prior result. Apply confidence note: "Type B convergence — shared training reference, not independent validation."
 - **Type C convergence (False Consensus)**: Both models agree, but neither provides a concrete mechanism, independent evidence, or specific scenario — agreement is based on surface plausibility or deference to the other model. Apply per §AntiConsensus: confidence is automatically downgraded one level (High → Medium, Medium → Low). If a Type C finding ranks in the Top 3, MELCHIOR MUST construct an adversarial objection against it regardless of depth level.
+- **Type D convergence (Shared Blind Spot)**: All models/personas agree on a **methodological choice** (metric definition, null model, analytical framework, measurement protocol) that none independently derived or validated — they adopted it as a shared unexamined assumption. Type D triggers a mandatory **methodological audit**: MELCHIOR must either (a) provide independent justification for the shared assumption (cite a derivation, validation study, or limiting-case argument), or (b) flag it as an unvalidated assumption with confidence downgrade one level. **Type D detection heuristic**: For each top finding, ask "What metric or method do ALL sources use without questioning? Could a different reasonable metric yield a contradictory result?" If yes, classify as Type D.
 
 **Intertextual Addition** (mandatory, all depths):
 You MUST add at least one perspective, connection, or counter-argument from your own knowledge that no model raised. Mark with **[MELCHIOR]**. This is NOT derived from model outputs — it is your independent intellectual contribution as the third MAGI personality.
@@ -679,16 +692,36 @@ Compare scope declarations from Step 1-max-a model outputs. If personas interpre
    11. **Synthesis Epilogue (T8)** — Research Gaps, Non-Recommendations, Next Three Steps (see T8 template)
    12. **Recommended Path Forward** — Claude's top recommendation with reasoning grounded in the multi-persona analysis
    13. **MAGI Process Traceability** — table mapping each conclusion to its source persona, layer, and artifact file path
-4. After completing the synthesis, verify:
+
+4. **[MELCHIOR] Comprehensive Self-Review** (mandatory, revision trigger):
+
+   After writing the full synthesis but BEFORE the mechanical checklist, MELCHIOR re-reads the entire synthesis as a critical reviewer. This is a holistic quality gate — not a line-item check. Append the review as a `## MELCHIOR Comprehensive Review` section at the end of synthesis.md (after Traceability, before the mechanical checklist edits).
+
+   Evaluate the synthesis on these five axes. For each axis, write 2-4 sentences of assessment and a **verdict** (PASS / REVISE):
+
+   **(a) Question Fidelity** — Do the top findings actually answer the original research question? Or has the synthesis drifted to an easier adjacent question? Compare the original topic (from `.workspace.json`) against what the top 3 findings collectively address. If there is drift, name it: "The original question asked X, but findings 1-3 address Y instead."
+
+   **(b) Inter-Finding Coherence** — Do the Top 5 findings form a coherent research narrative, or do they contradict each other? If contradictions exist, are they explicitly acknowledged as productive tensions (acceptable) or unintentional inconsistencies (must fix)?
+
+   **(c) Aggregate Mechanism Audit** — Looking at the Top 5 as a set: how many propose a genuinely new causal mechanism vs. restate known domain knowledge in new vocabulary? Count: "N/5 findings propose novel mechanisms; M/5 are refinements of known approaches." If N < 2, flag as a quality concern.
+
+   **(d) Causal vs. Diagnostic Balance** — Across ALL Next Three Steps entries: count the step types. Report the ratio: "Intervention/Ablation/Null: X steps. Empirical/Design/Review: Y steps." If no Intervention, Ablation, or Null steps exist in the entire synthesis, this is a **mandatory REVISE** — go back and add at least one causal step per Tier 1 finding.
+
+   **(e) Blind Spot Confession** — Name 1-2 questions that this synthesis does NOT address but that a domain expert would ask. These are not failures but honest scope limits. Format: "This synthesis does not address: [question]. Why: [reason — time constraint / outside persona expertise / insufficient data]."
+
+   **Revision protocol**: If any axis yields REVISE, go back and fix the corresponding section of the synthesis BEFORE proceeding. After revision, update the review verdict to PASS with a note: "REVISED — originally failed because [reason], fixed by [action]." Only proceed to step 5 when all five axes are PASS.
+
+5. After completing the self-review and any revisions, verify (mechanical checklist):
    - [ ] Each top finding explains WHY the approach works (causal mechanism), not just WHAT to measure
+   - [ ] **Mechanism Depth Test**: For each top finding, substitute the key mechanism term (e.g., "spectral bias", "inductive bias") with the generic phrase "something about the architecture." If the finding still makes the same prediction with the same specificity, the mechanism is a **re-description, not an explanation** — demote it from a finding to a "framing" and move it to the Appendix. Promote the next candidate.
    - [ ] Each top finding contains at least one equation or specific numerical prediction from persona conclusions
    - [ ] Operational content (GPU hours, timeline, risk ratings) is below 15% of total length; if exceeded, move excess to an appendix
    - [ ] At least one **[MELCHIOR]** marker exists in the synthesis (Intertextual Addition fulfilled)
    - [ ] Each top finding has an (f) [MELCHIOR] Verdict (Endorse/Revise/Reject with reason)
    - [ ] Prior Declaration exists with ≥2 specific mechanisms named (not just domain keywords)
-   - [ ] Convergence Interrogation Type A/B classification exists for convergent findings
+   - [ ] Convergence Interrogation Type A/B/D classification exists for convergent findings
    If any check fails, revise the relevant finding before finalizing.
-5. Save to `brainstorm/synthesis.md`.
+6. Save to `brainstorm/synthesis.md`.
 
 **Retroactive Question Crystallization** (always, all depths):
 After completing the ranked synthesis, examine the top 5 findings and identify the research question they collectively answer. If this crystallized question differs substantively from the original input:
@@ -712,6 +745,7 @@ For each finding that appears in both models' outputs, classify as:
 - **Type A convergence**: Models arrived via different reasoning paths or evidence. No confidence adjustment.
 - **Type B convergence**: Both models cite the same named source, method, or prior result. Apply confidence note: "Type B convergence — shared training reference, not independent validation."
 - **Type C convergence (False Consensus)**: Both models agree, but neither provides a concrete mechanism, independent evidence, or specific scenario — agreement is based on surface plausibility or deference to the other model. Apply per §AntiConsensus: confidence is automatically downgraded one level (High → Medium, Medium → Low). If a Type C finding ranks in the Top 3, MELCHIOR MUST construct an adversarial objection against it regardless of depth level.
+- **Type D convergence (Shared Blind Spot)**: Both models agree on a **methodological choice** (metric definition, null model, analytical framework, measurement protocol) that neither independently derived or validated — they adopted it as a shared unexamined assumption. Type D triggers a mandatory **methodological audit**: MELCHIOR must either (a) provide independent justification for the shared assumption (cite a derivation, validation study, or limiting-case argument), or (b) flag it as an unvalidated assumption with confidence downgrade one level. **Type D detection heuristic**: For each top finding, ask "What metric or method do BOTH sources use without questioning? Could a different reasonable metric yield a contradictory result?" If yes, classify as Type D.
 
 **Intertextual Addition** (mandatory, all depths):
 You MUST add at least one perspective, connection, or counter-argument from your own knowledge that no model raised. Mark with **[MELCHIOR]**. This is NOT derived from model outputs — it is your independent intellectual contribution as the third MAGI personality.
@@ -763,15 +797,35 @@ Compare scope declarations from Step 1a model outputs. If models interpreted the
    - **Synthesis Epilogue (T8)** — Research Gaps, Non-Recommendations, Next Three Steps (see T8 template)
    - **MAGI Process Traceability** — table mapping each ranked finding to its source model(s) and artifact file path(s) (e.g., which ideas came from Gemini vs. Codex, which reviews supported/challenged them)
    - **Recommended Path Forward** — Claude's recommendation with reasoning
-4. After completing the synthesis, verify:
+
+4. **[MELCHIOR] Comprehensive Self-Review** (mandatory, revision trigger):
+
+   After writing the full synthesis but BEFORE the mechanical checklist, MELCHIOR re-reads the entire synthesis as a critical reviewer. This is a holistic quality gate — not a line-item check. Append the review as a `## MELCHIOR Comprehensive Review` section at the end of synthesis.md (after Traceability, before the mechanical checklist edits).
+
+   Evaluate the synthesis on these five axes. For each axis, write 2-4 sentences of assessment and a **verdict** (PASS / REVISE):
+
+   **(a) Question Fidelity** — Do the top findings actually answer the original research question? Or has the synthesis drifted to an easier adjacent question? Compare the original topic (from `.workspace.json`) against what the top 3 findings collectively address. If there is drift, name it: "The original question asked X, but findings 1-3 address Y instead."
+
+   **(b) Inter-Finding Coherence** — Do the Top 5 findings form a coherent research narrative, or do they contradict each other? If contradictions exist, are they explicitly acknowledged as productive tensions (acceptable) or unintentional inconsistencies (must fix)?
+
+   **(c) Aggregate Mechanism Audit** — Looking at the Top 5 as a set: how many propose a genuinely new causal mechanism vs. restate known domain knowledge in new vocabulary? Count: "N/5 findings propose novel mechanisms; M/5 are refinements of known approaches." If N < 2, flag as a quality concern.
+
+   **(d) Causal vs. Diagnostic Balance** — Across ALL Next Three Steps entries: count the step types. Report the ratio: "Intervention/Ablation/Null: X steps. Empirical/Design/Review: Y steps." If no Intervention, Ablation, or Null steps exist in the entire synthesis, this is a **mandatory REVISE** — go back and add at least one causal step per Tier 1 finding.
+
+   **(e) Blind Spot Confession** — Name 1-2 questions that this synthesis does NOT address but that a domain expert would ask. These are not failures but honest scope limits. Format: "This synthesis does not address: [question]. Why: [reason — time constraint / outside model expertise / insufficient data]."
+
+   **Revision protocol**: If any axis yields REVISE, go back and fix the corresponding section of the synthesis BEFORE proceeding. After revision, update the review verdict to PASS with a note: "REVISED — originally failed because [reason], fixed by [action]." Only proceed to step 5 when all five axes are PASS.
+
+5. After completing the self-review and any revisions, verify (mechanical checklist):
    - [ ] Each top finding explains WHY the approach works (causal mechanism), not just WHAT to measure
+   - [ ] **Mechanism Depth Test**: For each top finding, substitute the key mechanism term (e.g., "spectral bias", "inductive bias") with the generic phrase "something about the architecture." If the finding still makes the same prediction with the same specificity, the mechanism is a **re-description, not an explanation** — demote it from a finding to a "framing" and move it to the Appendix. Promote the next candidate.
    - [ ] Each top finding contains at least one equation or specific numerical prediction from brainstorm/review outputs
    - [ ] Operational content (GPU hours, timeline, risk ratings) is below 15% of total length; if exceeded, move excess to an appendix
    - [ ] At least one **[MELCHIOR]** marker exists in the synthesis (Intertextual Addition fulfilled)
    - [ ] Each top finding has an (f) [MELCHIOR] Verdict (Endorse/Revise/Reject with reason)
-   - [ ] Convergence Interrogation Type A/B classification exists for convergent findings [`--depth medium|high`]
+   - [ ] Convergence Interrogation Type A/B/D classification exists for convergent findings [`--depth medium|high`]
    If any check fails, revise the relevant finding before finalizing.
-5. Save to `brainstorm/synthesis.md`.
+6. Save to `brainstorm/synthesis.md`.
 
 **Retroactive Question Crystallization** (always, all depths):
 After completing the ranked synthesis, examine the top 5 findings and identify the research question they collectively answer. If this crystallized question differs substantively from the original input:
