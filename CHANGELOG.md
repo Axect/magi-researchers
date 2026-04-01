@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.17.0] — 2026-04-01
+
+### Changed
+- **Codex integration: MCP → codex-plugin-cc** — Replaced `@cexll/codex-mcp-server` MCP tools (`mcp__codex-cli__brainstorm`, `mcp__codex-cli__ask-codex`) with the official OpenAI `codex-plugin-cc` Claude Code plugin. All Codex calls now use `/codex:rescue --wait --model gpt-5.4` via the `Skill` tool
+- **Installation flow** — Codex setup changed from `claude mcp add` to plugin marketplace install (`/plugin marketplace add openai/codex-plugin-cc`) with `/codex:setup` verification step
+- **File references for Codex** — Replaced `@filepath` syntax with direct file path references in the task prompt (Codex reads files from the repo autonomously)
+- **Web search for Codex** — Replaced `search: true` parameter with natural language instruction in the task prompt
+- **Recommended permissions** — Replaced `mcp__codex-cli__ask-codex` / `mcp__codex-cli__brainstorm` with `Skill(codex:*)`
+
+---
+
 ## [0.16.0] — 2026-03-31
 
 ### Added

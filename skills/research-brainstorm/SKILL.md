@@ -31,13 +31,14 @@ Generates and cross-validates research ideas using Gemini and Codex in parallel,
   1. `model: "gemini-3.1-pro-preview"` (preferred)
   2. `model: "gemini-2.5-pro"` (fallback)
   3. Claude Opus subagent (last resort — skip Gemini MCP tool, spawn an Agent subagent with T1-CD cognitive style, same as `--substitute "Gemini -> Opus"`)
-- **Codex**: Use `model: "gpt-5.4"` for all Codex MCP calls. Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review. If Codex fails 2+ times, fall back to a Claude Opus subagent with T1-AC cognitive style (same as `--substitute "Codex -> Opus"`).
-- **File References**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@brainstorm/codex_ideas.md`)
-  instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
+- **Codex** (via `codex-plugin-cc`): Use `/codex:rescue --wait --model gpt-5.4` for all Codex calls — both ideation and analysis/review. Invoke via the `Skill` tool: `Skill(skill: "codex:rescue", args: "--wait --model gpt-5.4 {task prompt}")`. The result is saved by the caller (this skill). If `/codex:rescue` fails 2+ times, fall back to a Claude Opus subagent with T1-AC cognitive style (same as `--substitute "Codex -> Opus"`).
+- **File References**:
+  - **Gemini**: Use `@filepath` in the prompt parameter to pass saved artifacts (e.g., `@brainstorm/codex_ideas.md`). The CLI tool reads files directly, preventing context truncation.
+  - **Codex**: Reference file paths directly in the `/codex:rescue` task prompt (e.g., "Read and analyze the file at {path}"). Codex operates within the repository and reads files autonomously.
 - **Web Search**: Use web search freely whenever factual verification, recent developments, or literature context would strengthen the discussion:
   - **Claude**: Use the `WebSearch` tool directly
   - **Gemini**: Add `search: true` to `mcp__gemini-cli__ask-gemini` or `mcp__gemini-cli__brainstorm` calls
-  - **Codex**: Add `search: true` to `mcp__codex-cli__ask-codex` or `mcp__codex-cli__brainstorm` calls
+  - **Codex**: Include "search the web for relevant information" in the `/codex:rescue` task prompt when factual verification is needed
   - **When to search**: prior work verification, methodological precedents, dataset/library availability, related approaches, fact-checking quantitative claims
   - **Claude-only mode**: Claude Agent subagents cannot use WebSearch. The main Claude agent should search beforehand and include findings in the subagent prompt.
 
@@ -48,9 +49,9 @@ When `--claude-only` is active, **all** Gemini/Codex MCP tool calls are replaced
 | Original Call | Replacement | Cognitive Style |
 |---|---|---|
 | `mcp__gemini-cli__brainstorm` | Agent subagent A | **Creative-Divergent**: unconventional connections, "What if?" scenarios, wide exploration, questioning assumptions |
-| `mcp__codex-cli__brainstorm` | Agent subagent B | **Analytical-Convergent**: step-by-step feasibility, established methodologies, deep evaluation, practical constraints, risk assessment |
+| `/codex:rescue` (ideation) | Agent subagent B | **Analytical-Convergent**: step-by-step feasibility, established methodologies, deep evaluation, practical constraints, risk assessment |
 | `mcp__gemini-cli__ask-gemini` | Agent subagent A | Same Creative-Divergent style |
-| `mcp__codex-cli__ask-codex` | Agent subagent B | Same Analytical-Convergent style |
+| `/codex:rescue` (analysis/review) | Agent subagent B | Same Analytical-Convergent style |
 
 **Key rules for claude-only mode:**
 1. **File access**: Subagents use the `Read` tool to access files (no `@filepath` syntax).
@@ -297,7 +298,7 @@ When this skill is invoked, follow these steps exactly:
 6. **Parse `--personas N|auto`**: Accept integer 2-4 or the string `auto` (default: `auto`). Only used when `--depth max`; ignored otherwise.
    - If `auto`: Defer persona count determination to Step 0b, where Claude analyzes the topic's complexity, number of distinct sub-disciplines, and methodological diversity to select the optimal N (2-4).
    - If an explicit integer is given: Use that value directly.
-7. **Parse `--claude-only`**: Boolean flag (default: `false`). When present, all Gemini/Codex MCP calls are replaced with Claude Agent subagents. See the **Claude-Only Mode** section above for the replacement table and cognitive style definitions.
+7. **Parse `--claude-only`**: Boolean flag (default: `false`). When present, all Gemini/Codex calls (MCP and `/codex:rescue`) are replaced with Claude Agent subagents. See the **Claude-Only Mode** section above for the replacement table and cognitive style definitions.
 8. **Parse `--substitute`**: Accept zero or more `--substitute "Agent -> Opus"` flags. Valid agent names: `Gemini`, `Codex`. Valid target: `Opus`. When specified, the named agent's MCP calls are replaced with Claude Agent subagents using the same cognitive style mappings as `--claude-only` mode (see **Agent Substitution** section). `--substitute` and `--claude-only` are mutually exclusive — if both are provided, `--claude-only` takes precedence. If both `"Gemini -> Opus"` and `"Codex -> Opus"` are specified, treat as equivalent to `--claude-only`.
 9. **Question Orientation** (always, all depths):
    Before proceeding to brainstorming, present:
@@ -422,7 +423,7 @@ Personas **complement** the domain template — they do not override it.
 
 > **Skip unless `--depth max`**: This step only runs for hierarchical MAGI-in-MAGI depth.
 
-1. Execute Gemini and Codex calls simultaneously, each with `search: true`:
+1. Execute Gemini and Codex calls simultaneously (Gemini with `search: true`; Codex with web search instruction in the task prompt):
    - Prompt: "Analyze this research question: '{topic}'. Provide: (a) 3 alternative framings that make hidden assumptions explicit, (b) specific success criteria for each framing, (c) any recent developments (via web search) that affect the question's relevance."
 2. Claude synthesizes the model analyses into a **Refined Research Question** that:
    - Makes the strongest hidden assumption explicit
@@ -440,15 +441,15 @@ If the user rejects the refined scope, revert to the original topic string for a
 
 Execute these two calls **simultaneously** (in the same message). **Prepend the assigned persona** from `brainstorm/personas.md` to each prompt:
 
-Each call includes: persona context, guiding question, domain template (if exists, via `@{domain_template_path}`), and **T4** mechanism requirement. Use `ideaCount: 12, includeAnalysis: true, methodology: "auto"`.
+Each call includes: persona context, guiding question, domain template (if exists — via `@{domain_template_path}` for Gemini, via file path reference for Codex), and **T4** mechanism requirement. Request at least 12 ideas with detailed analysis.
 
 Each brainstorm prompt must begin with: "Before listing ideas, state in one sentence: 'Scope: [how you interpret this question's boundary and focus].'" This scope declaration is collected for divergence checking in synthesis.
 
 **Gemini**: `mcp__gemini-cli__brainstorm`, `model: "gemini-3.1-pro-preview"` — Generate diverse, creative research ideas. Consider theoretical foundations, practical applications, novel approaches, and potential breakthroughs.
 
-**Codex**: `mcp__codex-cli__brainstorm`, `model: "gpt-5.4"` — Generate implementation-focused research ideas. Consider feasibility, existing tools/libraries, computational requirements, and step-by-step approaches.
+**Codex**: `/codex:rescue --wait --model gpt-5.4` — Generate implementation-focused research ideas. Consider feasibility, existing tools/libraries, computational requirements, and step-by-step approaches. Include the persona context and domain template path in the task prompt (Codex reads files from the repo directly).
 
-> Note: If Codex MCP is unavailable, fall back to a Claude Opus subagent with T1-AC cognitive style (same as `--substitute "Codex -> Opus"`), using the Codex persona and implementation-focused framing per **T6**.
+> Note: If `/codex:rescue` is unavailable or fails 2+ times, fall back to a Claude Opus subagent with T1-AC cognitive style (same as `--substitute "Codex -> Opus"`), using the Codex persona and implementation-focused framing per **T6**.
 
 > **If `--claude-only`**: Replace both calls with two Agent subagents (simultaneously), per **T6**:
 > - **Subagent A** (T1-CD, Gemini persona): Generate 12 diverse, creative research ideas. Consider theoretical foundations, practical applications, novel approaches, and potential breakthroughs. Apply **T4**. Save to `brainstorm/gemini_ideas.md` per **T5**.
@@ -479,13 +480,13 @@ mcp__gemini-cli__ask-gemini(
 
 **Codex reviews Gemini ideas (Round 1):**
 ```
-mcp__codex-cli__ask-codex(
-  prompt: "[Persona: {codex_persona_name} — {codex_persona_expertise}]\n\nApply T2-Feasibility review to the following research ideas:\n\n@{output_dir}/brainstorm/gemini_ideas.md",
-  model: "gpt-5.4"
+Skill(
+  skill: "codex:rescue",
+  args: "--wait --model gpt-5.4 [Persona: {codex_persona_name} — {codex_persona_expertise}] Apply T2-Feasibility review to the following research ideas. Read and analyze the file at {output_dir}/brainstorm/gemini_ideas.md"
 )
 ```
 
-> Note: If Codex MCP is unavailable, fall back to a Claude Opus subagent with T1-AC cognitive style (same as `--substitute "Codex -> Opus"`), using the Codex persona per **T6**.
+> Note: If `/codex:rescue` is unavailable or fails 2+ times, fall back to a Claude Opus subagent with T1-AC cognitive style (same as `--substitute "Codex -> Opus"`), using the Codex persona per **T6**.
 
 > **If `--claude-only`**: Replace both calls with two Agent subagents (simultaneously), per **T6**:
 > - **Subagent A** (T1-CD, Gemini persona): Read `brainstorm/codex_ideas.md`. Apply **T2-Science** review. Save to `brainstorm/gemini_review_of_codex.md` per **T5**.
@@ -505,10 +506,10 @@ Execute Round 2 **simultaneously**:
 
 **Round 2 — Defend/Concede/Revise** (execute simultaneously):
 
-Each call includes: persona context, `@{output_dir}/brainstorm/disagreements.md`, **T3** debate framework, own review, and opposing review.
+Each call includes: persona context, disagreements file, **T3** debate framework, own review, and opposing review.
 
 - **Gemini**: `mcp__gemini-cli__ask-gemini`, `model: "gemini-3.1-pro-preview"`, refs: `@{output_dir}/brainstorm/gemini_review_of_codex.md` + `@{output_dir}/brainstorm/codex_review_of_gemini.md`
-- **Codex**: `mcp__codex-cli__ask-codex`, `model: "gpt-5.4"`, refs: `@{output_dir}/brainstorm/codex_review_of_gemini.md` + `@{output_dir}/brainstorm/gemini_review_of_codex.md`
+- **Codex**: `/codex:rescue --wait --model gpt-5.4` — task prompt includes: persona context, instructions to read `{output_dir}/brainstorm/disagreements.md`, `{output_dir}/brainstorm/codex_review_of_gemini.md`, and `{output_dir}/brainstorm/gemini_review_of_codex.md`. Apply **T3** debate framework.
 
 > **If `--claude-only`**: Replace both debate calls with two Agent subagents (simultaneously), per **T6**:
 > - **Subagent A** (T1-CD, Gemini persona): Read `brainstorm/disagreements.md`, `brainstorm/gemini_review_of_codex.md`, `brainstorm/codex_review_of_gemini.md`. Apply **T3** debate framework. Save to `brainstorm/debate_round2_gemini.md` per **T5**.
@@ -534,7 +535,7 @@ Spawn **N Task subagents simultaneously** (one per persona, `subagent_type: gene
 
    **A. Gemini Brainstorm** — Call `mcp__gemini-cli__brainstorm` with the persona's viewpoint. Save to `brainstorm/persona_{i}/gemini_ideas.md`.
 
-   **B. Codex Brainstorm** — Call `mcp__codex-cli__brainstorm` with the persona's viewpoint. Save to `brainstorm/persona_{i}/codex_ideas.md`.
+   **B. Codex Brainstorm** — Call `/codex:rescue --wait --model gpt-5.4` with the persona's viewpoint in the task prompt. Save to `brainstorm/persona_{i}/codex_ideas.md`.
 
    > **If `--claude-only`**: Replace A and B with two Agent sub-subagents (simultaneously), per **T6**:
    > - **A'** (T1-EE, persona_{i}): Generate 12 creative research ideas from this persona's perspective. Apply **T4**. Save to `brainstorm/persona_{i}/gemini_ideas.md` per **T5**.
@@ -542,7 +543,7 @@ Spawn **N Task subagents simultaneously** (one per persona, `subagent_type: gene
 
    **C+D. Cross-Review (simultaneous):**
    - Gemini reviews Codex ideas using `@{output_dir}/brainstorm/persona_{i}/codex_ideas.md` → save to `brainstorm/persona_{i}/gemini_review_of_codex.md`
-   - Codex reviews Gemini ideas using `@{output_dir}/brainstorm/persona_{i}/gemini_ideas.md` → save to `brainstorm/persona_{i}/codex_review_of_gemini.md`
+   - Codex reviews Gemini ideas via `/codex:rescue --wait --model gpt-5.4` — task prompt references `{output_dir}/brainstorm/persona_{i}/gemini_ideas.md` → save to `brainstorm/persona_{i}/codex_review_of_gemini.md`
    > **If `--claude-only`**: Replace C+D with two Agent sub-subagents (simultaneously), per **T6**:
    > - **C'** (T1-EE, persona_{i}): Read `{output_dir}/brainstorm/persona_{i}/codex_ideas.md`. Apply **T2-Science** review. Save to `brainstorm/persona_{i}/gemini_review_of_codex.md` per **T5**.
    > - **D'** (T1-GB, persona_{i}): Read `{output_dir}/brainstorm/persona_{i}/gemini_ideas.md`. Apply **T2-Feasibility** review. Save to `brainstorm/persona_{i}/codex_review_of_gemini.md` per **T5**.
@@ -598,7 +599,7 @@ Execute simultaneously:
 "You are reviewing the outputs of {N} domain-specialist research personas who independently analyzed: {topic}\n\nHere are all persona conclusions:\n@{output_dir}/brainstorm/all_conclusions.md\n\nProvide a meta-review covering:\n1. **Coverage analysis** — Which aspects are well-covered vs. underexplored?\n2. **Quality assessment** — Rate each persona's conclusions (depth, rigor, creativity) on a 1-10 scale\n3. **Cross-persona synthesis** — What emerges when combining all perspectives?\n4. **Top 3 disagreements** — Most significant contradictions with specific quotes\n5. **Recommended findings** — Top 5 research findings. For each, explain the mechanism."
 ```
 - **Gemini**: `mcp__gemini-cli__ask-gemini`, `model: "gemini-3.1-pro-preview"` → Save to `brainstorm/meta_review_gemini.md`
-- **Codex**: `mcp__codex-cli__ask-codex`, `model: "gpt-5.4"` → Save to `brainstorm/meta_review_codex.md`
+- **Codex**: `/codex:rescue --wait --model gpt-5.4` — task prompt includes instructions to read `{output_dir}/brainstorm/all_conclusions.md` and the meta-review prompt → Save to `brainstorm/meta_review_codex.md`
 
 > **If `--claude-only`**: Replace both meta-review calls with two Agent subagents (simultaneously), per **T6**:
 > - **Subagent A** (T1-CD): Read `brainstorm/all_conclusions.md`. Provide meta-review with the 5-point structure above. Save to `brainstorm/meta_review_gemini.md` per **T5**.
@@ -617,7 +618,7 @@ Before the debate calls, create consolidated context files (each containing exac
 Then execute the debate calls **simultaneously**. Each call includes: `[Meta-Reviewer]` context, consolidated debate context file, **T3** debate framework.
 
 - **Gemini**: `mcp__gemini-cli__ask-gemini`, `model: "gemini-3.1-pro-preview"`, ref: `@{output_dir}/brainstorm/debate_context_for_gemini.md` → Save to `brainstorm/meta_debate_gemini.md`
-- **Codex**: `mcp__codex-cli__ask-codex`, `model: "gpt-5.4"`, ref: `@{output_dir}/brainstorm/debate_context_for_codex.md` → Save to `brainstorm/meta_debate_codex.md`
+- **Codex**: `/codex:rescue --wait --model gpt-5.4` — task prompt references `{output_dir}/brainstorm/debate_context_for_codex.md` → Save to `brainstorm/meta_debate_codex.md`
 
 > **If `--claude-only`**: Replace both debate calls with two Agent subagents (simultaneously), per **T6**:
 > - **Subagent A** (T1-CD): Read `brainstorm/debate_context_for_gemini.md`. Apply **T3** debate framework. Save to `brainstorm/meta_debate_gemini.md` per **T5**.

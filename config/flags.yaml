@@ -8,6 +8,7 @@ model_fallback_chains:
     - "gemini-2.5-pro"
     - "claude"  # last resort — skip Gemini MCP tool, use Claude directly
   codex_standard:
+    # Uses codex-plugin-cc: /codex:rescue --wait --model gpt-5.4
     model: "gpt-5.4"
     max_failures_before_fallback: 2
     fallback: "claude"

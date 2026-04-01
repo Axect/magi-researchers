@@ -228,13 +228,13 @@ mcp__gemini-cli__ask-gemini(
 
 **Codex (CASPER) — Visualization Quality Review:**
 ```
-mcp__codex-cli__ask-codex(
-  prompt: "You are a data visualization reviewer. Analyze this research report for visualization quality and completeness. Identify:\n\n1. **Missing visualizations**: Quantitative results or comparisons described in text that would benefit from a chart/plot but have none\n2. **Plot-narrative mismatch**: Figures whose captions or surrounding text don't accurately describe what the plot shows\n3. **Visualization improvements**: Existing plots that could use better chart types, scales, or encodings for clarity\n4. **Reproducibility gaps**: Plots that lack source context or data references needed to regenerate them\n5. **Style compliance**: Are all figures generated with the required scienceplots style? Check for: serif fonts, thin lines, Nature-compatible sizing (single: 3.5in, double: 7.2in), 300 dpi, PDF availability. Flag any plot that appears to use matplotlib defaults or custom rcParams overrides.\n\nFor each issue found, specify the section, the problematic text or figure, and a concrete fix.\n\nReport draft:\n@{output_dir}/report.md\n\nPlot manifest:\n@{output_dir}/plots/plot_manifest.json",
-  model: "gpt-5.4"
+Skill(
+  skill: "codex:rescue",
+  args: "--wait --model gpt-5.4 You are a data visualization reviewer. Analyze this research report for visualization quality and completeness. Identify:\n\n1. **Missing visualizations**: Quantitative results or comparisons described in text that would benefit from a chart/plot but have none\n2. **Plot-narrative mismatch**: Figures whose captions or surrounding text don't accurately describe what the plot shows\n3. **Visualization improvements**: Existing plots that could use better chart types, scales, or encodings for clarity\n4. **Reproducibility gaps**: Plots that lack source context or data references needed to regenerate them\n5. **Style compliance**: Are all figures generated with the required scienceplots style? Check for: serif fonts, thin lines, Nature-compatible sizing (single: 3.5in, double: 7.2in), 300 dpi, PDF availability. Flag any plot that appears to use matplotlib defaults or custom rcParams overrides.\n\nFor each issue found, specify the section, the problematic text or figure, and a concrete fix.\n\nRead and analyze the files at {output_dir}/report.md and {output_dir}/plots/plot_manifest.json"
 )
 ```
 
-> Note: If Codex MCP is unavailable, fall back to `mcp__gemini-cli__ask-gemini` with the Gemini fallback chain and visualization-focused framing.
+> Note: If `/codex:rescue` is unavailable or fails, fall back to `mcp__gemini-cli__ask-gemini` with the Gemini fallback chain and visualization-focused framing.
 
 > **If `--claude-only`**: Per §SubagentExec, spawn **simultaneously**:
 > - **A** (CD, BALTHASAR — Scientific Rigor): Read `report.md` + `plots/plot_manifest.json`. Review: 1.Orphaned claims (text without supporting figure/table/data), 2.Orphaned plots (embedded but never discussed), 3.Weak links (claim→figure mismatch), 4.Caption quality (precise, quantitative, publication-ready?). Per issue: section, problematic text/figure, concrete fix. Return structured text.

@@ -9,16 +9,18 @@
 2. `model: "gemini-2.5-pro"` (fallback)
 3. Claude (last resort — skip Gemini MCP tool, use Claude directly)
 
-**Codex**: Use `model: "gpt-5.4"` for all Codex MCP calls. If Codex fails 2+ times, fall back to Claude directly.
+**Codex** (via `codex-plugin-cc`): Use `/codex:rescue --wait --model gpt-5.4` for all Codex calls — both ideation and analysis/review. Invoke via the `Skill` tool: `Skill(skill: "codex:rescue", args: "--wait --model gpt-5.4 {task prompt}")`. If `/codex:rescue` fails 2+ times, fall back to Claude directly.
 
-**File References**: Use `@filepath` in the prompt parameter to pass saved artifacts instead of pasting file content inline. The CLI tools read files directly, preventing context truncation.
+**File References**:
+- **Gemini**: Use `@filepath` in the prompt parameter to pass saved artifacts. The CLI tool reads files directly, preventing context truncation.
+- **Codex**: Reference file paths directly in the task prompt (e.g., "Read and analyze the file at {path}"). Codex operates within the repository and reads files autonomously.
 
 **Context7**: Use `mcp__plugin_context7_context7__query-docs` for library documentation lookups. Call `resolve-library-id` first to get the library ID.
 
 **Web Search**: Use web search freely whenever factual verification, recent developments, or literature context would strengthen the analysis:
 - **Claude**: Use the `WebSearch` tool directly
 - **Gemini**: Add `search: true` to `mcp__gemini-cli__ask-gemini` or `mcp__gemini-cli__brainstorm` calls
-- **Codex**: Add `search: true` to `mcp__codex-cli__ask-codex` or `mcp__codex-cli__brainstorm` calls
+- **Codex**: Include "search the web for relevant information" in the `/codex:rescue` task prompt when factual verification is needed
 - **Claude-only mode**: Claude Agent subagents cannot use WebSearch. The main Claude agent should search beforehand and include findings in the subagent prompt.
 
 ---
@@ -60,7 +62,7 @@ When `--claude-only` is active, **all** Gemini/Codex MCP tool calls are replaced
 | Original Call | Replacement | Cognitive Style |
 |---|---|---|
 | `mcp__gemini-cli__ask-gemini` / `brainstorm` | Agent subagent A | **Creative-Divergent** (CD): unconventional connections, "What if?" scenarios, wide exploration, questioning assumptions |
-| `mcp__codex-cli__ask-codex` / `brainstorm` | Agent subagent B | **Analytical-Convergent** (AC): step-by-step feasibility, established methodologies, deep evaluation, practical constraints, risk assessment |
+| `/codex:rescue` | Agent subagent B | **Analytical-Convergent** (AC): step-by-step feasibility, established methodologies, deep evaluation, practical constraints, risk assessment |
 
 **Key rules:**
 1. **File access**: Subagents use the `Read` tool (no `@filepath` syntax).
@@ -132,7 +134,7 @@ LLM agents are biased toward agreement. The following rules counteract premature
 Phase gates are lightweight quality checkpoints before each USER CHECKPOINT:
 
 1. **Self-assessment**: Evaluate phase output against the phase-specific checklist; assign confidence: `High`, `Medium`, or `Low`.
-2. **Conditional MAGI mini-review** (if `Medium` or `Low`): Send output to one MAGI model (Gemini for scientific/plan quality, Codex for implementation/test quality). **If `--claude-only` or the relevant agent is substituted**: use a Claude Agent subagent per §SubagentExec (CD for Gemini substitute, AC for Codex substitute).
+2. **Conditional MAGI mini-review** (if `Medium` or `Low`): Send output to one MAGI model (Gemini for scientific/plan quality, Codex via `/codex:rescue --wait` for implementation/test quality). **If `--claude-only` or the relevant agent is substituted**: use a Claude Agent subagent per §SubagentExec (CD for Gemini substitute, AC for Codex substitute).
 3. **Go/No-Go synthesis**: Write gate report — confidence, checklist scores (pass/partial/fail), issues found, fixes applied, Go/No-Go decision.
 4. Save to `{phase_dir}/phase_gate.md`.
 

@@ -33,7 +33,7 @@ Runs the complete research pipeline: Brainstorming → Planning → Implementati
 
 ### MCP Tool Rules
 See §MCP, §Visualization, §LaTeX in shared rules. Additionally:
-- **Codex**: Use `mcp__codex-cli__brainstorm` for ideation, `mcp__codex-cli__ask-codex` for analysis/review.
+- **Codex**: Use `/codex:rescue --wait --model gpt-5.4` for both ideation and analysis/review, invoked via `Skill(skill: "codex:rescue", args: "--wait --model gpt-5.4 {task prompt}")`.
 - **Context7**: Use during implementation phase for library documentation lookups.
 - **When to search**: prior work verification, methodological precedents, dataset/library availability, related approaches, fact-checking quantitative claims
 
