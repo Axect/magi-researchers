@@ -5,7 +5,7 @@ Generates and cross-validates research ideas using Gemini and Codex in parallel,
 
 ## Usage
 ```
-/research-brainstorm "research topic" [--domain physics|ai_ml|statistics|mathematics|paper] [--weights '{"novelty":0.4,...}'|adaptive] [--depth low|medium|high|max] [--personas N] [--claude-only] [--substitute "Gemini -> Opus"]
+/research-brainstorm "research topic" [--domain physics|ai_ml|statistics|mathematics|paper] [--weights '{"novelty":0.4,...}'|adaptive] [--depth low|medium|high|max|auto] [--personas N] [--claude-only] [--substitute "Gemini -> Opus"]
 ```
 
 ## Arguments
@@ -18,8 +18,9 @@ Generates and cross-validates research ideas using Gemini and Codex in parallel,
   - `--depth` — Controls review depth (default: `medium`):
     - `low` — Skip cross-review, go directly to synthesis
     - `medium` — Standard one-shot cross-review (current behavior)
-    - `high` — Cross-review + adversarial debate round
-    - `max` — Hierarchical MAGI-in-MAGI: N persona subagents run parallel mini-MAGI pipelines, then meta-review + adversarial debate across all perspectives
+    - `high` — Cross-review + evidence anchoring + adversarial debate round
+    - `max` — Hierarchical MAGI-in-MAGI: N persona subagents run parallel mini-MAGI pipelines, then meta-review + evidence anchoring + adversarial debate across all perspectives
+    - `auto` — Adaptive depth: starts as medium, auto-escalates to high or deep based on cross-review disagreement signals (see T12)
   - `--personas N|auto` — Number of domain-specialist subagents for `--depth max` (default: `auto`, range: 2-4). When `auto`, Claude analyzes the topic to determine the optimal persona count. Ignored for other depth levels.
   - `--claude-only` — Replace all Gemini/Codex MCP calls with Claude Agent subagents. Use when external model endpoints are unavailable or for a Claude-only workflow. Two subagents with distinct cognitive styles (Creative-Divergent and Analytical-Convergent) ensure perspective diversity.
   - `--substitute "Agent -> Opus"` — Replace a specific MAGI agent with a Claude (Opus) subagent. Accepted forms: `"Gemini -> Opus"`, `"Codex -> Opus"`. Can be specified multiple times. Use when a specific model hits rate limits but other models are still available. The substituted agent uses the same cognitive style mapping as `--claude-only` mode. If both agents are substituted, functionally equivalent to `--claude-only`. Mutually exclusive with `--claude-only` (if both provided, `--claude-only` takes precedence).
@@ -77,111 +78,22 @@ When `--substitute` is used, only the specified agent's MCP calls are replaced w
 
 ### Reusable Templates
 
-The following templates are referenced by ID throughout this document. When executing, expand the template in context.
+Templates T1–T12 are defined in `references/templates.md`. **Read that file** when you need template definitions. Quick reference:
 
-**T1: Cognitive Styles**
-
-| ID | Style | One-line directive |
+| ID | Name | Purpose |
 |---|---|---|
-| T1-CD | Creative-Divergent | Unconventional connections across adjacent fields, "What if?" scenarios, wide exploratory breadth, questioning fundamental assumptions |
-| T1-AC | Analytical-Convergent | Step-by-step feasibility analysis, established methodologies, deep evaluation, practical constraints, risk assessment |
-| T1-EE | Expansive Explorer | Push boundaries, explore emerging approaches, propose frontier ideas, challenge conventional thinking. (Replaces Gemini in `--depth max` internal subagents) |
-| T1-GB | Grounded Builder | Focus on proven approaches, clear implementation paths, established tools, demonstrable results. (Replaces Codex in `--depth max` internal subagents) |
-
-**T2: Review Instructions**
-
-- **T2-Science**: Review for technical feasibility, scientific rigor, novelty, and potential impact.
-  **Pre-review**: Before reviewing, write a 2-sentence summary of the document being reviewed (title + main thesis). This confirms you are reviewing the correct file.
-  For each idea, separated by `---`:
-  (0) **Identity check**: Restate the idea's title and core claim in one sentence.
-  (1) Restate the proponent's mechanism in your own words.
-  (2) Identify strengths and weaknesses — for each, explain concretely in what scenario it manifests and why it matters.
-  (3) Pose one counterfactual: "If component X were removed, would the claim still hold?"
-  (4) **Verdict** — choose exactly one per §AntiConsensus:
-      - **AGREE**: State your independent supporting evidence (different from the proponent's). Agreement without independent evidence is not permitted.
-      - **DISAGREE**: State what is wrong and under what conditions your objection would be invalidated.
-      - **INSUFFICIENT**: Evidence is too weak to judge either way. State what evidence would resolve the ambiguity.
-  (5) Suggest improvements.
-- **T2-Feasibility**: Review for implementation feasibility, computational practicality, available tools/datasets, and timeline realism.
-  **Pre-review**: Before reviewing, write a 2-sentence summary of the document being reviewed (title + main thesis). This confirms you are reviewing the correct file.
-  For each idea, separated by `---`:
-  (0) **Identity check**: Restate the idea's title and core claim in one sentence.
-  (1) Restate the proponent's mechanism.
-  (2) Strengths and weaknesses with concrete scenarios.
-  (3) Name the warrant connecting the claimed benefit to the proposed mechanism.
-  (4) **Verdict** — choose exactly one per §AntiConsensus:
-      - **AGREE**: State your independent supporting evidence (different from the proponent's). Agreement without independent evidence is not permitted.
-      - **DISAGREE**: State what is wrong and under what conditions your objection would be invalidated.
-      - **INSUFFICIENT**: Evidence is too weak to judge either way. State what evidence would resolve the ambiguity.
-  (5) Suggest improvements.
-
-**T3: DCR Debate Framework**
-
-For each disagreement: (1) **Defend** your position if correct, providing additional evidence. (2) **Concede** if the opposing argument is stronger, explaining why. (3) **Revise** your assessment to a new position if appropriate. Walk through reasoning step by step — explain the logic chain so a reader can follow exactly why you defend, concede, or revise.
-
-**Concession Tax** (per §AntiConsensus): Every Concede MUST include:
-- (a) Which specific piece of evidence or logical step in the opponent's argument defeated your position.
-- (b) "Would I still hold my original position without that evidence?" — answer Yes or No.
-- (c) If No: acknowledge the original idea was weakly grounded; this lowers the finding's confidence in synthesis.
-A concession that cannot name the defeating evidence is not a concession — it is capitulation. Revert to Defend if you cannot articulate why the opponent is right.
-
-**Hybrid Tribunal** (per §AntiConsensus): If you propose a "hybrid," "combined," or "best-of-both" approach:
-- (a) Name one concrete scenario where the hybrid outperforms each pure approach independently.
-- (b) Name one concrete scenario where the hybrid is worse than at least one pure approach.
-- (c) Explain the hybrid's own mechanism — not just "A's strength + B's strength," but how the combination produces a result neither achieves alone.
-- (d) If (a)–(c) cannot be satisfied, withdraw the hybrid and choose one pure position to defend.
-
-**T4: Mechanism Requirement**
-
-For each idea, include a brief mechanism (1-2 sentences): how and why does this approach address the stated problem?
-
-**T5: Subagent Output Convention**
-
-Save to `{output_dir}/brainstorm/{filename}` (absolute path). `{output_dir}` comes from `.workspace.json`; `{filename}` is specified in each step (e.g., `gemini_ideas.md`). Start the file with: `> Source: Claude Agent subagent ({mode}, {style})` followed by persona name and ISO timestamp. Mode is `claude-only mode` or `substituted for {Agent}`. **Never save files outside `{output_dir}/brainstorm/`.**
-
-**T6: Subagent Prompt Structure**
-
-Every claude-only/substituted subagent follows this structure: (1) T1 cognitive style directive. (2) Persona context: `[Persona: {name} — {expertise}]` + guiding question. (3) **Absolute `{output_dir}` path** (from `.workspace.json`). (4) Read domain template via Read tool (skip if none). (5) Task-specific instruction. (6) Output per T5 using absolute paths.
-
-**T7: Finding Summary Footer**
-
-Each ranked research finding ends with a T7 summary footer — a compact reference block (each field 1-2 sentences) placed AFTER the main narrative body. T7 is a summary, not the body itself:
-- **Motivation** — Why is this finding significant? What gap does it address? (1-2 sentences)
-- **Expected Effects** — Concrete benefits in brief. (1-2 sentences)
-- **Side Effects** — Risks or prerequisites. Reference specific review/debate points; do not fabricate. (1-2 sentences)
-- **Key Evidence** — Which arguments led here and what was debated. (1-2 sentences)
-- **Confidence** — High/Medium/Low tied to a specific warrant weakness (e.g., "Medium — assumes standard optimizer dynamics; second-order methods may change the analysis").
-- **[MELCHIOR] Judgment** — Opus's one-sentence verdict: endorse, revise, or reject, with the core reason. This is Opus's voice, not a model summary.
-
-**T8: Synthesis Epilogue**
-
-After the ranked findings and before "Recommended Path Forward", include these three sections:
-
-1. **Research Gaps** (depth-conditional):
-   - `--depth low`: Identify topics where the single model hedged or avoided confident claims. Note as "potential gap (single-model signal)."
-   - `--depth medium|high|max`: Identify topics where BOTH/ALL models hedged or avoided confident claims (convergent hedge). Note as "**Research Frontier** — convergent avoidance across independent models suggests genuine knowledge gap." Distinguish scope gaps (topic avoided entirely) from evidence gaps (specific claim hedged).
-
-2. **Non-Recommendations** (`--depth medium|high|max` only):
-   Cross-model rejection block. List ideas that one model generated but other model(s) explicitly rejected during cross-review, with rejection reasons. Criteria: rejection must be from a model that has NOT seen the generating model's output (independent rejection). Format: "**Do Not Pursue**: [idea] — Rejected by [model] because: [reason]."
-
-3. **Next Three Steps**:
-
-   **Decisive Experiment** (required, exactly one, placed FIRST):
-   Before the tiered steps, identify the single experiment that would most shift confidence in the top finding, **regardless of cost or timeline**. Format:
-   > **Decisive Experiment**: [description] — This would resolve [specific uncertainty] because [causal reasoning]. Feasibility: [Low/Medium/High].
-
-   This anchors the action plan in causal logic before feasibility narrows the scope. Even if feasibility is Low, stating the decisive experiment clarifies what the incremental steps are approximating.
-
-   **Tiered Action Steps** — For each top-ranked finding (Tier 1 and Tier 2), provide three concrete actions across a tiered timeline:
-   - **Tier A** (< 1 day, existing data/models): Quick validation or diagnostic using what is already available.
-   - **Tier B** (~ 1 week, existing models + new analysis): Deeper analysis, new measurements on existing checkpoints, or small-scale experiments.
-   - **Tier C** (~ 1 month, new training/infrastructure): Training controlled variants, large-scale experiments, or new model development.
-   Require at least one step from each tier. Each step specifies:
-   - **Type**: Empirical (run experiment) / Design (write protocol) / Review (read/verify) / **Intervention** (train a controlled variant) / **Ablation** (remove/modify a component) / **Null** (construct a null model or negative control)
-   - **Action**: verb + object + success criterion
-   Example: "[Tier A, Empirical] Compute CI ratio on existing checkpoints at 5 temperatures — success: monotonic trend confirms or refutes the prediction within 1 hour."
-   Example: "[Tier C, Intervention] Train local-window attention transformer interpolating between PixelCNN and LatticeGPT receptive fields — success: CI scales with window size ($R^2 > 0.8$)."
-   Findings that cannot produce at least one Tier A step and one Intervention/Ablation/Null step are automatically classified as Tier 3 (speculative, condensed treatment).
+| T1 | Cognitive Styles | CD, AC, EE, GB style directives |
+| T2 | Review Instructions | T2-Science, T2-Feasibility review format with AGREE/DISAGREE/INSUFFICIENT verdicts |
+| T3 | DCR Debate Framework | Defend/Concede/Revise + Concession Tax + Hybrid Tribunal |
+| T4 | Mechanism Requirement | 1-2 sentence mechanism for each idea |
+| T5 | Subagent Output Convention | File naming and header format |
+| T6 | Subagent Prompt Structure | 6-part prompt template for claude-only subagents |
+| T7 | Finding Summary Footer | 6-field compact reference block per finding |
+| T8 | Synthesis Epilogue | Research Gaps, Non-Recommendations, Next Three Steps |
+| T9 | Pre-flight Query | OpenAlex + WebSearch query format (uses `scripts/openalex_search.py`) |
+| T10 | Persona Briefing | Persona-specific filtered briefing format |
+| T11 | Evidence Anchoring | Disputed claim search + classification format |
+| T12 | Depth Escalation Criteria | Contention score calculation + decision matrix (uses `scripts/parse_verdicts.py`) |
 
 ### LaTeX Formatting Rules
 When writing mathematical expressions in any output document (brainstorm ideas, synthesis, etc.):
@@ -289,11 +201,12 @@ When this skill is invoked, follow these steps exactly:
      ```
      **Holistic format is exactly the above — `weights` is `null` (not an empty object, not omitted), `_meta` contains only `method` and `domain`.** No other keys or variations.
      Skip Step 0a entirely. In Step 1c / Step 1-max-d, Claude will rank findings using holistic expert judgment instead of numeric weighted scoring.
-5. **Parse `--depth`**: Accept `low`, `medium`, `high`, or `max` (default: `medium`).
+5. **Parse `--depth`**: Accept `low`, `medium`, `high`, `max`, or `auto` (default: `medium`).
    - `low` — Skip Step 1b (cross-review), go directly to Step 1c (synthesis)
    - `medium` — Standard one-shot cross-review (current default behavior)
-   - `high` — Cross-review + adversarial debate (Step 1b+)
+   - `high` — Cross-review + evidence anchoring + adversarial debate (Step 1b-ev + Step 1b+)
    - `max` — Hierarchical MAGI-in-MAGI pipeline (Steps 1-max-a through 1-max-d replace Steps 1a/1b/1b+/1c)
+   - `auto` — Starts as `medium`, then escalates based on T2 disagreement signals (see Step 1b-esc and **T12**). Pre-flight (Step 0d) always runs for `auto`.
 6. **Parse `--personas N|auto`**: Accept integer 2-4 or the string `auto` (default: `auto`). Only used when `--depth max`; ignored otherwise.
    - If `auto`: Defer persona count determination to Step 0b, where Claude analyzes the topic's complexity, number of distinct sub-disciplines, and methodological diversity to select the optimal N (2-4).
    - If an explicit integer is given: Use that value directly.
@@ -400,7 +313,7 @@ Personas **complement** the domain template — they do not override it.
 
 **If `--claude-only`**: Relabel personas — "Gemini persona" → "Subagent A (T1-CD)", "Codex persona" → "Subagent B (T1-AC)". For `--depth max` internal roles: "Gemini" → "Expansive Explorer (T1-EE)", "Codex" → "Grounded Builder (T1-GB)". Include cognitive style directives in the persona file.
 
-**For `--depth low|medium|high` (2 personas):**
+**For `--depth low|medium|high|auto` (2 personas):**
 
 1. Analyze the topic's sub-disciplines, methodologies, and key challenges.
 2. Assign a **Gemini persona** — domain expert for creative/theoretical ideation.
@@ -420,39 +333,48 @@ Personas **complement** the domain template — they do not override it.
 
 ### Step 0c: Question Refinement (`--depth max` only)
 
-> **Skip unless `--depth max`**: This step only runs for hierarchical MAGI-in-MAGI depth.
+> **Skip unless `--depth max`**. Read `references/depth_max.md` for the full step definition.
+> Gemini + Codex analyze the question with `search: true`, Claude synthesizes a refined question with measurable success criteria.
 
-1. Execute Gemini and Codex calls simultaneously, each with `search: true`:
-   - Prompt: "Analyze this research question: '{topic}'. Provide: (a) 3 alternative framings that make hidden assumptions explicit, (b) specific success criteria for each framing, (c) any recent developments (via web search) that affect the question's relevance."
-2. Claude synthesizes the model analyses into a **Refined Research Question** that:
-   - Makes the strongest hidden assumption explicit
-   - Specifies measurable success criteria
-   - Narrows or broadens scope based on model feedback
-3. Compare refined question to original:
-   - If scope change is minor: use refined question silently, preserve original in `.workspace.json` as `original_topic`
-   - If scope change is substantial (different domain, methodology, or success criteria): present to user and ask for confirmation before proceeding
+### Step 0d: Pre-flight Context Gathering (`--depth medium|high|max|auto`)
 
-If the user rejects the refined scope, revert to the original topic string for all subsequent steps. If `original_topic` was stored in `.workspace.json`, remove it.
+> **Skip if `--depth low`**: Pre-flight only runs at medium depth or above.
 
-4. Update the topic string used in Step 1-max-a onwards to use the refined question.
+Gather grounded evidence before brainstorming, per §PreFlight and **T9**/**T10**.
+
+1. **Parallel evidence gathering** — execute simultaneously:
+   - **OpenAlex query** (via WebFetch, per **T9**): Search for the research topic in academic literature. URL-encode the topic string. If results are sparse (< 3 papers), retry with broader keywords (drop domain-specific jargon, keep core concept).
+   - **WebSearch** (per **T9**): Search for recent advances related to the topic.
+
+2. **Save raw context** to `brainstorm/preflight_context.md` following the **T9** format (Academic Literature + Recent Developments + Methodological Landscape sections).
+
+3. **Create persona-specific briefings** per **T10**:
+   - For `--depth medium|high|auto`: Create `brainstorm/briefing_gemini.md` and `brainstorm/briefing_codex.md`, each filtered by the persona's reasoning mandate and guiding question from `brainstorm/personas.md`.
+   - For `--depth max`: Create `brainstorm/briefing_persona_{i}.md` for each of the N personas, filtered by each persona's expertise areas and guiding question.
+
+   > **If `--claude-only`**:
+   > - For `--depth medium|high|auto` (2-model): Create `brainstorm/briefing_subagent_a.md` (Creative-Divergent focus) and `brainstorm/briefing_subagent_b.md` (Analytical-Convergent focus) with the same filtering logic.
+   > - For `--depth max` (N-persona): Create `brainstorm/briefing_persona_{i}.md` for each persona (same as non-claude-only mode — briefing is filtered by persona expertise, not by model cognitive style).
+
+4. **Validation**: Verify `preflight_context.md` contains at least 3 academic references. If OpenAlex returned 0 results but WebSearch returned results, create briefings from web results only (reduced quality is acceptable — note "Pre-flight: Literature briefing based on web sources only, no academic papers found"). If both OpenAlex and WebSearch returned no useful results, note "Pre-flight: No relevant context found — brainstorm will proceed without literature grounding" and skip briefing creation.
 
 ### Step 1a: Parallel Independent Brainstorming
 
 Execute these two calls **simultaneously** (in the same message). **Prepend the assigned persona** from `brainstorm/personas.md` to each prompt:
 
-Each call includes: persona context, guiding question, domain template (if exists, via `@{domain_template_path}`), and **T4** mechanism requirement. Use `ideaCount: 12, includeAnalysis: true, methodology: "auto"`.
+Each call includes: persona context, guiding question, domain template (if exists, via `@{domain_template_path}`), **persona-specific briefing** (if Step 0d ran, via `@{output_dir}/brainstorm/briefing_{persona}.md`), and **T4** mechanism requirement. Use `ideaCount: 12, includeAnalysis: true, methodology: "auto"`.
 
 Each brainstorm prompt must begin with: "Before listing ideas, state in one sentence: 'Scope: [how you interpret this question's boundary and focus].'" This scope declaration is collected for divergence checking in synthesis.
 
-**Gemini**: `mcp__gemini-cli__brainstorm`, `model: "gemini-3.1-pro-preview"` — Generate diverse, creative research ideas. Consider theoretical foundations, practical applications, novel approaches, and potential breakthroughs.
+**Gemini**: `mcp__gemini-cli__brainstorm`, `model: "gemini-3.1-pro-preview"` — Generate diverse, creative research ideas. Consider theoretical foundations, practical applications, novel approaches, and potential breakthroughs. If `brainstorm/briefing_gemini.md` exists, include via `@{output_dir}/brainstorm/briefing_gemini.md` and add: "Use the attached literature briefing as context — it highlights failure cases and unexplored alternatives. Let it inform but not constrain your ideation."
 
-**Codex**: `mcp__codex-cli__brainstorm`, `model: "gpt-5.4"` — Generate implementation-focused research ideas. Consider feasibility, existing tools/libraries, computational requirements, and step-by-step approaches.
+**Codex**: `mcp__codex-cli__brainstorm`, `model: "gpt-5.4"` — Generate implementation-focused research ideas. Consider feasibility, existing tools/libraries, computational requirements, and step-by-step approaches. If `brainstorm/briefing_codex.md` exists, include via `@{output_dir}/brainstorm/briefing_codex.md` and add: "Use the attached literature briefing as context — it highlights existing implementations and practical constraints. Let it inform but not constrain your ideation."
 
 > Note: If Codex MCP is unavailable, fall back to a Claude Opus subagent with T1-AC cognitive style (same as `--substitute "Codex -> Opus"`), using the Codex persona and implementation-focused framing per **T6**.
 
 > **If `--claude-only`**: Replace both calls with two Agent subagents (simultaneously), per **T6**:
-> - **Subagent A** (T1-CD, Gemini persona): Generate 12 diverse, creative research ideas. Consider theoretical foundations, practical applications, novel approaches, and potential breakthroughs. Apply **T4**. Save to `brainstorm/gemini_ideas.md` per **T5**.
-> - **Subagent B** (T1-AC, Codex persona): Generate 12 implementation-focused research ideas. Consider feasibility, existing tools/libraries, computational requirements, and step-by-step approaches. Apply **T4**. Save to `brainstorm/codex_ideas.md` per **T5**.
+> - **Subagent A** (T1-CD, Gemini persona): Generate 12 diverse, creative research ideas. Consider theoretical foundations, practical applications, novel approaches, and potential breakthroughs. Apply **T4**. If `brainstorm/briefing_subagent_a.md` exists, include it via Read and add: "Use the attached literature briefing as context — let it inform but not constrain your ideation." Save to `brainstorm/gemini_ideas.md` per **T5**.
+> - **Subagent B** (T1-AC, Codex persona): Generate 12 implementation-focused research ideas. Consider feasibility, existing tools/libraries, computational requirements, and step-by-step approaches. Apply **T4**. If `brainstorm/briefing_subagent_b.md` exists, include it via Read. Save to `brainstorm/codex_ideas.md` per **T5**.
 
 Save results to:
 - `brainstorm/gemini_ideas.md` — Gemini's (or Subagent A's) raw output with header noting source, persona, and timestamp
@@ -463,7 +385,7 @@ After saving `gemini_ideas.md` and `codex_ideas.md`, verify each file is non-emp
 - Retry the failed model call once with the same parameters.
 - If the retry is also insufficient, warn the user before proceeding to the next step.
 
-### Step 1b: Cross-Check (`--depth medium` or `--depth high` only)
+### Step 1b: Cross-Check (`--depth medium`, `--depth high`, or `--depth auto`)
 
 > **If `--depth low`**: Skip this step entirely and proceed to Step 1c.
 
@@ -495,242 +417,82 @@ Save results to:
 - `brainstorm/gemini_review_of_codex.md`
 - `brainstorm/codex_review_of_gemini.md`
 
-### Step 1b+: Adversarial Debate (`--depth high` only)
+### Step 1b-esc: Depth Escalation Check (`--depth auto` only)
 
-> **If `--depth low` or `--depth medium`**: Skip this step entirely.
+> **Skip unless `--depth auto`**: Read `references/depth_auto.md` for the full step definition.
+> Uses `scripts/parse_verdicts.py` to count verdicts and calculate contention score.
+> Decision: contention < 0.30 → stay medium; 0.30-0.50 → escalate to high; >= 0.50 → escalate to deep.
 
-After Round 1 cross-review, Claude identifies the **top 3 points of disagreement** between Gemini and Codex (e.g., conflicting feasibility assessments, divergent novelty ratings, opposing recommendations). **Save the disagreement summary to `brainstorm/disagreements.md`** before the debate calls.
+### Step 1b-ev: Evidence Anchoring (`--depth high+` or escalated from `auto`)
+
+> **Skip if `--depth low` or `--depth medium`** (unless escalated from `--depth auto`).
+
+After cross-review, search for real evidence on disputed claims per §EvidenceAnchoring and **T11**:
+
+1. **Read both review files** and extract all ideas with DISAGREE or INSUFFICIENT verdicts.
+   - **Zero-dispute guard**: If no DISAGREE or INSUFFICIENT verdicts are found (all AGREE), skip this step entirely — no `claim_evidence.md` is created. This can happen when `--depth high` is explicitly set on a topic with strong cross-model agreement.
+
+2. **Prioritize**: Select up to 5 disputed claims — DISAGREE first, then INSUFFICIENT; within each category, prioritize by idea ranking position.
+
+3. **For each disputed claim** (execute searches in parallel where possible):
+   - Extract the core mechanism under dispute.
+   - Construct a precise search query from the claim.
+   - Run OpenAlex search via WebFetch + WebSearch simultaneously, per **T11**.
+   - Classify found evidence as Supporting / Contradicting / Tangential.
+
+4. **Save** to `brainstorm/claim_evidence.md` per **T11** format.
+
+5. **Summary statistics**: At the end of `claim_evidence.md`, append:
+   ```
+   ## Evidence Summary
+   - Claims investigated: {n}
+   - Claims with supporting evidence: {n}
+   - Claims with contradicting evidence: {n}
+   - Claims with no direct evidence: {n}
+   ```
+
+> **If `--claude-only`**: All WebFetch and WebSearch calls are made by the main agent (subagents cannot use these tools). Complete evidence gathering before proceeding to debate.
+
+### Step 1b+: Adversarial Debate (`--depth high` or escalated from `auto`)
+
+> **If `--depth low` or `--depth medium`** (and not escalated): Skip this step entirely.
+
+After Round 1 cross-review (and evidence anchoring if `--depth high+`), Claude identifies the **top 3 points of disagreement** between Gemini and Codex (e.g., conflicting feasibility assessments, divergent novelty ratings, opposing recommendations). **Save the disagreement summary to `brainstorm/disagreements.md`** before the debate calls.
 
 Execute Round 2 **simultaneously**:
 
 **Round 2 — Defend/Concede/Revise** (execute simultaneously):
 
-Each call includes: persona context, `@{output_dir}/brainstorm/disagreements.md`, **T3** debate framework, own review, and opposing review.
+Each call includes: persona context, `@{output_dir}/brainstorm/disagreements.md`, **T3** debate framework, own review, opposing review, **and `@{output_dir}/brainstorm/claim_evidence.md`** (if Step 1b-ev ran — instruct models to cite real evidence when defending or conceding).
 
-- **Gemini**: `mcp__gemini-cli__ask-gemini`, `model: "gemini-3.1-pro-preview"`, refs: `@{output_dir}/brainstorm/gemini_review_of_codex.md` + `@{output_dir}/brainstorm/codex_review_of_gemini.md`
-- **Codex**: `mcp__codex-cli__ask-codex`, `model: "gpt-5.4"`, refs: `@{output_dir}/brainstorm/codex_review_of_gemini.md` + `@{output_dir}/brainstorm/gemini_review_of_codex.md`
+- **Gemini**: `mcp__gemini-cli__ask-gemini`, `model: "gemini-3.1-pro-preview"`, refs: `@{output_dir}/brainstorm/gemini_review_of_codex.md` + `@{output_dir}/brainstorm/codex_review_of_gemini.md` + (if exists) `@{output_dir}/brainstorm/claim_evidence.md`
+- **Codex**: `mcp__codex-cli__ask-codex`, `model: "gpt-5.4"`, refs: `@{output_dir}/brainstorm/codex_review_of_gemini.md` + `@{output_dir}/brainstorm/gemini_review_of_codex.md` + (if exists) `@{output_dir}/brainstorm/claim_evidence.md`
 
 > **If `--claude-only`**: Replace both debate calls with two Agent subagents (simultaneously), per **T6**:
-> - **Subagent A** (T1-CD, Gemini persona): Read `brainstorm/disagreements.md`, `brainstorm/gemini_review_of_codex.md`, `brainstorm/codex_review_of_gemini.md`. Apply **T3** debate framework. Save to `brainstorm/debate_round2_gemini.md` per **T5**.
-> - **Subagent B** (T1-AC, Codex persona): Read `brainstorm/disagreements.md`, `brainstorm/codex_review_of_gemini.md`, `brainstorm/gemini_review_of_codex.md`. Apply **T3** debate framework. Save to `brainstorm/debate_round2_codex.md` per **T5**.
+> - **Subagent A** (T1-CD, Gemini persona): Read `brainstorm/disagreements.md`, `brainstorm/gemini_review_of_codex.md`, `brainstorm/codex_review_of_gemini.md`, and (if exists) `brainstorm/claim_evidence.md`. Apply **T3** debate framework. Cite real evidence from `claim_evidence.md` when defending or conceding. Save to `brainstorm/debate_round2_gemini.md` per **T5**.
+> - **Subagent B** (T1-AC, Codex persona): Read `brainstorm/disagreements.md`, `brainstorm/codex_review_of_gemini.md`, `brainstorm/gemini_review_of_codex.md`, and (if exists) `brainstorm/claim_evidence.md`. Apply **T3** debate framework. Cite real evidence from `claim_evidence.md` when defending or conceding. Save to `brainstorm/debate_round2_codex.md` per **T5**.
 
 Save results to:
 - `brainstorm/debate_round2_gemini.md`
 - `brainstorm/debate_round2_codex.md`
 
-### Step 1-max-a: Layer 1 — Parallel Persona Subagents (`--depth max` only)
+### Step 1b-deep: Focused Deep Investigation (`--depth auto`, escalation to deep only)
 
-> **If `--depth` is not `max`**: Skip Steps 1-max-a through 1-max-d entirely. Use Steps 1a/1b/1b+/1c instead.
+> **Skip unless `--depth auto` escalated to deep**. Read `references/depth_auto.md` for the full step definition.
+> Pro/con argument pairs for the top 3 contested ideas, with role alternation to prevent positional bias.
 
-Spawn **N Task subagents simultaneously** (one per persona, `subagent_type: general-purpose`). Each subagent receives the persona definition and executes a self-contained mini-MAGI pipeline:
+### Steps 1-max-a through 1-max-d: MAGI-in-MAGI Pipeline (`--depth max` only)
 
-**Each subagent prompt includes:**
-1. **Containment directive** (MUST be first): `"DO NOT create any directories. DO NOT run Step 0 setup. All directories already exist. Write files ONLY to the exact absolute paths listed below. Do NOT interpret SKILL.md setup instructions as applicable to you."`
-2. The **absolute `{output_dir}` path** and the **absolute persona subdirectory path** (`{output_dir}/brainstorm/persona_{i}/`)
-3. The persona definition (name, expertise, guiding question, primary lens) from `brainstorm/personas.md`
-4. The research topic and domain template (if available)
-5. The following 5-step execution plan:
-6. The active mode flags: `--claude-only: true/false` and/or `--substitute: [list]`. When `--claude-only` is active or a relevant agent is substituted, the subagent must replace MCP calls A/B and C+D with the corresponding Agent sub-subagents as described in the `> **If --claude-only**:` blocks above. When only one agent is substituted (e.g., `"Gemini -> Opus"`), replace only that agent's calls; use the other agent's MCP tool normally.
-
-   **A. Gemini Brainstorm** — Call `mcp__gemini-cli__brainstorm` with the persona's viewpoint. Save to `brainstorm/persona_{i}/gemini_ideas.md`.
-
-   **B. Codex Brainstorm** — Call `mcp__codex-cli__brainstorm` with the persona's viewpoint. Save to `brainstorm/persona_{i}/codex_ideas.md`.
-
-   > **If `--claude-only`**: Replace A and B with two Agent sub-subagents (simultaneously), per **T6**:
-   > - **A'** (T1-EE, persona_{i}): Generate 12 creative research ideas from this persona's perspective. Apply **T4**. Save to `brainstorm/persona_{i}/gemini_ideas.md` per **T5**.
-   > - **B'** (T1-GB, persona_{i}): Generate 12 implementation-focused ideas from this persona's perspective. Apply **T4**. Save to `brainstorm/persona_{i}/codex_ideas.md` per **T5**.
-
-   **C+D. Cross-Review (simultaneous):**
-   - Gemini reviews Codex ideas using `@{output_dir}/brainstorm/persona_{i}/codex_ideas.md` → save to `brainstorm/persona_{i}/gemini_review_of_codex.md`
-   - Codex reviews Gemini ideas using `@{output_dir}/brainstorm/persona_{i}/gemini_ideas.md` → save to `brainstorm/persona_{i}/codex_review_of_gemini.md`
-   > **If `--claude-only`**: Replace C+D with two Agent sub-subagents (simultaneously), per **T6**:
-   > - **C'** (T1-EE, persona_{i}): Read `{output_dir}/brainstorm/persona_{i}/codex_ideas.md`. Apply **T2-Science** review. Save to `brainstorm/persona_{i}/gemini_review_of_codex.md` per **T5**.
-   > - **D'** (T1-GB, persona_{i}): Read `{output_dir}/brainstorm/persona_{i}/gemini_ideas.md`. Apply **T2-Feasibility** review. Save to `brainstorm/persona_{i}/codex_review_of_gemini.md` per **T5**.
-
-   **E. Persona Conclusion** — The subagent synthesizes its top 3 research findings. For each finding, provide:
-   - **Mechanism** — How does this solve the problem? Walk through the cause-effect chain so a reader unfamiliar with the technique can understand the reasoning.
-   - **Evidence** — What specific arguments from the brainstorm/review support this? Why are they convincing?
-   - **Comparison** — Why this approach over the most obvious alternative?
-   Note areas of internal agreement and disagreement between the two models (or two cognitive styles in claude-only mode). Save to `brainstorm/persona_{i}/conclusion.md`.
-
-Wait for all N subagents to complete before proceeding.
-
-### Step 1-max-b: Layer 1 — Output Collection
-
-0. **Post-completion path audit** (per Subagent Containment Rule):
-   - `Glob` for `outputs/*_v*/` and verify only the expected output directory exists for this session's date/topic.
-   - Check for `brainstorm/` in the project root (`Glob` for `brainstorm/`).
-   - If spurious directories are found: delete them. If they contain artifacts that should have been in `{output_dir}`, move the files first, then delete the directory.
-1. Use Glob to verify that all N `brainstorm/persona_{i}/conclusion.md` files exist.
-   - If any are missing, re-spawn the failed subagent(s) (maximum 1 retry per subagent). If the retry also fails, proceed with the available N-1 (or fewer) persona outputs and note the gap in the synthesis. Do not abort the pipeline for a single persona failure.
-2. Read all N `conclusion.md` files.
-3. Construct a **cross-persona summary** identifying:
-   - **Recurring themes** — findings proposed by 2+ personas
-   - **Unique findings** — ideas that appeared in only one persona's output
-   - **Explicit disagreements** — contradictory assessments across personas
-4. **Consolidate conclusions for Layer 2**: Create `brainstorm/all_conclusions.md` by concatenating
-   all N conclusion files with clear separators:
-   ```markdown
-   # Persona 1: {persona_1_name} — {persona_1_lens}
-
-   {persona_1_conclusion_content}
-
-   ---
-
-   # Persona 2: {persona_2_name} — {persona_2_lens}
-
-   {persona_2_conclusion_content}
-
-   ---
-
-   ... (for all N personas)
-   ```
-   This single consolidated file replaces multiple @-references in Layer 2 calls.
-
-### Step 1-max-c: Layer 2 — Meta-Review + Adversarial Debate
-
-**Phase A — Parallel Meta-Reviews:**
-
-Execute simultaneously:
-
-**Meta-Review prompt** (same for both, execute simultaneously):
-```
-"You are reviewing the outputs of {N} domain-specialist research personas who independently analyzed: {topic}\n\nHere are all persona conclusions:\n@{output_dir}/brainstorm/all_conclusions.md\n\nProvide a meta-review covering:\n1. **Coverage analysis** — Which aspects are well-covered vs. underexplored?\n2. **Quality assessment** — Rate each persona's conclusions (depth, rigor, creativity) on a 1-10 scale\n3. **Cross-persona synthesis** — What emerges when combining all perspectives?\n4. **Top 3 disagreements** — Most significant contradictions with specific quotes\n5. **Recommended findings** — Top 5 research findings. For each, explain the mechanism."
-```
-- **Gemini**: `mcp__gemini-cli__ask-gemini`, `model: "gemini-3.1-pro-preview"` → Save to `brainstorm/meta_review_gemini.md`
-- **Codex**: `mcp__codex-cli__ask-codex`, `model: "gpt-5.4"` → Save to `brainstorm/meta_review_codex.md`
-
-> **If `--claude-only`**: Replace both meta-review calls with two Agent subagents (simultaneously), per **T6**:
-> - **Subagent A** (T1-CD): Read `brainstorm/all_conclusions.md`. Provide meta-review with the 5-point structure above. Save to `brainstorm/meta_review_gemini.md` per **T5**.
-> - **Subagent B** (T1-AC): Read `brainstorm/all_conclusions.md`. Provide meta-review with the 5-point structure above. Save to `brainstorm/meta_review_codex.md` per **T5**.
-
-**Phase B — Disagreement Extraction:**
-
-Claude reads both meta-reviews and extracts the **top 3 cross-persona disagreements** — prioritizing disagreements identified by both reviewers. For each disagreement, produce a structured summary: the claim, which personas support each side, and the core tension. **Save the meta-disagreement summary to `brainstorm/meta_disagreements.md`** before the debate calls.
-
-**Phase C — Consolidate Debate Context + Adversarial Debate:**
-
-Before the debate calls, create consolidated context files (each containing exactly what the opposing model needs):
-- `brainstorm/debate_context_for_gemini.md` — concatenate `brainstorm/meta_disagreements.md` + `brainstorm/meta_review_codex.md`
-- `brainstorm/debate_context_for_codex.md` — concatenate `brainstorm/meta_disagreements.md` + `brainstorm/meta_review_gemini.md`
-
-Then execute the debate calls **simultaneously**. Each call includes: `[Meta-Reviewer]` context, consolidated debate context file, **T3** debate framework.
-
-- **Gemini**: `mcp__gemini-cli__ask-gemini`, `model: "gemini-3.1-pro-preview"`, ref: `@{output_dir}/brainstorm/debate_context_for_gemini.md` → Save to `brainstorm/meta_debate_gemini.md`
-- **Codex**: `mcp__codex-cli__ask-codex`, `model: "gpt-5.4"`, ref: `@{output_dir}/brainstorm/debate_context_for_codex.md` → Save to `brainstorm/meta_debate_codex.md`
-
-> **If `--claude-only`**: Replace both debate calls with two Agent subagents (simultaneously), per **T6**:
-> - **Subagent A** (T1-CD): Read `brainstorm/debate_context_for_gemini.md`. Apply **T3** debate framework. Save to `brainstorm/meta_debate_gemini.md` per **T5**.
-> - **Subagent B** (T1-AC): Read `brainstorm/debate_context_for_codex.md`. Apply **T3** debate framework. Save to `brainstorm/meta_debate_codex.md` per **T5**.
-
-### Step 1-max-d: Layer 3 — Final Enriched Synthesis (`--depth max`)
-
-**MELCHIOR Active Synthesis Protocol** (`--depth max` — Philosopher-Arbiter):
-
-You are MELCHIOR as Philosopher-Arbiter across three layers. Before reading ANY model output files:
-
-**0. Prior Declaration** (mandatory, FIRST action):
-Write in synthesis.md: "**Opus Prior (Pre-Evidence)**: Based on the topic '{topic}' and domain '{domain}' alone, I expect the top 2-3 findings to be: [list]. I will record which are confirmed, overturned, or absent after synthesis."
-Do NOT open any persona conclusion, meta-review, or debate file until this prior is saved.
-
-After reading all evidence, you are REQUIRED to:
-(a) Resolve at least one inter-layer contradiction explicitly — name the contradicting claims and your resolution.
-(b) Add one theoretical context or historical precedent not raised by any persona (**[MELCHIOR]** marker).
-(c) Write a "**Prior vs. Posterior**" section documenting which prior expectations were confirmed, overturned, and what was unexpected.
-
-Apply **Convergence Interrogation** and **Intertextual Addition** as defined below.
-
-**Convergence Interrogation** (mandatory for `--depth medium|high|max`):
-For each finding that appears in both models' outputs, classify as:
-- **Type A convergence**: Models arrived via different reasoning paths or evidence. No confidence adjustment.
-- **Type B convergence**: Both models cite the same named source, method, or prior result. Apply confidence note: "Type B convergence — shared training reference, not independent validation."
-- **Type C convergence (False Consensus)**: Both models agree, but neither provides a concrete mechanism, independent evidence, or specific scenario — agreement is based on surface plausibility or deference to the other model. Apply per §AntiConsensus: confidence is automatically downgraded one level (High → Medium, Medium → Low). If a Type C finding ranks in the Top 3, MELCHIOR MUST construct an adversarial objection against it regardless of depth level.
-- **Type D convergence (Shared Blind Spot)**: All models/personas agree on a **methodological choice** (metric definition, null model, analytical framework, measurement protocol) that none independently derived or validated — they adopted it as a shared unexamined assumption. Type D triggers a mandatory **methodological audit**: MELCHIOR must either (a) provide independent justification for the shared assumption (cite a derivation, validation study, or limiting-case argument), or (b) flag it as an unvalidated assumption with confidence downgrade one level. **Type D detection heuristic**: For each top finding, ask "What metric or method do ALL sources use without questioning? Could a different reasonable metric yield a contradictory result?" If yes, classify as Type D.
-
-**Intertextual Addition** (mandatory, all depths):
-You MUST add at least one perspective, connection, or counter-argument from your own knowledge that no model raised. Mark with **[MELCHIOR]**. This is NOT derived from model outputs — it is your independent intellectual contribution as the third MAGI personality.
-
-1. Read all available documents:
-   - `weights.json`, `personas.md`
-   - All N `persona_{i}/conclusion.md` files
-   - `meta_review_gemini.md`, `meta_review_codex.md`
-   - `meta_debate_gemini.md`, `meta_debate_codex.md`
-
-**Scope Divergence Check** (mandatory for `--depth max`):
-Compare scope declarations from Step 1-max-a model outputs. If personas interpreted the question with substantially different scope:
-- Note in synthesis: "**Scope Note**: [Persona A] interpreted this as [X]; [Persona B] interpreted this as [Y]. This synthesis covers both interpretations — reply to narrow if needed."
-- If scopes are aligned: omit this section.
-
-2. Load `weights.json` and check `_meta.method`:
-   - **If `method` is `"holistic"`**: Use holistic ranking — Claude reads all persona conclusions, meta-reviews, and debate resolutions, then directly ranks research findings based on integrated expert judgment. **No numeric dimension scores are computed.** For each finding, provide a **Ranking Rationale** (3-5 sentences) that references specific persona arguments, cross-persona consensus/disagreement, and debate outcomes. Explicitly compare against adjacent-ranked findings.
-   - **If `method` is not `"holistic"`**: Compute **weighted scores** for each research finding (same 0-10 rating per dimension, weighted sum).
-3. Produce an **enriched `brainstorm/synthesis.md`** — a research analysis that preserves the core scientific reasoning, mathematical formulations, testable predictions, and falsification conditions from persona conclusions. The synthesis must explain WHY each approach works (mechanism), not just WHAT to do (action plan). Structure:
-   1. **Personas Used** — table of N personas with name, expertise summary, and primary lens
-   2. **Scoring Method** — document the ranking approach:
-      - **Holistic mode**: State "Holistic Expert Judgment" and explain that findings were ranked by integrated assessment across all personas, meta-reviews, and debates without numeric weights
-      - **Weighted mode**: Show the weights used for ranking (from `weights.json`), including `_meta.method` (explicit, adaptive-recommended, domain-default, or custom)
-   3. **Top Research Findings** (Core Findings, Top 5) — ranked. Present the top 5 findings using the full narrative structure below. Each finding: 300-600 words. For each finding:
-      - **(a) Mechanism Narrative** (150-250 words, continuous prose, REQUIRED) — Explain the causal or mathematical mechanism step by step; preserve key equations, variable meanings, and derivation paths from persona conclusions. If a persona conclusion contains a mathematical formulation, reproduce it here with attribution.
-      - **(b) Mathematical Core & Predictions** — Preserve key equations inline from persona conclusions. Include specific numerical predictions with error bars where available.
-      - **(c) Falsification Criteria** — What result would disprove this finding?
-      - **(d) T7 Summary Footer** — Compact reference (each field 1-2 sentences): Motivation, Expected Effects, Side Effects, Key Evidence, Confidence
-      - **(e) Ranking Rationale**:
-        - **[Holistic mode]** 3-5 sentence justification referencing persona arguments, cross-persona consensus, and debate outcomes
-        - **[Weighted mode]** Score breakdown per dimension
-      - **(f) [MELCHIOR] Verdict**: Opus's independent judgment on this finding:
-        - **Endorse**: "I endorse this finding because [reason distinct from the finding's own stated reasoning]. [Reservation, if any.]"
-        - **Revise**: "I revise: [original claim] → [revised claim]. Reason: [explanation]."
-        - **Reject/Demote**: "I reject this finding's current ranking. Reason: [explanation]. Demoted to [new tier]. Promoted replacement: [candidate]."
-      - Which personas supported this finding
-   4. **Appendix: Additional Findings** — For findings ranked 6+, provide a structured summary table: `| Finding | Core Claim (1 sentence) | Key Equation/Metric | Predicted Outcome | Source Persona(s) | Confidence |`. Do NOT omit mathematical content — condense it into the Key Equation column.
-   5. **Cross-Persona Consensus** — ideas where 3+ personas independently converged
-   6. **Unique Contributions** — valuable ideas that only a single persona identified
-   7. **Debate Resolution** — for each of the 3 debated disagreements: the original tension, how each meta-reviewer responded (defend/concede/revise), and the synthesized resolution
-   8. **Cross-Validation Connections** — Unexpected connections between different personas' conclusions: where independent analyses converge on the same prediction, contradict each other, or reveal complementary mechanisms. These cross-persona connections are the unique value of synthesis that cannot be found in any individual conclusion.
-   9. **Emergent Insights** — patterns or connections visible only from the cross-persona vantage point that no individual persona captured
-   10. **Prior vs. Posterior** — document which prior expectations (from Prior Declaration) were confirmed, overturned, and what was unexpected
-   11. **Synthesis Epilogue (T8)** — Research Gaps, Non-Recommendations, Next Three Steps (see T8 template)
-   12. **Recommended Path Forward** — Claude's top recommendation with reasoning grounded in the multi-persona analysis
-   13. **MAGI Process Traceability** — table mapping each conclusion to its source persona, layer, and artifact file path
-
-4. **[MELCHIOR] Comprehensive Self-Review** (mandatory, revision trigger):
-
-   After writing the full synthesis but BEFORE the mechanical checklist, MELCHIOR re-reads the entire synthesis as a critical reviewer. This is a holistic quality gate — not a line-item check. Append the review as a `## MELCHIOR Comprehensive Review` section at the end of synthesis.md (after Traceability, before the mechanical checklist edits).
-
-   Evaluate the synthesis on these five axes. For each axis, write 2-4 sentences of assessment and a **verdict** (PASS / REVISE):
-
-   **(a) Question Fidelity** — Do the top findings actually answer the original research question? Or has the synthesis drifted to an easier adjacent question? Compare the original topic (from `.workspace.json`) against what the top 3 findings collectively address. If there is drift, name it: "The original question asked X, but findings 1-3 address Y instead."
-
-   **(b) Inter-Finding Coherence** — Do the Top 5 findings form a coherent research narrative, or do they contradict each other? If contradictions exist, are they explicitly acknowledged as productive tensions (acceptable) or unintentional inconsistencies (must fix)?
-
-   **(c) Aggregate Mechanism Audit** — Looking at the Top 5 as a set: how many propose a genuinely new causal mechanism vs. restate known domain knowledge in new vocabulary? Count: "N/5 findings propose novel mechanisms; M/5 are refinements of known approaches." If N < 2, flag as a quality concern.
-
-   **(d) Causal vs. Diagnostic Balance** — Across ALL Next Three Steps entries: count the step types. Report the ratio: "Intervention/Ablation/Null: X steps. Empirical/Design/Review: Y steps." If no Intervention, Ablation, or Null steps exist in the entire synthesis, this is a **mandatory REVISE** — go back and add at least one causal step per Tier 1 finding.
-
-   **(e) Blind Spot Confession** — Name 1-2 questions that this synthesis does NOT address but that a domain expert would ask. These are not failures but honest scope limits. Format: "This synthesis does not address: [question]. Why: [reason — time constraint / outside persona expertise / insufficient data]."
-
-   **Revision protocol**: If any axis yields REVISE, go back and fix the corresponding section of the synthesis BEFORE proceeding. After revision, update the review verdict to PASS with a note: "REVISED — originally failed because [reason], fixed by [action]." Only proceed to step 5 when all five axes are PASS.
-
-5. After completing the self-review and any revisions, verify (mechanical checklist):
-   - [ ] Each top finding explains WHY the approach works (causal mechanism), not just WHAT to measure
-   - [ ] **Mechanism Depth Test**: For each top finding, substitute the key mechanism term (e.g., "spectral bias", "inductive bias") with the generic phrase "something about the architecture." If the finding still makes the same prediction with the same specificity, the mechanism is a **re-description, not an explanation** — demote it from a finding to a "framing" and move it to the Appendix. Promote the next candidate.
-   - [ ] Each top finding contains at least one equation or specific numerical prediction from persona conclusions
-   - [ ] Operational content (GPU hours, timeline, risk ratings) is below 15% of total length; if exceeded, move excess to an appendix
-   - [ ] At least one **[MELCHIOR]** marker exists in the synthesis (Intertextual Addition fulfilled)
-   - [ ] Each top finding has an (f) [MELCHIOR] Verdict (Endorse/Revise/Reject with reason)
-   - [ ] Prior Declaration exists with ≥2 specific mechanisms named (not just domain keywords)
-   - [ ] Convergence Interrogation Type A/B/D classification exists for convergent findings
-   If any check fails, revise the relevant finding before finalizing.
-6. Save to `brainstorm/synthesis.md`.
-
-**Retroactive Question Crystallization** (always, all depths):
-After completing the ranked synthesis, examine the top 5 findings and identify the research question they collectively answer. If this crystallized question differs substantively from the original input:
-- Append a "**Note on Question Scope**" section: "The brainstorm converged around: *'[crystallized question]'*. This is [narrower/broader/differently-framed] than your original question. If you intended the original framing, consider re-running with scope: [adjusted scope]."
-- If the crystallized question matches the original: omit this section entirely.
+> **If `--depth` is not `max`**: Skip entirely. Use Steps 1a/1b/1b+/1c instead.
+> **Read `references/depth_max.md`** for the complete Layer 1-3 pipeline:
+> - **Step 1-max-a**: Spawn N parallel persona subagents, each running a mini-MAGI (brainstorm + cross-review + conclusion)
+> - **Step 1-max-b**: Collect and consolidate persona outputs into `all_conclusions.md`
+> - **Step 1-max-c**: Meta-review + evidence anchoring (Phase B+) + adversarial debate
+> - **Step 1-max-d**: MELCHIOR Philosopher-Arbiter synthesis with Prior Declaration
 
 ### Step 1c: Claude Synthesis
 
-> **If `--depth max`**: Skip — synthesis is produced by Step 1-max-d above.
+> **If `--depth max`**: Skip — synthesis is produced by Step 1-max-d in `references/depth_max.md`.
 
 **MELCHIOR Active Synthesis Protocol** (depth-conditional):
 
@@ -738,9 +500,13 @@ You are MELCHIOR — the third personality in the MAGI triad, not a neutral aggr
 
 - `--depth low` — **MELCHIOR as Curator**: Select and present findings. You MUST add at least one **[MELCHIOR]** original observation that neither model raised. For each finding not selected for the top list, state why it was excluded.
 - `--depth medium` — **MELCHIOR as Critical Editor**: You MUST revise at least one substantive claim from each model (a revision changes the recommended action, predicted outcome, or confidence level — phrasing changes do not count). Apply **Convergence Interrogation** (see below). Mark all original contributions with **[MELCHIOR]**.
-- `--depth high` — **MELCHIOR as Adversarial Critic**: For the top 2 findings, construct the strongest possible objection. If the objection is fatal, demote the finding and promote the next candidate. Rankings must reflect adversarial survival, not just model consensus.
+- `--depth high` — **MELCHIOR as Adversarial Critic**: For the top 2 findings, construct the strongest possible objection. If the objection is fatal, demote the finding and promote the next candidate. Rankings must reflect adversarial survival, not just model consensus. When `claim_evidence.md` exists, cite real-world evidence in objections.
+- `--depth auto` — MELCHIOR role is determined by the escalation decision from Step 1b-esc:
+  - Remained at medium → **Critical Editor** (same as `--depth medium` above)
+  - Escalated to high → **Adversarial Critic** (same as `--depth high` above)
+  - Escalated to deep → **Adversarial Critic (Enhanced)**: Same as Adversarial Critic, plus: (1) for each of the 3 deeply investigated contested ideas, read `deep_investigation_{i}_pro.md` and `deep_investigation_{i}_con.md` and adjudicate which side has stronger evidence; (2) explicitly state whether the deep investigation changed the idea's ranking vs. the pre-investigation assessment; (3) apply a stricter adversarial threshold — objections must cite real-world evidence from `claim_evidence.md` when available, not just model reasoning.
 
-**Convergence Interrogation** (mandatory for `--depth medium|high`):
+**Convergence Interrogation** (mandatory for `--depth medium|high` or escalated `auto`):
 For each finding that appears in both models' outputs, classify as:
 - **Type A convergence**: Models arrived via different reasoning paths or evidence. No confidence adjustment.
 - **Type B convergence**: Both models cite the same named source, method, or prior result. Apply confidence note: "Type B convergence — shared training reference, not independent validation."
@@ -752,9 +518,12 @@ You MUST add at least one perspective, connection, or counter-argument from your
 
 1. Read all available documents:
    - Always: `gemini_ideas.md`, `codex_ideas.md`
-   - If `--depth medium` or `high`: `gemini_review_of_codex.md`, `codex_review_of_gemini.md`
-   - If `--depth high`: `debate_round2_gemini.md`, `debate_round2_codex.md`
+   - If `--depth medium` or `high` (or escalated from `auto`): `gemini_review_of_codex.md`, `codex_review_of_gemini.md`
+   - If `--depth high` (or escalated from `auto`): `debate_round2_gemini.md`, `debate_round2_codex.md`
+   - If evidence anchoring ran: `claim_evidence.md`
+   - If `--depth auto` escalated to deep: `deep_investigation_{1..3}_pro.md`, `deep_investigation_{1..3}_con.md`, `escalation_analysis.md`
    - Always: `weights.json`, `personas.md`
+   - If pre-flight ran: `preflight_context.md` (for MELCHIOR's direct reference to literature)
 
 **Scope Divergence Check** (mandatory for `--depth medium|high`):
 Compare scope declarations from Step 1a model outputs. If models interpreted the question with substantially different scope:
@@ -791,9 +560,12 @@ Compare scope declarations from Step 1a model outputs. If models interpreted the
    - **Appendix: Additional Findings** — For findings ranked 6+, provide a structured summary table: `| Finding | Core Claim (1 sentence) | Key Equation/Metric | Predicted Outcome | Source Model(s) | Confidence |`. Do NOT omit mathematical content — condense it into the Key Equation column.
    - **Consensus Points** — ideas both models agreed on
    - **Divergence Points** — areas of disagreement and how to resolve them
-   - **Debate Resolution** (`--depth high` only) — for each of the 3 debated disagreements, document the final resolution: who conceded, what was revised, and the synthesized position
+   - **Debate Resolution** (`--depth high` or escalated from `auto`) — for each of the 3 debated disagreements, document the final resolution: who conceded, what was revised, and the synthesized position. If `claim_evidence.md` was used, note which real-world evidence influenced the resolution.
+   - **Deep Investigation Results** (`--depth auto` escalated to deep only) — for each of the 3 deeply investigated contested ideas: summarize the pro/con arguments, cite evidence, and state how the deep investigation affected the idea's ranking. Format: "**Contested Idea: [title]** — Pro: [summary]. Con: [summary]. Evidence tilts: [toward/against/inconclusive]. Ranking effect: [promoted/demoted/unchanged]."
+   - **Evidence Grounding** (`--depth high+` or escalated from `auto`, if `claim_evidence.md` exists) — summary of how real-world evidence from the evidence anchoring step influenced the synthesis. Format: "**Literature-Grounded Adjustments**: [N] findings had their confidence adjusted based on published evidence. Key papers: [2-3 most influential papers with DOIs]."
    - **Cross-Validation Connections** — Unexpected connections between different models' outputs: where independent analyses converge on the same prediction, contradict each other, or reveal complementary mechanisms. These cross-model connections are the unique value of synthesis that cannot be found in any individual brainstorm output.
    - **Emergent Insights** — patterns or connections visible only when combining both models' outputs that neither model captured individually
+   - **Depth Escalation Trace** (`--depth auto` only) — record the auto-escalation decision for traceability. Copy the key metrics from `escalation_analysis.md`: contention score, decision, top contested ideas.
    - **Synthesis Epilogue (T8)** — Research Gaps, Non-Recommendations, Next Three Steps (see T8 template)
    - **MAGI Process Traceability** — table mapping each ranked finding to its source model(s) and artifact file path(s) (e.g., which ideas came from Gemini vs. Codex, which reviews supported/challenged them)
    - **Recommended Path Forward** — Claude's recommendation with reasoning
@@ -823,7 +595,10 @@ Compare scope declarations from Step 1a model outputs. If models interpreted the
    - [ ] Operational content (GPU hours, timeline, risk ratings) is below 15% of total length; if exceeded, move excess to an appendix
    - [ ] At least one **[MELCHIOR]** marker exists in the synthesis (Intertextual Addition fulfilled)
    - [ ] Each top finding has an (f) [MELCHIOR] Verdict (Endorse/Revise/Reject with reason)
-   - [ ] Convergence Interrogation Type A/B/D classification exists for convergent findings [`--depth medium|high`]
+   - [ ] Convergence Interrogation Type A/B/D classification exists for convergent findings [`--depth medium|high` or escalated `auto`]
+   - [ ] If `claim_evidence.md` exists: at least one finding's confidence or ranking was informed by real-world evidence, or an explicit note explains why no adjustment was needed [`--depth high+` or escalated `auto`]
+   - [ ] If `--depth auto`: "Depth Escalation Trace" section exists in synthesis with contention score and decision
+   - [ ] If `--depth auto` escalated to deep: "Deep Investigation Results" section exists with pro/con adjudication for each contested idea
    If any check fails, revise the relevant finding before finalizing.
 6. Save to `brainstorm/synthesis.md`.
 
@@ -843,43 +618,53 @@ Wait for user input before proceeding.
 
 ## Output Files
 
-**`--depth low|medium|high`:**
+**`--depth low|medium|high|auto`:**
 ```
 brainstorm/
-├── weights.json                  # Scoring weights + selection metadata (always)
-├── personas.md                   # Assigned expert personas (always)
-├── gemini_ideas.md               # Gemini brainstorm output (always)
-├── codex_ideas.md                # Codex brainstorm output (always)
-├── gemini_review_of_codex.md     # Cross-review (--depth medium|high)
-├── codex_review_of_gemini.md     # Cross-review (--depth medium|high)
-├── disagreements.md              # Disagreement summary for debate (--depth high only)
-├── debate_round2_gemini.md       # Adversarial debate (--depth high only)
-├── debate_round2_codex.md        # Adversarial debate (--depth high only)
-└── synthesis.md                  # Claude synthesis (always)
+├── weights.json                      # Scoring weights + selection metadata (always)
+├── personas.md                       # Assigned expert personas (always)
+├── preflight_context.md              # Pre-flight literature context (--depth medium+)
+├── briefing_gemini.md                # Persona-specific briefing for Gemini (--depth medium+)
+├── briefing_codex.md                 # Persona-specific briefing for Codex (--depth medium+)
+├── gemini_ideas.md                   # Gemini brainstorm output (always)
+├── codex_ideas.md                    # Codex brainstorm output (always)
+├── gemini_review_of_codex.md         # Cross-review (--depth medium|high|auto)
+├── codex_review_of_gemini.md         # Cross-review (--depth medium|high|auto)
+├── escalation_analysis.md            # Depth escalation decision (--depth auto only)
+├── claim_evidence.md                 # Evidence for disputed claims (--depth high, or auto escalated)
+├── disagreements.md                  # Disagreement summary for debate (--depth high, or auto escalated)
+├── debate_round2_gemini.md           # Adversarial debate (--depth high, or auto escalated)
+├── debate_round2_codex.md            # Adversarial debate (--depth high, or auto escalated)
+├── deep_investigation_{i}_pro.md     # Pro argument for contested idea i (--depth auto→deep only)
+├── deep_investigation_{i}_con.md     # Con argument for contested idea i (--depth auto→deep only)
+└── synthesis.md                      # Claude synthesis (always)
 ```
 
 **`--depth max`:**
 ```
 brainstorm/
-├── weights.json                  # Scoring weights + selection metadata
-├── personas.md                   # N domain-specialist personas
-├── persona_1/                    # Persona 1 mini-MAGI output
+├── weights.json                      # Scoring weights + selection metadata
+├── personas.md                       # N domain-specialist personas
+├── preflight_context.md              # Pre-flight literature context
+├── briefing_persona_{i}.md           # Per-persona briefing (one per persona)
+├── persona_1/                        # Persona 1 mini-MAGI output
 │   ├── gemini_ideas.md
 │   ├── codex_ideas.md
 │   ├── gemini_review_of_codex.md
 │   ├── codex_review_of_gemini.md
 │   └── conclusion.md
-├── persona_2/                    # Persona 2 mini-MAGI output
-│   └── ...                       # (same 5 files)
-├── persona_N/                    # Persona N mini-MAGI output
+├── persona_2/                        # Persona 2 mini-MAGI output
+│   └── ...                           # (same 5 files)
+├── persona_N/                        # Persona N mini-MAGI output
 │   └── ...
-├── all_conclusions.md            # Consolidated persona conclusions for Layer 2
-├── meta_review_gemini.md         # Gemini meta-review of all conclusions
-├── meta_review_codex.md          # Codex meta-review of all conclusions
-├── meta_disagreements.md         # Meta-disagreement summary for debate
-├── debate_context_for_gemini.md  # Consolidated: disagreements + Codex meta-review
-├── debate_context_for_codex.md   # Consolidated: disagreements + Gemini meta-review
-├── meta_debate_gemini.md         # Adversarial debate — Gemini
-├── meta_debate_codex.md          # Adversarial debate — Codex
-└── synthesis.md                  # Enriched final synthesis
+├── all_conclusions.md                # Consolidated persona conclusions for Layer 2
+├── meta_review_gemini.md             # Gemini meta-review of all conclusions
+├── meta_review_codex.md              # Codex meta-review of all conclusions
+├── meta_disagreements.md             # Meta-disagreement summary for debate
+├── meta_claim_evidence.md            # Evidence for meta-level disputed claims (Phase B+)
+├── debate_context_for_gemini.md      # Consolidated: disagreements + Codex meta-review + evidence
+├── debate_context_for_codex.md       # Consolidated: disagreements + Gemini meta-review + evidence
+├── meta_debate_gemini.md             # Adversarial debate — Gemini
+├── meta_debate_codex.md              # Adversarial debate — Codex
+└── synthesis.md                      # Enriched final synthesis
 ```

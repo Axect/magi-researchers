@@ -46,6 +46,17 @@ See §Claude-Only and §Substitute in shared rules. This skill uses Teacher/Crit
 ### LaTeX Formatting Rules
 See §LaTeX in shared rules.
 
+### Reusable Templates
+
+| ID | Name | Purpose |
+|---|---|---|
+| T1 | Audience Weight Defaults | Per-audience baseline weights table |
+| T2 | Step 0a Procedure | Full adaptive weight recommendation logic (signal table, normalization, save format) |
+| T3 | explanation.md Template | Section structure, word count targets, quality checklist |
+| T4 | Output File Trees | Expected artifact layout per depth level |
+
+Read `references/templates.md` for full definitions.
+
 When this skill is invoked, follow these steps exactly:
 
 ### Step 0: Setup
@@ -74,7 +85,7 @@ When this skill is invoked, follow these steps exactly:
    - **If `--weights` is explicitly provided**: Validate that keys are a subset of {`clarity`, `accuracy`, `depth`, `accessibility`, `completeness`, `engagement`} and values sum to 1.0. Save immediately to `explain/weights.json` with metadata:
      ```json
      {
-       "weights": { <user-provided weights> },
+       "weights": { "<user-provided weights>" },
        "_meta": {
          "method": "explicit",
          "domain": "<detected domain>",
@@ -83,14 +94,7 @@ When this skill is invoked, follow these steps exactly:
      }
      ```
      Skip Step 0a entirely.
-   - **If `--weights` is not provided**: Load audience defaults as a **baseline reference only** (do not save yet — Step 0a will handle saving after user confirmation):
-   - `general-public`: `{"clarity": 0.25, "accuracy": 0.15, "depth": 0.10, "accessibility": 0.25, "completeness": 0.10, "engagement": 0.15}`
-   - `high-school`: `{"clarity": 0.22, "accuracy": 0.18, "depth": 0.12, "accessibility": 0.20, "completeness": 0.12, "engagement": 0.16}`
-   - `undergraduate`: `{"clarity": 0.20, "accuracy": 0.20, "depth": 0.15, "accessibility": 0.15, "completeness": 0.15, "engagement": 0.15}`
-   - `phd-student`: `{"clarity": 0.15, "accuracy": 0.25, "depth": 0.20, "accessibility": 0.10, "completeness": 0.20, "engagement": 0.10}`
-   - `researcher`: `{"clarity": 0.10, "accuracy": 0.25, "depth": 0.25, "accessibility": 0.05, "completeness": 0.25, "engagement": 0.10}`
-   - `expert`: `{"clarity": 0.05, "accuracy": 0.30, "depth": 0.25, "accessibility": 0.05, "completeness": 0.30, "engagement": 0.05}`
-   - For free-text audiences: Use `phd-student` as the baseline, then adjust in Step 0a based on the audience description.
+   - **If `--weights` is not provided**: Load the audience baseline from **T1** in `references/templates.md` as a reference only (do not save yet — Step 0a handles saving after user confirmation).
 8. **Parse `--depth`**: Accept `low`, `medium`, `high`, or `max` (default: `medium`).
    - `low` — Skip Phase 1 entirely; Claude generates explanation directly (jump to Step 2)
    - `medium` — Full MAGI + one-shot cross-review → strategy synthesis → explanation
@@ -104,70 +108,9 @@ When this skill is invoked, follow these steps exactly:
 ### Step 0a: Adaptive Weight Recommendation
 
 > **If `--weights` was explicitly provided**: Skip this step entirely (weights already saved in Step 0).
+> **Full procedure**: Read **T2** in `references/templates.md` for the signal detection table, normalization rules, user confirmation flow, and `weights.json` save format.
 
-When `--weights` is omitted, Claude analyzes the concept and audience to recommend context-appropriate weights:
-
-1. **Analyze the concept and audience** for explanation-nature signals:
-
-   | Signal | Example Keywords | Effect |
-   |--------|-----------------|--------|
-   | Highly abstract/formal | proof, axiom, topology, category theory | accuracy↑, depth↑, accessibility↓ |
-   | Intuitive/visual concept | geometry, flow, wave, phase space | clarity↑, engagement↑ |
-   | Counterintuitive concept | paradox, entanglement, Monty Hall | engagement↑, accuracy↑ |
-   | Prerequisite-heavy | requires: linear algebra, measure theory | completeness↑, accessibility↓ |
-   | Common misconceptions exist | entropy, natural selection, p-value | accuracy↑, clarity↑ |
-   | Applied/practical | algorithm, protocol, technique, tool | accessibility↑, engagement↑ |
-   | Foundational/core concept | fundamental, basis, definition | completeness↑, accuracy↑ |
-   | Broad/survey topic | overview, introduction, survey | completeness↑, depth↓ |
-   | Narrow/advanced topic | specific theorem, edge case, subtlety | depth↑, accessibility↓ |
-
-2. **Generate recommended weights**: Starting from the audience baseline loaded in Step 0, apply adjustments based on detected signals:
-   - Each signal adjusts relevant dimensions by ±0.05 to ±0.10
-   - After all adjustments, **normalize** so values sum to 1.0
-   - **Clamp** each dimension to the range [0.05, 0.45] before final normalization
-
-3. **Present a comparison table** to the user:
-
-   ```
-   Detected signals: [list of signals found in the concept/audience]
-
-   | Dimension       | Audience Default | Recommended | Adjustment Reason               |
-   |-----------------|-----------------|-------------|----------------------------------|
-   | clarity         | 0.15            | 0.20        | +0.05 (counterintuitive concept) |
-   | accuracy        | 0.25            | 0.30        | +0.05 (common misconceptions)    |
-   | depth           | 0.20            | 0.15        | -0.05 (broad survey topic)       |
-   | accessibility   | 0.10            | 0.10        | (no change)                      |
-   | completeness    | 0.20            | 0.15        | -0.05 (narrow scope)             |
-   | engagement      | 0.10            | 0.10        | (no change)                      |
-   ```
-
-4. **Ask the user for confirmation** using `AskUserQuestion`:
-   - Option A: **"Accept recommended weights"** (Recommended) — use the adaptive weights
-   - Option B: **"Use audience defaults"** — use the unmodified audience baseline
-   - Other: User provides custom weights as JSON
-
-   If the user provides custom weights: validate keys and sum. Maximum 1 retry on invalid input; fall back to audience defaults on continued failure.
-
-5. **Save to `explain/weights.json`** with metadata based on the user's choice:
-   ```json
-   {
-     "weights": { <chosen weights> },
-     "_meta": {
-       "method": "<adaptive-recommended|audience-default|custom>",
-       "domain": "<detected domain>",
-       "audience": "<detected audience>",
-       "audience_defaults": { <original audience baseline> },
-       "signals_detected": ["counterintuitive concept", "common misconceptions", ...],
-       "adjustments_applied": {
-         "accuracy": "+0.05 (common misconceptions)",
-         "clarity": "+0.05 (counterintuitive concept)"
-       }
-     }
-   }
-   ```
-   - If "Accept recommended": `method` = `"adaptive-recommended"`
-   - If "Use audience defaults": `method` = `"audience-default"`, `signals_detected` and `adjustments_applied` are still recorded for traceability
-   - If custom JSON: `method` = `"custom"`
+When `--weights` is omitted: detect concept/audience signals → adjust baseline weights → present comparison table → ask user for confirmation (Accept recommended / Use audience defaults / Custom JSON) → save to `explain/weights.json`.
 
 ### Step 0b: Dynamic Persona Casting
 
@@ -180,7 +123,7 @@ After setup, Claude analyzes the concept, domain, and audience to assign special
 1. Analyze the concept's sub-topics, prerequisite structure, common misconceptions, and audience needs.
 2. Assign a **Teacher persona (Agent A / Gemini)** — an expert communicator profile suited for explaining this concept to the target audience (e.g., "Richard Feynman — Intuitive Physics Explainer" or "3Blue1Brown-style Visual Mathematics Educator"). The Teacher's job is to **draft the best possible explanation**.
 3. Assign a **Critic persona (Agent B / Codex)** — a pedagogical analyst profile suited for finding flaws in explanations (e.g., "George Pólya — Mathematical Problem-Solving Analyst" or "Cognitive Science Assessment Specialist"). The Critic's job is to **identify prerequisites, misconceptions, confusion neighbors, and calibration questions**.
-4. Each persona definition should include: name/title, expertise areas (3-5 bullet points), and a guiding question that shapes their perspective. **Name the persona after a real historical figure (위인) whose work is closely related to the persona's domain** (e.g., a physics explainer → "Richard Feynman", a mathematics pedagogue → "George Pólya", a statistical educator → "Florence Nightingale"). This immediately signals the persona's intellectual lineage and communication style.
+4. Each persona definition should include: name/title, expertise areas (3-5 bullet points), and a guiding question that shapes their perspective. **Name the persona after a real historical figure (위인) whose work is closely related to the persona's domain**. This immediately signals the persona's intellectual lineage and communication style.
 5. Personas are **complementary**: the Teacher builds understanding, the Critic stress-tests it.
 6. **If `--claude-only`**: Relabel the personas in `explain/personas.md`:
    - "Teacher persona (Gemini)" → "Subagent A (Creative-Divergent, Teacher)"
@@ -189,41 +132,14 @@ After setup, Claude analyzes the concept, domain, and audience to assign special
 7. Save to `explain/personas.md`.
 
 **For `--depth max` (N personas):**
-
-1. Analyze the concept's sub-topics, prerequisite structure, common misconceptions, and audience needs.
-2. **Determine N** (if `--personas auto`):
-   - Evaluate the concept along these dimensions:
-     - **Conceptual layering**: How many distinct conceptual layers does this explanation require?
-     - **Prerequisite diversity**: Does it require knowledge from multiple distinct fields?
-     - **Misconception density**: Are there many common misconceptions or confusion neighbors?
-   - Selection heuristic:
-     - **N=2**: Simple concept within a single field (e.g., "what is a derivative?")
-     - **N=3**: Standard concept spanning theory, intuition, and application (e.g., "entropy in information theory")
-     - **N=4**: Multi-faceted concept requiring historical, theoretical, applied, and pedagogical perspectives, or highly interdisciplinary/deeply misunderstood concept (e.g., "gauge symmetry in physics", "quantum entanglement")
-   - Announce the chosen N and reasoning to the user before proceeding.
-   - If `--personas` was given as an explicit integer (2-4), use that value directly and skip this analysis.
-3. Cast **N explanation-specialist personas** (model-independent — each persona runs both Gemini and Codex):
-   - **N=2**: Intuitive Explainer, Rigorous Formalist
-   - **N=3**: Intuitive Explainer, Rigorous Formalist, Applied Practitioner
-   - **N=4**: + Historical/Conceptual Genealogist or Misconception Hunter / Devil's Advocate (based on concept)
-4. Each persona definition must include:
-   - **Name/title** — **Use a real historical figure (위인) whose work aligns with this persona's domain** (e.g., "Richard Feynman — Intuitive Physics Explainer", "Emmy Noether — Abstract Structure Specialist", "John Tukey — Practical Data Analyst"). The figure's intellectual legacy should resonate with the persona's explanatory lens.
-   - **Expertise areas** (3-5 bullet points)
-   - **Guiding question** that shapes their perspective
-   - **Primary lens** (one sentence summarizing their explanatory viewpoint)
-5. Personas are **complementary** — they should cover distinct dimensions of the explanation space with minimal overlap.
-6. **If `--claude-only`**: Within each persona's mini-MAGI pipeline, relabel the internal model roles:
-   - "Gemini" → "Expansive Explorer" (pushes boundaries, explores emerging approaches, proposes frontier ideas)
-   - "Codex" → "Grounded Builder" (focuses on proven approaches, clear implementation paths, established tools)
-   - Include these cognitive style directives in the persona file so subagents receive them directly.
-7. Save to `explain/personas.md`.
+> **Read `references/depth_max.md` — "Step 0b (depth max)" section** for the full N-persona casting procedure (N selection heuristic, persona archetypes N=2/3/4, definition requirements, claude-only relabeling).
 
 ### Step 1a: Parallel Asymmetric Analysis (`--depth medium|high|max`)
 
 > **If `--depth low`**: Skip this step entirely and proceed to Step 2.
-> **If `--depth max`**: Skip this step — use Steps 1-max-a through 1-max-d instead.
+> **If `--depth max`**: Skip this step — use Steps 1-max-a through 1-max-d instead (read `references/depth_max.md`).
 
-Execute these two calls **simultaneously** (in the same message). **Prepend the assigned persona** from `explain/personas.md` to each prompt. Note: Unlike brainstorming (which uses `brainstorm` tools for both agents), explanation uses `ask-gemini` and `ask-codex` for role-specific prompts.
+Execute these two calls **simultaneously** (in the same message). **Prepend the assigned persona** from `explain/personas.md` to each prompt.
 
 **Agent A — Teacher Draft (Gemini):**
 ```
@@ -359,7 +275,7 @@ Save results to:
 
 > **If `--depth low` or `--depth medium`**: Skip this step entirely.
 
-After Round 1 cross-review, Claude identifies the **top 3 points of disagreement** between the Teacher and Critic, focusing on these explanation-specific criteria:
+After Round 1 cross-review, Claude identifies the **top 3 points of disagreement** between the Teacher and Critic, focusing on:
 - **Misconception risk**: Disagreement on whether an explanation approach reinforces misconceptions
 - **Analogy fidelity**: Disagreement on whether an analogy is accurate enough or dangerously misleading
 - **Precision-accessibility tradeoff**: Disagreement on where the acceptable simplification boundary lies for this audience
@@ -428,192 +344,20 @@ Save results to:
 - `explain/debate_round2_gemini.md`
 - `explain/debate_round2_codex.md`
 
-### Step 1-max-a: Layer 1 — Parallel Persona Subagents (`--depth max` only)
+### Steps 1-max-a through 1-max-d: Hierarchical MAGI-in-MAGI (`--depth max` only)
 
-> **If `--depth` is not `max`**: Skip Steps 1-max-a through 1-max-d entirely. Use Steps 1a/1b/1b+/1c instead.
+> **Skip unless `--depth max`**. Read `references/depth_max.md` for all four steps.
+> These steps replace Steps 1a/1b/1b+/1c entirely when `--depth max` is active.
 
-Spawn **N Task subagents simultaneously** (one per persona, `subagent_type: general-purpose`). Each subagent receives the persona definition and executes a self-contained mini-MAGI pipeline:
-
-**Each subagent prompt includes:**
-1. The persona definition (name, expertise, guiding question, primary lens) from `explain/personas.md`
-2. The concept, audience, and domain template (if available)
-3. The following 5-step execution plan:
-
-   **A. Gemini Explanation Draft** — Call `mcp__gemini-cli__ask-gemini` with the persona's viewpoint to generate an explanation draft from this persona's perspective. Save to `explain/persona_{i}/gemini_ideas.md`.
-
-   **B. Codex Critical Analysis** — Call `mcp__codex-cli__ask-codex` with the persona's viewpoint to generate a critical analysis (prerequisites, misconceptions, confusion neighbors) from this perspective. Save to `explain/persona_{i}/codex_ideas.md`.
-
-   > **If `--claude-only`**: Per §SubagentExec, spawn **simultaneously** within each persona subagent:
-   > - **A'** (Expansive Explorer): Explanation draft from persona's perspective. Same 5-section deliverables as Step 1a Agent A. Save to `explain/persona_{i}/gemini_ideas.md`.
-   > - **B'** (Grounded Builder): Critical analysis from persona's perspective. Same 5-section deliverables as Step 1a Agent B. Save to `explain/persona_{i}/codex_ideas.md`.
-
-   **C+D. Cross-Review (simultaneous):**
-   - Gemini (Teacher) reviews Codex analysis using `@{output_dir}/explain/persona_{i}/codex_ideas.md` → save to `explain/persona_{i}/gemini_review_of_codex.md`
-   - Codex (Critic) reviews Gemini draft using `@{output_dir}/explain/persona_{i}/gemini_ideas.md` → save to `explain/persona_{i}/codex_review_of_gemini.md`
-
-   > **If `--claude-only`**: Per §SubagentExec, spawn **simultaneously**:
-   > - **C'** (Expansive Explorer): Review `codex_ideas.md` — same 5 review dimensions as Step 1b Agent A. Save to `explain/persona_{i}/gemini_review_of_codex.md`.
-   > - **D'** (Grounded Builder): Review `gemini_ideas.md` — same 6 evaluation dimensions as Step 1b Agent B. Per issue: passage + why + fix. Save to `explain/persona_{i}/codex_review_of_gemini.md`.
-
-   **E. Persona Conclusion** — The subagent synthesizes its top explanation strategies and key pedagogical insights, noting areas of internal agreement and disagreement between the two models (or two cognitive styles in claude-only mode). Save to `explain/persona_{i}/conclusion.md`.
-
-Wait for all N subagents to complete before proceeding.
-
-### Step 1-max-b: Layer 1 — Output Collection
-
-1. Use Glob to verify that all N `explain/persona_{i}/conclusion.md` files exist.
-   - If any are missing, re-spawn the failed subagent(s) and wait for completion. Maximum 1 retry per failed subagent. If retry also fails, proceed with N-1 persona outputs and note the gap.
-2. Read all N `conclusion.md` files.
-3. Construct a **cross-persona summary** identifying:
-   - **Recurring explanation strategies** — approaches proposed by 2+ personas
-   - **Unique pedagogical insights** — ideas that appeared in only one persona's output
-   - **Explicit disagreements** — contradictory assessments of explanation approach, misconception risk, or audience calibration
-4. **Consolidate conclusions for Layer 2**: Create `explain/all_conclusions.md` by concatenating
-   all N conclusion files with clear separators:
-   ```markdown
-   # Persona 1: {persona_1_name} — {persona_1_lens}
-
-   {persona_1_conclusion_content}
-
-   ---
-
-   # Persona 2: {persona_2_name} — {persona_2_lens}
-
-   {persona_2_conclusion_content}
-
-   ---
-
-   ... (for all N personas)
-   ```
-   This single consolidated file replaces multiple @-references in Layer 2 calls.
-
-### Step 1-max-c: Layer 2 — Meta-Review + Adversarial Debate
-
-**Phase A — Parallel Meta-Reviews:**
-
-Execute simultaneously:
-
-**Gemini Meta-Review:**
-```
-mcp__gemini-cli__ask-gemini(
-  prompt: "You are reviewing the outputs of {N} explanation-specialist personas who independently analyzed how to explain: {concept} to audience: {audience}
-
-Here are all persona conclusions:
-@{output_dir}/explain/all_conclusions.md
-
-Provide a meta-review covering:
-1. **Coverage analysis** — Which aspects of the explanation space are well-covered vs. underexplored?
-2. **Quality assessment** — Rate each persona's explanation strategy (clarity, accuracy, audience calibration) on a 1-10 scale
-3. **Cross-persona synthesis** — What emerges when combining all perspectives that no single persona captured?
-4. **Top 3 disagreements** — Identify the 3 most significant points where personas contradict each other (e.g., on misconception risk, analogy choices, or precision-accessibility tradeoffs), with specific quotes
-5. **Recommended explanation strategy** — Your top approach considering all perspectives",
-  model: "gemini-3.1-pro-preview"  // fallback chain applies
-)
-```
-Save to `explain/meta_review_gemini.md`.
-
-**Codex Meta-Review:**
-```
-mcp__codex-cli__ask-codex(
-  prompt: "You are reviewing the outputs of {N} explanation-specialist personas who independently analyzed how to explain: {concept} to audience: {audience}
-
-Here are all persona conclusions:
-@{output_dir}/explain/all_conclusions.md
-
-Provide a meta-review covering:
-1. **Coverage analysis** — Which aspects of the explanation space are well-covered vs. underexplored?
-2. **Quality assessment** — Rate each persona's explanation strategy (clarity, accuracy, audience calibration) on a 1-10 scale
-3. **Cross-persona synthesis** — What emerges when combining all perspectives that no single persona captured?
-4. **Top 3 disagreements** — Identify the 3 most significant points where personas contradict each other, with specific quotes
-5. **Recommended explanation strategy** — Your top approach considering all perspectives",
-  model: "gpt-5.4"
-)
-```
-Save to `explain/meta_review_codex.md`.
-
-> **If `--claude-only`**: Per §SubagentExec, spawn **simultaneously**:
-> - **A** (CD): Read `all_conclusions.md`. Deliverables: 1.Coverage analysis, 2.Quality assessment (rate each persona 1-10 on clarity/accuracy/calibration), 3.Cross-persona synthesis, 4.Top 3 disagreements (with specific quotes), 5.Recommended explanation strategy. Save to `explain/meta_review_gemini.md`.
-> - **B** (AC): Read `all_conclusions.md`. Same 5-section deliverables with rigor/accuracy focus. Save to `explain/meta_review_codex.md`.
-
-**Phase B — Disagreement Extraction:**
-
-Claude reads both meta-reviews and extracts the **top 3 cross-persona disagreements** — prioritizing disagreements identified by both reviewers. For each disagreement, produce a structured summary: the claim, which personas support each side, and the core pedagogical tension. **Save the meta-disagreement summary to `explain/meta_disagreements.md`** before the debate calls.
-
-**Phase C — Consolidate Debate Context + Adversarial Debate:**
-
-Before the debate calls, create consolidated context files (each containing exactly what the opposing model needs):
-- `explain/debate_context_for_gemini.md` — concatenate `meta_disagreements.md` + `meta_review_codex.md`
-- `explain/debate_context_for_codex.md` — concatenate `meta_disagreements.md` + `meta_review_gemini.md`
-
-Then execute the debate calls **simultaneously**:
-
-```
-mcp__gemini-cli__ask-gemini(
-  prompt: "[Meta-Reviewer]
-Target audience: {audience}
-
-You reviewed {N} persona conclusions on explaining {concept} and identified top disagreements. Below is the disagreement summary followed by Codex's meta-review for context:
-
-@{output_dir}/explain/debate_context_for_gemini.md
-
-For each disagreement:
-1. **Defend** your position with pedagogical evidence or learning science reasoning
-2. **Concede** if the opposing argument better serves the audience's understanding
-3. **Revise** your assessment to a new synthesized position if appropriate",
-  model: "gemini-3.1-pro-preview"  // fallback chain applies
-)
-```
-Save to `explain/meta_debate_gemini.md`.
-
-```
-mcp__codex-cli__ask-codex(
-  prompt: "[Meta-Reviewer]
-Target audience: {audience}
-
-You reviewed {N} persona conclusions on explaining {concept} and identified top disagreements. Below is the disagreement summary followed by Gemini's meta-review for context:
-
-@{output_dir}/explain/debate_context_for_codex.md
-
-For each disagreement:
-1. **Defend** your position with pedagogical evidence or learning science reasoning
-2. **Concede** if the opposing argument better serves the audience's understanding
-3. **Revise** your assessment to a new synthesized position if appropriate",
-  model: "gpt-5.4"
-)
-```
-Save to `explain/meta_debate_codex.md`.
-
-> **If `--claude-only`**: Per §SubagentExec, spawn **simultaneously**:
-> - **A** (CD): Read `debate_context_for_gemini.md`. Per disagreement: Defend (with pedagogical evidence) / Concede (if opposing better serves audience understanding) / Revise (new synthesized position). Save to `explain/meta_debate_gemini.md`.
-> - **B** (AC): Read `debate_context_for_codex.md`. Per disagreement: Defend (with evidence) / Concede (if opposing better serves audience understanding) / Revise (new synthesized position). Save to `explain/meta_debate_codex.md`.
-
-### Step 1-max-d: Layer 3 — Final Enriched Strategy Synthesis (`--depth max`)
-
-1. Read all available documents:
-   - `weights.json`, `personas.md`
-   - All N `persona_{i}/conclusion.md` files
-   - `meta_review_gemini.md`, `meta_review_codex.md`
-   - `meta_debate_gemini.md`, `meta_debate_codex.md`
-2. Load `weights.json` and extract the `"weights"` object. Compute **weighted scores** for each explanation strategy (same 0-10 rating per dimension, weighted sum).
-3. Produce an **enriched `explain/synthesis.md`** with the following structure:
-   1. **Personas Used** — table of N personas with name, expertise summary, and primary lens
-   2. **Scoring Weights** — the weights used for ranking (from `weights.json`), including `_meta.method` to document how weights were selected (explicit, adaptive-recommended, audience-default, or custom)
-   3. **Top Explanation Strategies** — ranked by weighted score, with:
-      - Score breakdown per dimension (clarity, accuracy, depth, accessibility, completeness, engagement)
-      - Which personas supported this strategy
-      - Key arguments for and against
-   4. **Cross-Persona Consensus** — explanation approaches where 3+ personas independently converged
-   5. **Unique Contributions** — valuable pedagogical insights that only a single persona identified
-   6. **Debate Resolution** — for each of the 3 debated disagreements: the original tension, how each meta-reviewer responded (defend/concede/revise), and the synthesized resolution
-   7. **Emergent Insights** — pedagogical patterns or explanation connections visible only from the cross-persona vantage point
-   8. **Recommended Explanation Strategy** — Claude's top recommendation with reasoning grounded in the multi-persona analysis
-   9. **MAGI Process Traceability** — table mapping each conclusion to its source persona, layer, and artifact file path
-4. Save to `explain/synthesis.md`.
-5. **Proceed to Step 2** for final explanation generation.
+Summary of what runs:
+- **1-max-a**: Spawn N persona subagents in parallel; each runs a self-contained mini-MAGI pipeline (Gemini draft + Codex analysis + cross-review + conclusion).
+- **1-max-b**: Collect and verify all N conclusions; build `all_conclusions.md` consolidated file.
+- **1-max-c**: Layer 2 meta-reviews (Gemini + Codex simultaneously) → extract top 3 cross-persona disagreements → adversarial debate.
+- **1-max-d**: Layer 3 enriched synthesis: weighted scoring across all strategies → `explain/synthesis.md` with 9-section structure including traceability table.
 
 ### Step 1c: Strategy Synthesis
 
-> **If `--depth max`**: Skip — synthesis is produced by Step 1-max-d above.
+> **If `--depth max`**: Skip — synthesis is produced by Step 1-max-d (read `references/depth_max.md`).
 > **If `--depth low`**: Skip — proceed directly to Step 2.
 
 1. Read all available documents:
@@ -654,81 +398,7 @@ Claude reads all Phase 1 artifacts and generates the final explanation. This ste
 1. Read `explain/synthesis.md` and all referenced artifacts.
 2. Read `explain/weights.json` to understand the quality priorities.
 
-**Generate `explain/explanation.md`** with the following structure. Target word count depends on depth:
-- `low`: 200-500 words
-- `medium`: 1,000-2,000 words
-- `high`: 3,000-5,000 words
-- `max`: 5,000-10,000 words
-
-```markdown
-# {Concept}
-
-> Audience: {audience} | Depth: {depth} | Domain: {domain}
-
-## Core Explanation
-
-[Main explanation written in a single authoritative voice. Build understanding progressively from the audience's existing knowledge. Use analogies, examples, and mathematical formalism as appropriate for the audience level. Follow LaTeX formatting rules for all mathematical expressions.
-
-This section should:
-- Open with an intuitive hook that connects to the audience's existing knowledge
-- Build concepts progressively, each building on the previous
-- Include concrete examples at each stage of abstraction
-- Use the best analogies identified in Phase 1 (if available)
-- Acknowledge and correct common misconceptions inline where natural
-- Include mathematical formalism at the appropriate level for the audience]
-
-## Common Misconceptions and Why They Fail
-
-> Include this section only for `--depth high` or `--depth max`.
-
-[For each misconception (at least 3-5):
-
-### Misconception: "{Statement of the misconception}"
-
-**Why it's plausible**: {What makes this easy to believe}
-
-**Why it's wrong**: {Precise explanation of the error}
-
-**The correct understanding**: {Corrective reframing that sticks}
-]
-
-## Confusion Neighbors
-
-> Include this section only for `--depth medium`, `--depth high`, or `--depth max`.
-
-| This Concept | Is NOT | Key Difference |
-|---|---|---|
-| {concept} | {confused concept 1} | {distinguishing feature} |
-| {concept} | {confused concept 2} | {distinguishing feature} |
-| ... | ... | ... |
-
-[Brief paragraph explaining why each confusion arises and how to keep them straight.]
-
-## Test Your Understanding
-
-> Include this section only for `--depth medium`, `--depth high`, or `--depth max`.
-
-[5-10 questions that test genuine understanding (not recall). Calibrated for the target audience level. Each question should:
-- Target a specific concept from the Core Explanation
-- Have a clear correct answer
-- Have plausible wrong answers that reveal specific misunderstandings
-
-Format:
-1. **{Question}**
-   <details><summary>Answer</summary>
-   {Answer with explanation of why common wrong answers are wrong}
-   </details>
-]
-```
-
-**Quality checklist** (verify before saving):
-- [ ] All mathematical expressions follow LaTeX formatting rules
-- [ ] Language and complexity are calibrated for the target audience
-- [ ] Best analogies from Phase 1 are incorporated (if Phase 1 was run)
-- [ ] No "committee voice" — the explanation reads as one coherent author
-- [ ] Misconceptions section (if included) addresses those identified in Phase 1
-- [ ] Confusion neighbors table is accurate and complete
-- [ ] Test questions target genuine understanding, not memorization
+**Generate `explain/explanation.md`**: Read **T3** in `references/templates.md` for the full section structure, word count targets per depth, and quality checklist.
 
 Save to `explain/explanation.md`.
 
@@ -747,65 +417,10 @@ Wait for user input before proceeding.
 
 ## Output Files
 
-**`--depth low`:**
-```
-explain/
-├── weights.json                  # Scoring weights + selection metadata (if Step 0a ran)
-└── explanation.md                # Final explanation (always)
-```
+> See **T4** in `references/templates.md` for full artifact trees per depth level (`low`, `medium`, `high`, `max`).
 
-**`--depth medium`:**
-```
-explain/
-├── weights.json                  # Scoring weights + selection metadata
-├── personas.md                   # Assigned Teacher + Critic personas
-├── gemini_ideas.md               # Teacher's draft explanation
-├── codex_ideas.md                # Critic's analysis (prerequisites, misconceptions, etc.)
-├── gemini_review_of_codex.md     # Teacher reviews Critic
-├── codex_review_of_gemini.md     # Critic reviews Teacher
-├── synthesis.md                  # Explanation strategy synthesis
-└── explanation.md                # Final explanation
-```
-
-**`--depth high`:**
-```
-explain/
-├── weights.json                  # Scoring weights + selection metadata
-├── personas.md                   # Assigned Teacher + Critic personas
-├── gemini_ideas.md               # Teacher's draft explanation
-├── codex_ideas.md                # Critic's analysis
-├── gemini_review_of_codex.md     # Teacher reviews Critic
-├── codex_review_of_gemini.md     # Critic reviews Teacher
-├── disagreements.md              # Disagreement summary for debate
-├── debate_round2_gemini.md       # Adversarial debate — Teacher
-├── debate_round2_codex.md        # Adversarial debate — Critic
-├── synthesis.md                  # Explanation strategy synthesis
-└── explanation.md                # Final explanation (with Misconceptions section)
-```
-
-**`--depth max`:**
-```
-explain/
-├── weights.json                  # Scoring weights + selection metadata
-├── personas.md                   # N explanation-specialist personas
-├── persona_1/                    # Persona 1 mini-MAGI output
-│   ├── gemini_ideas.md
-│   ├── codex_ideas.md
-│   ├── gemini_review_of_codex.md
-│   ├── codex_review_of_gemini.md
-│   └── conclusion.md
-├── persona_2/                    # Persona 2 mini-MAGI output
-│   └── ...                       # (same 5 files)
-├── persona_N/                    # Persona N mini-MAGI output
-│   └── ...
-├── all_conclusions.md            # Consolidated persona conclusions for Layer 2
-├── meta_review_gemini.md         # Gemini meta-review of all conclusions
-├── meta_review_codex.md          # Codex meta-review of all conclusions
-├── meta_disagreements.md         # Meta-disagreement summary for debate
-├── debate_context_for_gemini.md  # Consolidated: disagreements + Codex meta-review
-├── debate_context_for_codex.md   # Consolidated: disagreements + Gemini meta-review
-├── meta_debate_gemini.md         # Adversarial debate — Gemini
-├── meta_debate_codex.md          # Adversarial debate — Codex
-├── synthesis.md                  # Enriched strategy synthesis
-└── explanation.md                # Final multi-perspective deep dive explanation
-```
+Quick summary:
+- `--depth low`: `weights.json` + `explanation.md`
+- `--depth medium`: adds `personas.md`, `gemini_ideas.md`, `codex_ideas.md`, cross-reviews, `synthesis.md`
+- `--depth high`: adds `disagreements.md`, `debate_round2_*.md`
+- `--depth max`: adds `persona_N/` subdirs, `all_conclusions.md`, meta-reviews, meta-debate files

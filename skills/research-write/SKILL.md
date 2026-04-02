@@ -100,90 +100,13 @@ For each artifact found, read the first 5 lines to confirm it is non-empty.
 
 Claude reads all located upstream artifacts and generates two structured JSON files. This is an **LLM extraction task** — Claude performs the semantic extraction; Python validates the schema.
 
-**1. Generate `write/write_inputs.json`:**
+> **Schema reference**: Read `references/intake_schemas.md` for the full `write_inputs.json` and `citation_ledger.json` schemas and extraction guidelines.
 
-Claude reads all upstream artifacts and produces:
-```json
-{
-  "source_dir": "{source_dir}",
-  "mode": "paper|proposal",
-  "audience": "{audience}",
-  "domain": "{domain}",
-  "claims": [
-    {
-      "id": "claim-1",
-      "text": "Our method achieves 15% improvement over baseline",
-      "source": "brainstorm/synthesis.md",
-      "confidence": "high|medium|low",
-      "evidence_ids": ["ev-1", "ev-3"]
-    }
-  ],
-  "evidence": [
-    {
-      "id": "ev-1",
-      "type": "plot|metric|test_result|code|explanation",
-      "ref": "plots/fig_convergence.png",
-      "description": "Convergence plot showing ...",
-      "caption": "Figure 1: ...",
-      "section_hint": "results"
-    }
-  ],
-  "definitions": [
-    {
-      "term": "MAGI architecture",
-      "explanation": "Multi-Agent Guided Investigation ...",
-      "source": "explain/magi_architecture.md"
-    }
-  ],
-  "key_findings": [
-    {
-      "id": "finding-1",
-      "summary": "...",
-      "supporting_claims": ["claim-1", "claim-3"],
-      "narrative_weight": "primary|secondary|supporting"
-    }
-  ],
-  "sections_available": ["background", "methodology", "results", "testing"]
-}
-```
+**1. Generate `write/write_inputs.json`** using the schema in `references/intake_schemas.md`.
 
-**Guidelines for extraction:**
-- Extract claims conservatively — only include assertions backed by evidence in the upstream artifacts
-- Assign `confidence: "high"` only when a claim has both quantitative data and a supporting plot/test
-- Assign `confidence: "low"` to claims inferred from text without direct data support
-- Link each claim to its evidence via `evidence_ids`
-- Use `section_hint` from `plot_manifest.json` if available; otherwise infer from context
-- For definitions, prefer explain outputs; fall back to inline definitions in synthesis/plan
-
-**2. Generate `write/citation_ledger.json`:**
-
-Claude reads all upstream artifacts and produces:
-```json
-{
-  "citations": [
-    {
-      "id": "ref-1",
-      "claim_id": "claim-1",
-      "source_type": "upstream_artifact|web_search|assumed",
-      "source_path": "brainstorm/synthesis.md",
-      "source_detail": "Section 3, Direction 1",
-      "resolved": true,
-      "needs_verification": false
-    }
-  ],
-  "unresolved_claims": [
-    {
-      "claim_id": "claim-5",
-      "reason": "No supporting data found in upstream artifacts",
-      "recommendation": "remove|verify_with_search|mark_as_tentative"
-    }
-  ]
-}
-```
+**2. Generate `write/citation_ledger.json`** using the schema in `references/intake_schemas.md`.
 
 **3. Validate with maintained utility:**
-
-After Claude generates both JSON files, validate them using the repository-maintained validator.
 
 Determine the plugin root directory by navigating two levels up from this skill's base directory (e.g., if this skill is loaded from `.../skills/research-write/`, the plugin root is `../../` relative to that path). The `Base directory for this skill:` header injected by Claude Code provides the absolute path. Then run:
 
@@ -191,9 +114,7 @@ Determine the plugin root directory by navigating two levels up from this skill'
 uv run python <plugin_root>/utils/validate_intake.py write/write_inputs.json write/citation_ledger.json
 ```
 
-Where `<plugin_root>` is the resolved absolute path to the plugin installation directory (the directory containing `skills/`, `utils/`, `schemas/`).
-
-> **Important**: Do NOT generate a validation script at runtime. Use the maintained `utils/validate_intake.py` utility. This ensures deterministic, testable validation across all pipeline runs.
+> **Important**: Do NOT generate a validation script at runtime. Use the maintained `utils/validate_intake.py` utility.
 
 If validation fails, Claude fixes the JSON files and re-runs validation. Maximum 2 fix attempts.
 
@@ -217,90 +138,13 @@ Save a copy of the loaded template to `write/mode_template_cache.md` before proc
 
 #### Step 1b: MAGI Parallel Outline Generation
 
-Generate two independent outlines using the mode template, `write_inputs.json`, and audience context. Execute both calls **simultaneously**:
+> **Full prompts**: Read `references/outline_prompts.md` for the complete MCP call specifications. Execute both calls **simultaneously**.
 
-**Gemini (BALTHASAR) — Creative Outline:**
-```
-mcp__gemini-cli__ask-gemini(
-  prompt: "You are an expert academic writer creating a document outline. Your approach emphasizes narrative flow, creative framing, and reader engagement.
+Generate two independent outlines using the mode template, `write_inputs.json`, and audience context:
+- **Gemini (BALTHASAR)** — Creative Outline emphasizing narrative flow and reader engagement. Save to `write/gemini_outline.md`.
+- **Codex (CASPER)** — Structural Outline emphasizing evidence coverage and completeness. Save to `write/codex_outline.md`.
 
-Given:
-- Mode: {mode} (see template for required sections)
-- Audience: {audience}
-- Domain: {domain}
-- Tone: {tone}, Formality: {formality}
-
-For each section defined in the mode template, produce:
-1. **Section ID** (from template)
-2. **Title** (descriptive, audience-appropriate)
-3. **Purpose** (1-2 sentences: what this section accomplishes)
-4. **Narrative role** (from template, plus your interpretation of how it serves the global argument)
-5. **Key points** (3-5 bullet points of content to cover)
-6. **Evidence to include** (specific evidence IDs from write_inputs.json)
-7. **Estimated words** (within the template's max_words budget)
-8. **Transition from previous section** (1 sentence describing how this section connects to the one before it)
-
-Also define the **global argument thread**: a 2-3 sentence summary of the paper's narrative arc — the logical thread connecting all sections from motivation to conclusion.
-
-Mode template:
-@{source_dir}/write/mode_template_cache.md
-
-Upstream intake:
-@{source_dir}/write/write_inputs.json
-
-Citation ledger:
-@{source_dir}/write/citation_ledger.json",
-  model: "gemini-3.1-pro-preview",
-  search: true
-)
-```
-Save to `write/gemini_outline.md`.
-
-**Codex (CASPER) — Structural Outline:**
-```
-mcp__codex-cli__ask-codex(
-  prompt: "You are an expert academic writer creating a document outline. Your approach emphasizes logical structure, evidence coverage, and completeness.
-
-Given:
-- Mode: {mode} (see template for required sections)
-- Audience: {audience}
-- Domain: {domain}
-- Tone: {tone}, Formality: {formality}
-
-For each section defined in the mode template, produce:
-1. **Section ID** (from template)
-2. **Title** (descriptive, audience-appropriate)
-3. **Purpose** (1-2 sentences: what this section accomplishes)
-4. **Narrative role** (from template, plus your interpretation of how it serves the global argument)
-5. **Key points** (3-5 bullet points of content to cover)
-6. **Evidence to include** (specific evidence IDs from write_inputs.json)
-7. **Estimated words** (within the template's max_words budget)
-8. **Transition from previous section** (1 sentence describing how this section connects to the one before it)
-
-Also define the **global argument thread**: a 2-3 sentence summary of the paper's narrative arc — the logical thread connecting all sections from motivation to conclusion.
-
-Focus especially on:
-- Evidence coverage: every high-confidence claim should appear in at least one section
-- No orphaned evidence: every evidence item should be referenced by at least one section
-- Structural completeness: all required sections are present with adequate depth
-
-Mode template:
-@{source_dir}/write/mode_template_cache.md
-
-Upstream intake:
-@{source_dir}/write/write_inputs.json
-
-Citation ledger:
-@{source_dir}/write/citation_ledger.json",
-  model: "gpt-5.4",
-  search: true
-)
-```
-Save to `write/codex_outline.md`.
-
-> **If `--claude-only`**: Per §SubagentExec, spawn **simultaneously**:
-> - **A** (CD, Creative Outline): Read mode template, write_inputs.json, citation_ledger.json. Per section from template: 1.Section ID, 2.Title, 3.Purpose (1-2 sentences), 4.Narrative role, 5.Key points (3-5), 6.Evidence IDs from write_inputs, 7.Estimated words (within template budget), 8.Transition from previous. Plus: global argument thread (2-3 sentence narrative arc). Emphasize narrative flow and engagement. Save to `write/gemini_outline.md`.
-> - **B** (AC, Structural Outline): Read same 3 files. Same 8-field per-section structure + global argument thread. Focus: every high-confidence claim in ≥1 section, no orphaned evidence, all required sections present with adequate depth. Save to `write/codex_outline.md`.
+If `--claude-only`: see the Claude-Only Fallback in `references/outline_prompts.md`.
 
 #### Step 1c: Synthesize Section Contracts
 
@@ -313,32 +157,9 @@ Claude reads both outlines and synthesizes a canonical outline with per-section 
 
 2. **Define the global argument thread**: Synthesize both outlines' argument threads into a single 3-5 sentence narrative arc that connects all sections.
 
-3. **Generate `write/section_contracts.json`**:
-```json
-{
-  "global_argument_thread": "This paper argues that ... by showing ... which leads to ...",
-  "mode": "paper",
-  "audience": "researcher",
-  "sections": [
-    {
-      "id": "introduction",
-      "title": "Introduction",
-      "purpose": "Motivate the problem and state contributions",
-      "narrative_role": "Establish why this problem matters and what we do about it",
-      "key_points": ["point 1", "point 2", "point 3"],
-      "evidence_ids": ["ev-1", "ev-5"],
-      "claim_ids": ["claim-1", "claim-2"],
-      "max_words": 1500,
-      "style": "Motivate problem, state contributions, outline paper structure.",
-      "transition_from_previous": null,
-      "transition_to_next": "Having established the problem, we now survey related work.",
-      "drafting_order": 3
-    }
-  ]
-}
-```
+3. **Generate `write/section_contracts.json`** using the schema in `references/intake_schemas.md`.
 
-4. **Determine drafting order**: Based on the section dependencies from the mode template:
+4. **Determine drafting order**: Based on section dependencies from the mode template:
    - Independent sections first (e.g., `related_work` for papers, `problem_statement` for proposals)
    - Dependent sections next, respecting dependency chains
    - Summary sections last (e.g., `abstract` for papers, `executive_summary` for proposals)
@@ -346,7 +167,7 @@ Claude reads both outlines and synthesizes a canonical outline with per-section 
 
 5. **Evidence coverage check**: Verify that every high-confidence claim from `write_inputs.json` appears in at least one section's `claim_ids`. Verify that every evidence item appears in at least one section's `evidence_ids`. Report any orphaned claims or evidence.
 
-6. Save the synthesized outline to `write/outline.md` (human-readable Markdown version) and `write/section_contracts.json` (machine-readable).
+6. Save the synthesized outline to `write/outline.md` (human-readable Markdown) and `write/section_contracts.json` (machine-readable).
 
 #### Step 1d: User Checkpoint — Outline Approval
 
@@ -377,62 +198,58 @@ Before generating any section prose, Claude pre-assembles evidence blocks for ea
 For each section (in drafting order):
 
 1. Read the section contract from `write/section_contracts.json`.
-2. For each `evidence_id` in the section's `evidence_ids`:
-   - Look up the evidence in `write_inputs.json`
-   - If `type == "plot"`: Generate a Markdown figure embed block:
+2. For each `evidence_id` in the section's `evidence_ids`, generate the appropriate block:
+   - `type == "plot"`:
      ```markdown
      <!-- EVIDENCE BLOCK: ev-1 -->
      ![{caption}]({ref})
      *{caption}*
      <!-- END EVIDENCE BLOCK -->
      ```
-     > **Anti-pattern:** Do NOT list figures in a table at the end of the document. Every figure must be embedded inline with `![caption](path)` immediately before or after the paragraph that discusses it. Orphaned figure tables are a document quality failure.
-   - If `type == "metric"`: Generate an inline metric reference:
+     > **Anti-pattern:** Do NOT list figures in a table at the end of the document. Every figure must be embedded inline with `![caption](path)` immediately before or after the paragraph that discusses it.
+   - `type == "metric"`:
      ```markdown
      <!-- EVIDENCE BLOCK: ev-2 -->
      **Key metric**: {description} — {value}
      <!-- END EVIDENCE BLOCK -->
      ```
-   - If `type == "test_result"`: Generate a results summary block:
+   - `type == "test_result"`:
      ```markdown
      <!-- EVIDENCE BLOCK: ev-3 -->
      **Validation**: {description}
      <!-- END EVIDENCE BLOCK -->
      ```
-   - If `type == "code"`: Generate a code reference:
+   - `type == "code"`:
      ```markdown
      <!-- EVIDENCE BLOCK: ev-4 -->
      See implementation in `{ref}`: {description}
      <!-- END EVIDENCE BLOCK -->
      ```
-3. Before embedding each plot evidence block, verify that the `ref` path exists (Glob check). If the file is missing, mark the evidence block as `<!-- EVIDENCE BLOCK: {id} (MISSING FILE: {ref}) -->` and log a warning.
-
-4. Save the pre-assembled evidence blocks to `write/evidence_blocks/{section_id}.md`.
+3. Before embedding each plot evidence block, verify that the `ref` path exists (Glob check). If missing, mark as `<!-- EVIDENCE BLOCK: {id} (MISSING FILE: {ref}) -->` and log a warning.
+4. Save pre-assembled evidence blocks to `write/evidence_blocks/{section_id}.md`.
 
 #### Step 2b: Section-by-Section Drafting
 
 Generate each section in the order specified by `drafting_order` in `section_contracts.json`. For each section:
 
-**Context provided to the LLM** (scoped to prevent context bloat):
+**Context provided** (scoped to prevent context bloat):
 - The section's own contract (from `section_contracts.json`)
 - The global argument thread (2-3 sentences)
 - Pre-assembled evidence blocks for this section (from `write/evidence_blocks/{section_id}.md`)
 - The relevant claims from `write_inputs.json` (only claims listed in the section's `claim_ids`)
-- Preceding section summaries: for each already-drafted section, provide only the section title + first paragraph + last paragraph (not the full text)
+- Preceding section summaries: for each already-drafted section, provide only the section title + first paragraph + last paragraph
 - Audience and style constraints from the mode template
-
-**Drafting prompt** (sent to Claude — Claude drafts all sections directly for voice consistency):
 
 For each section, Claude:
 1. Reads the section contract, evidence blocks, and relevant claims
 2. Writes the section prose, integrating pre-placed evidence blocks naturally into the narrative
 3. Ensures the section:
-   - Opens with a transition from the previous section (using the `transition_from_previous` field)
+   - Opens with a transition from the previous section (`transition_from_previous` field)
    - Covers all key points listed in the contract
    - References all pre-placed evidence with concrete quantitative observations (not passive "see figure below")
    - Stays within the `max_words` budget (±10%)
    - Matches the style, tone, and formality constraints
-   - Closes with a transition to the next section (using the `transition_to_next` field)
+   - Closes with a transition to the next section (`transition_to_next` field)
 4. After writing the section, generates a 1-2 sentence summary for use as context by subsequent sections
 
 Save each section to `write/sections/{section_id}.md`.
@@ -456,7 +273,7 @@ Claude reads the full assembled draft and evaluates the narrative arc:
 2. **Argument progression**: Does the document build its case progressively? Does the conclusion follow from the evidence presented?
 3. **Tone consistency**: Is the voice consistent across all sections? (Flagged only — resolution happens in Phase 3.)
 
-Save the narrative arc assessment to `write/narrative_arc_assessment.md`. This feeds into the Phase 3 global coherence pass.
+Save the narrative arc assessment to `write/narrative_arc_assessment.md`. This feeds into the Phase 3d global coherence pass.
 
 ---
 
@@ -466,115 +283,21 @@ Save the narrative arc assessment to `write/narrative_arc_assessment.md`. This f
 
 > Skip this step if `--depth low`. For `--depth low`, proceed directly to Step 3c (DocCI Validation).
 
-Execute both review calls **simultaneously**:
+> **Full prompts**: Read `references/review_prompts.md` for the complete MCP call specifications. Execute both calls **simultaneously**.
 
-**Gemini (BALTHASAR) — Content Quality Review:**
-```
-mcp__gemini-cli__ask-gemini(
-  prompt: "You are a rigorous academic reviewer evaluating a {mode} draft. Review for content quality, scientific rigor, and narrative coherence.
+Execute two parallel review calls:
+- **Gemini (BALTHASAR)** — Content Quality Review: claim support, evidence integration, narrative flow, audience fit, completeness. Save to `write/gemini_review.md`.
+- **Codex (CASPER)** — Structure & Evidence Review: word budget compliance, evidence completeness, citation integrity, LaTeX correctness, structural compliance. Save to `write/codex_review.md`.
 
-Evaluate each section on:
-1. **Claim support**: Is every claim backed by evidence from the document? Flag unsupported assertions.
-2. **Evidence integration**: Are figures and metrics discussed with concrete observations, not just mentioned?
-3. **Narrative flow**: Does the argument build progressively? Are transitions smooth?
-4. **Audience appropriateness**: Is the technical depth appropriate for the target audience ({audience})?
-5. **Completeness**: Are there obvious gaps — important aspects of the topic not addressed?
-
-For each issue found, specify:
-- Section ID
-- Issue type (unsupported_claim | weak_evidence | narrative_gap | audience_mismatch | missing_content)
-- Severity (critical | major | minor)
-- The specific text or gap
-- A concrete fix suggestion
-
-Also evaluate the **global argument thread**: Does the document successfully argue what it sets out to argue?
-
-Draft:
-@{source_dir}/write/draft.md
-
-Section contracts:
-@{source_dir}/write/section_contracts.json
-
-Intake data:
-@{source_dir}/write/write_inputs.json",
-  model: "gemini-3.1-pro-preview"
-)
-```
-Save to `write/gemini_review.md`.
-
-**Codex (CASPER) — Structure & Evidence Review:**
-```
-mcp__codex-cli__ask-codex(
-  prompt: "You are a meticulous technical editor evaluating a {mode} draft. Review for structural integrity, evidence completeness, and formatting quality.
-
-Evaluate each section on:
-1. **Word budget compliance**: Is each section within ±10% of its allocated word budget?
-2. **Evidence completeness**: Are all evidence items from the section contract actually referenced in the text?
-3. **Citation integrity**: Are all claims traceable to upstream artifacts? Flag any claims that appear fabricated.
-4. **LaTeX correctness**: Are mathematical expressions properly formatted (inline `$...$` and display `$$` on separate lines)? **Flag any bare Unicode math symbols** in prose (`α`, `σ`, `π`, `²`, `≈`, `∈`, `ℝ`) — these must be replaced with LaTeX equivalents.
-5. **Structural compliance**: Does the document follow the mode template's required section order?
-
-For each issue found, specify:
-- Section ID
-- Issue type (budget_violation | missing_evidence | untraced_claim | latex_error | structural_error)
-- Severity (critical | major | minor)
-- The specific text or gap
-- A concrete fix suggestion
-
-Also check for **orphaned evidence**: items in write_inputs.json that are never referenced in the draft.
-
-Draft:
-@{source_dir}/write/draft.md
-
-Section contracts:
-@{source_dir}/write/section_contracts.json
-
-Intake data:
-@{source_dir}/write/write_inputs.json",
-  model: "gpt-5.4"
-)
-```
-Save to `write/codex_review.md`.
-
-> **If `--claude-only`**: Per §SubagentExec, spawn **simultaneously**:
-> - **A** (CD, Content Quality): Read draft.md, section_contracts.json, write_inputs.json. Review: claim support, evidence integration, narrative flow, audience fit ({audience}), completeness. Per issue: Section ID, type (`unsupported_claim`|`weak_evidence`|`narrative_gap`|`audience_mismatch`|`missing_content`), severity (critical/major/minor), specific text, concrete fix. Also evaluate: does the global argument thread hold? Save to `write/gemini_review.md`.
-> - **B** (AC, Structure & Evidence): Read same 3 files. Review: word budget compliance (±10%), evidence completeness, citation integrity, LaTeX correctness (flag bare Unicode: α σ π ² ≈ ∈ ℝ), structural compliance. Per issue: Section ID, type (`budget_violation`|`missing_evidence`|`untraced_claim`|`latex_error`|`structural_error`), severity, text, fix. Also check for orphaned evidence in write_inputs.json. Save to `write/codex_review.md`.
+If `--claude-only`: see the Claude-Only Fallback in `references/review_prompts.md`.
 
 #### Step 3b: Devil's Advocate Review
 
 > Skip this step if `--depth low` or `--depth medium`. Only execute for `--depth high`.
 
-Identify the **high-stakes sections** — sections with the most critical/major issues from Step 3a, plus any section tagged as `required: true` in the mode template that has `narrative_role` containing "evidence", "method", or "result".
+> **Full spec**: Read `references/depth_high.md` for selection criteria, the full adversarial prompt, Claude-Only fallback, and fix application rules.
 
-For each high-stakes section (max 3 sections), submit to Gemini as a hostile reviewer:
-
-```
-mcp__gemini-cli__ask-gemini(
-  prompt: "You are a hostile but fair reviewer of the '{section_title}' section. Your job is to find fatal flaws that would cause a reviewer to reject this {mode}.
-
-Attack on these dimensions:
-1. **Overclaiming**: Does the text promise more than the evidence supports?
-2. **Missing counterarguments**: Are obvious objections left unaddressed?
-3. **Methodological gaps**: Is the methodology described with sufficient rigor to reproduce?
-4. **Evidence cherry-picking**: Are unfavorable results omitted or downplayed?
-5. **Logical fallacies**: Are there non sequiturs, false equivalences, or circular reasoning?
-
-For each flaw found, rate severity (Critical/Major/Minor) and provide a concrete fix.
-
-Section text:
-@{source_dir}/write/sections/{section_id}.md
-
-Section contract:
-[inline the specific section contract from section_contracts.json]
-
-Supporting evidence:
-@{source_dir}/write/evidence_blocks/{section_id}.md",
-  model: "gemini-3.1-pro-preview"
-)
-```
-Save each to `write/devils_advocate_{section_id}.md`.
-
-> **If `--claude-only`**: Per §SubagentExec — **Adversarial-Critical** hostile reviewer of '{section_title}': Read `sections/{section_id}.md` + `evidence_blocks/{section_id}.md` + section contract. Attack for overclaiming, missing counterarguments, methodological gaps, evidence cherry-picking, logical fallacies. Per flaw: severity (Critical/Major/Minor) + concrete fix. Save to `write/devils_advocate_{section_id}.md`.
+Identify high-stakes sections (most critical/major issues from Step 3a + required sections with evidence/method/result narrative roles). Apply adversarial review to at most 3 sections. Save each result to `write/devils_advocate_{section_id}.md`.
 
 #### Step 3c: Claude Synthesizes Reviews & Applies Fixes
 
@@ -592,7 +315,7 @@ Claude reads all review outputs and applies fixes:
    - Rewrite the section incorporating all accepted fixes
    - Ensure fixes don't introduce new problems (check word budget, evidence coverage)
    - Save the revised section to `write/sections/{section_id}.md` (overwrite)
-   > **Data integrity:** Figures added or regenerated during the write pipeline must be sourced from data in `src/` or test outputs in the upstream artifact directory. Do NOT fabricate data for illustrative plots. If no data exists for a needed visualization, note the gap textually rather than generating synthetic values.
+   > **Data integrity:** Do NOT fabricate data for illustrative plots. If no data exists for a needed visualization, note the gap textually rather than generating synthetic values.
 
 4. **Escalation trigger**: If any fix requires changing a section's scope or adding/removing key points not in the section contract, **update `section_contracts.json`** and flag this for the user:
    > "Section contract for '{section_id}' has been modified during review. Changes: [list]. These will be shown for approval in Phase 4."
@@ -615,15 +338,13 @@ After all section-level fixes are applied, Claude performs a focused coherence p
 
 Run the repository-maintained draft validator to perform automated quality checks.
 
-Determine the plugin root directory by navigating two levels up from this skill's base directory (e.g., if this skill is loaded from `.../skills/research-write/`, the plugin root is `../../` relative to that path). The `Base directory for this skill:` header injected by Claude Code provides the absolute path. Then run:
+Determine the plugin root directory by navigating two levels up from this skill's base directory. The `Base directory for this skill:` header injected by Claude Code provides the absolute path. Then run:
 
 ```bash
 uv run python <plugin_root>/utils/validate_draft.py write/revised_draft.md write/section_contracts.json write/write_inputs.json
 ```
 
-Where `<plugin_root>` is the resolved absolute path to the plugin installation directory (the directory containing `skills/`, `utils/`, `schemas/`).
-
-> **Important**: Do NOT generate a validation script at runtime. Use the maintained `utils/validate_draft.py` utility. This ensures deterministic, testable validation across all pipeline runs.
+> **Important**: Do NOT generate a validation script at runtime. Use the maintained `utils/validate_draft.py` utility.
 
 **On validation failure**: Claude reads the validation report, fixes the identified issues in `write/revised_draft.md`, and re-runs validation. Maximum 2 fix iterations.
 
@@ -638,67 +359,11 @@ Save the validation report to `write/validation_report.json`.
 Before presenting to the user, scan the draft for any remaining unresolved macros. If MAGI model outputs introduced any `{{fig:id}}` or `{{ref:id}}` patterns during review, resolve them now:
 
 1. Scan `write/revised_draft.md` for patterns matching `{{fig:...}}` or `{{ref:...}}`.
-2. If any are found, Claude writes and runs a resolution script:
-
-```python
-# Claude writes this script to write/resolve_macros.py, then executes it
-import json
-import re
-import sys
-
-def resolve_macros(draft_path, inputs_path, ledger_path):
-    """Resolve any remaining macros in the draft."""
-    with open(draft_path) as f:
-        draft = f.read()
-    with open(inputs_path) as f:
-        inputs = json.load(f)
-    with open(ledger_path) as f:
-        ledger = json.load(f)
-
-    # Build lookup tables
-    evidence_map = {e["id"]: e for e in inputs.get("evidence", [])}
-    citation_map = {c["id"]: c for c in ledger.get("citations", [])}
-
-    unresolved = []
-
-    # Resolve {{fig:id}} → markdown image embed
-    def resolve_fig(match):
-        fig_id = match.group(1)
-        if fig_id in evidence_map:
-            ev = evidence_map[fig_id]
-            return f'![{ev.get("caption", fig_id)}]({ev["ref"]})\n*{ev.get("caption", "")}*'
-        unresolved.append(f"{{{{fig:{fig_id}}}}}")
-        return match.group(0)
-
-    # Resolve {{ref:id}} → citation text
-    def resolve_ref(match):
-        ref_id = match.group(1)
-        if ref_id in citation_map:
-            cit = citation_map[ref_id]
-            return f'[{cit.get("source_detail", ref_id)}]'
-        unresolved.append(f"{{{{ref:{ref_id}}}}}")
-        return match.group(0)
-
-    draft = re.sub(r'\{\{fig:([\w-]+)\}\}', resolve_fig, draft)
-    draft = re.sub(r'\{\{ref:([\w-]+)\}\}', resolve_ref, draft)
-
-    with open(draft_path, 'w') as f:
-        f.write(draft)
-
-    if unresolved:
-        print(f"WARNING: {len(unresolved)} unresolved macros: {', '.join(unresolved)}")
-        sys.exit(1)
-    else:
-        print("All macros resolved (or none found).")
-
-if __name__ == "__main__":
-    resolve_macros(sys.argv[1], sys.argv[2], sys.argv[3])
-```
-
-Run with: `uv run python write/resolve_macros.py write/revised_draft.md write/write_inputs.json write/citation_ledger.json`
-
-If unresolved macros remain, Claude manually resolves them by reading the intake data and making inline replacements. This is a fallback — the primary evidence integration happens in Phase 2a via pre-inserted evidence blocks.
-
+2. If any are found, read `references/macro_resolution.md` for the full script source, write it to `write/resolve_macros.py`, then run:
+   ```bash
+   uv run python write/resolve_macros.py write/revised_draft.md write/write_inputs.json write/citation_ledger.json
+   ```
+   If unresolved macros remain, Claude manually resolves them by reading the intake data and making inline replacements.
 3. If no macros are found, skip this step.
 
 #### Step 4b: User Checkpoint — Final Approval
@@ -733,31 +398,7 @@ After user approval:
 
 2. Clean up evidence block markers: Remove all `<!-- EVIDENCE BLOCK: ... -->` and `<!-- END EVIDENCE BLOCK -->` HTML comments from the final document, leaving only the rendered content.
 
-3. Generate `write/writing_state.json`:
-```json
-{
-  "status": "complete",
-  "mode": "paper",
-  "audience": "researcher",
-  "source_dir": "{source_dir}",
-  "phases_complete": {
-    "intake": true,
-    "outline": true,
-    "draft": true,
-    "review": true,
-    "finalize": true
-  },
-  "sections_drafted": ["introduction", "methodology", "results", "..."],
-  "output_file": "write/{topic}_paper.md",
-  "stats": {
-    "total_words": 8500,
-    "claims_supported": 12,
-    "claims_unresolved": 1,
-    "evidence_integrated": 8,
-    "review_issues_resolved": 15
-  }
-}
-```
+3. Generate `write/writing_state.json` using the schema in `references/intake_schemas.md`.
 
 4. Present completion summary to the user:
    - Final document path

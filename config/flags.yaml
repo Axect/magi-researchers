@@ -27,10 +27,10 @@ flags:
     description: "Custom scoring weights — values must sum to 1.0"
 
   depth:
-    values: ["low", "medium", "high", "max"]
+    values: ["low", "medium", "high", "max", "auto"]
     default: "medium"
     scope: ["research", "research-brainstorm", "research-write", "research-explain"]
-    description: "Review thoroughness"
+    description: "Review thoroughness. 'auto' starts at medium and escalates based on T2 disagreement signals."
 
   personas:
     values: ["2", "3", "4", "5", "auto"]

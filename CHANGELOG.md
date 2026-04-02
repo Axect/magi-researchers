@@ -5,6 +5,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.18.0] — 2026-04-03
+
+### Added
+- **Pre-flight Context Gathering (Step 0d)** — OpenAlex API + WebSearch gather academic literature before brainstorming (`--depth medium+`). Results are filtered into persona-specific briefings (T9/T10, §PreFlight) to prevent premature consensus — each persona sees the same evidence framed through its reasoning mandate
+- **Evidence-Anchored Review (Step 1b-ev)** — After T2 cross-review, DISAGREE/INSUFFICIENT verdicts trigger targeted literature search via OpenAlex + WebSearch (T11, §EvidenceAnchoring). Real papers are fed into T3 DCR debate so models cite published evidence when they Defend or Concede. Runs at `--depth high+`
+- **Evidence Anchoring at meta-level (Phase B+)** — For `--depth max`, evidence anchoring runs at Layer 2 against cross-persona disagreements, saving to `meta_claim_evidence.md`
+- **Adaptive Depth Escalation (`--depth auto`)** — New depth mode that starts as medium, analyzes T2 verdict distribution after cross-review (T12 contention score), and auto-escalates: stay medium (< 0.30), escalate to high (0.30-0.50), or escalate to deep (>= 0.50)
+- **Focused Deep Investigation (Step 1b-deep)** — For `--depth auto` escalated to deep: pro/con argument pairs on the top 3 contested ideas with role alternation to prevent positional bias
+- **`scripts/parse_verdicts.py`** — Deterministic T2 verdict parser: counts AGREE/DISAGREE/INSUFFICIENT across review files, calculates contention score. Used by `--depth auto` for reproducible escalation decisions
+- **`scripts/openalex_search.py`** — OpenAlex API wrapper: search, filter, sort, abstract reconstruction from inverted index. Used by T9 pre-flight and T11 evidence anchoring
+- **§PreFlight in `shared/rules.md`** — Pre-flight context gathering rules with persona-aware briefing table
+- **§EvidenceAnchoring in `shared/rules.md`** — Evidence anchoring rules with scope limits, evidence classification, and `--depth max` meta-level path
+
+### Changed
+- **SKILL.md Progressive Disclosure** — Three largest skills refactored into `references/` for depth-conditional loading:
+  - `research-brainstorm`: 1,164 → 670 lines (3 reference files + 2 scripts)
+  - `research-explain`: 811 → 426 lines (2 reference files)
+  - `research-write`: 844 → 485 lines (5 reference files)
+- **Step 1b+ debate calls** now include `claim_evidence.md` as `@`-reference when evidence anchoring ran
+- **Step 1-max-d read list** expanded with `meta_claim_evidence.md` and `preflight_context.md`
+- **Step 1c MELCHIOR roles** updated with `--depth auto` mappings (medium → Critical Editor, high → Adversarial Critic, deep → Adversarial Critic Enhanced)
+- **Mechanical checklists** (Steps 1c and 1-max-d) expanded with evidence anchoring and depth escalation verification items
+- **Output Files trees** updated with all new artifacts
+- **Step 0c** now has `--claude-only` block (previously missing)
+
+---
+
 ## [0.17.1] — 2026-04-02
 
 ### Reverted

@@ -137,3 +137,63 @@ Phase gates are lightweight quality checkpoints before each USER CHECKPOINT:
 4. Save to `{phase_dir}/phase_gate.md`.
 
 > If **No-Go**: fix issues before presenting to user. Maximum 1 fix iteration per gate.
+
+---
+
+## §PreFlight
+
+Pre-flight context gathering runs at `--depth medium`, `--depth high`, `--depth max`, and `--depth auto` (skip for `--depth low`). It provides grounded evidence before brainstorming, with **persona-specific filtering** to prevent premature consensus.
+
+**Evidence sources** (run in parallel):
+
+1. **OpenAlex** (academic literature) — via WebFetch:
+   ```
+   WebFetch(
+     url: "https://api.openalex.org/works?search={url_encoded_topic}&sort=cited_by_count:desc&per-page=10&filter=publication_year:>2021,type:journal-article|proceedings-article&select=id,title,authorships,publication_year,cited_by_count,doi,abstract_inverted_index",
+     prompt: "Extract for each paper: title, first author, year, citation count, DOI, and reconstruct the first 2 sentences of abstract from the inverted index."
+   )
+   ```
+   If results are sparse (< 3 papers), retry with broader keywords (drop domain-specific jargon, keep core concept).
+2. **WebSearch** (recent developments) — `WebSearch(query: "{topic} recent advances 2024 2025 2026")`
+
+**Source cap**: 10 papers from OpenAlex + 5 web sources = 15 total max.
+
+**Validation**: `preflight_context.md` must contain at least 3 references before creating briefings. If OpenAlex returns 0 results but WebSearch has results, create briefings from web results only (note reduced quality). If both return nothing, skip briefing creation and proceed without literature grounding.
+
+**`--claude-only` note**: All WebFetch and WebSearch calls are made by the main agent. Subagents cannot use these tools.
+
+**Persona-aware briefing**: From the raw context, create filtered views per persona. Each briefing emphasizes what matters to that persona's reasoning mandate — the same evidence, differently framed. This prevents all models from anchoring on the same narrative.
+
+| Persona Role | Briefing Focus | Filter Question |
+|---|---|---|
+| Gemini persona (Critic/Creative) | Failure cases, counterexamples, methodological pitfalls, unexplored alternatives | "What has gone wrong in this space, and what hasn't been tried?" |
+| Codex persona (Builder/Practitioner) | Implementations, tools/datasets, benchmarks, computational constraints | "What exists to build on, and what are the practical constraints?" |
+| Claude/MELCHIOR | Full unfiltered context | (receives `preflight_context.md` directly during synthesis) |
+
+For `--depth max` with N personas: create per-persona briefings (`briefing_persona_{i}.md`) filtered by each persona's declared expertise and guiding question. For `--claude-only` with 2-model pipeline: use `briefing_subagent_a.md` / `briefing_subagent_b.md`.
+
+---
+
+## §EvidenceAnchoring
+
+Evidence anchoring runs at `--depth high`, `--depth max`, or when `--depth auto` escalates to high/deep (skip for `--depth low|medium`). It targets only **disputed claims** — ideas that received DISAGREE or INSUFFICIENT verdicts during cross-review.
+
+**Purpose**: Ground the DCR debate in real evidence rather than model-internal knowledge alone. This strengthens §AntiConsensus Rule 1 (agreement costs evidence) and Rule 2 (concessions require a named defeater) by providing external evidence that can serve as defeaters or independent support.
+
+**Scope limits**:
+- Maximum **5 disputed claims** investigated (prioritize: DISAGREE over INSUFFICIENT; higher-ranked ideas first)
+- Maximum **5 OpenAlex results + 3 web results** per claim
+- If no relevant evidence found: record "No direct evidence found — dispute remains empirical"
+
+**Evidence classification**: For each disputed claim, evidence is classified as:
+- **Supporting** — directly supports the disputed mechanism or prediction
+- **Contradicting** — directly contradicts or provides a counterexample
+- **Tangential** — related but not directly addressing the claim
+
+**Standard path** (`--depth high` or escalated `auto`): Evidence is saved to `brainstorm/claim_evidence.md` and passed as `@`-reference to T3 DCR debate calls, enabling models to cite real papers when they Defend, Concede, or Revise.
+
+**`--depth max` path** (meta-level): Evidence anchoring runs at Layer 2 as Phase B+ in Step 1-max-c, targeting the **top 3 cross-persona disagreements** from `meta_disagreements.md` (not individual T2 verdicts). Results are saved to `brainstorm/meta_claim_evidence.md` and fed into the Layer 2 adversarial debate. The same scope limits and evidence classification apply. MELCHIOR reads `meta_claim_evidence.md` during Step 1-max-d synthesis.
+
+**`--claude-only` note**: All WebFetch and WebSearch calls for evidence gathering are made by the main agent (subagents cannot use these tools). Complete evidence gathering before passing results to debate calls.
+
+---
