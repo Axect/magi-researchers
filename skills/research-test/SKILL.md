@@ -258,9 +258,9 @@ Before presenting to the user, execute a lightweight quality checkpoint:
 
 2. **Conditional MAGI mini-review** (if confidence is `Medium` or `Low`):
    ```
-   Skill(
-     skill: "codex:rescue",
-     args: "--wait --model gpt-5.4 Review these research tests and visualizations. Focus on: {low_scoring_items}. Read and analyze the files at {output_dir}/plots/plot_manifest.json, {output_dir}/tests/ (or equivalent test directory), and {output_dir}/results/pre_execution_status.json"
+   mcp__codex-cli__ask-codex(
+     prompt: "Review these research tests and visualizations. Focus on: {low_scoring_items}\n\n@{output_dir}/plots/plot_manifest.json\n@{output_dir}/tests/ (or equivalent test directory)\n@{output_dir}/results/pre_execution_status.json",
+     model: "gpt-5.4"
    )
    ```
 

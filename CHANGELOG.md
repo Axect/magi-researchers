@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.17.1] — 2026-04-02
+
+### Reverted
+- **Codex: restore MCP tools for brainstorm/analysis** — Reverted `codex-plugin-cc` migration (v0.17.0). `codex:rescue` is an agentic task runner designed for code investigation, not direct API calls — brainstorm/analysis tasks took 3+ minutes vs ~5 seconds with MCP tools. Restored `mcp__codex-cli__brainstorm` for ideation and `mcp__codex-cli__ask-codex` for analysis/review across all skills
+
+---
+
 ## [0.17.0] — 2026-04-01
 
 ### Changed

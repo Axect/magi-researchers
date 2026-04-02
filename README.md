@@ -73,26 +73,20 @@ We gave all three single models and MAGI the same physics problem: *discover an 
 
 **Prerequisites:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code) + Python 3.11+ with [uv](https://docs.astral.sh/uv/) + [Gemini CLI](https://github.com/google-gemini/gemini-cli) + [Codex CLI](https://github.com/openai/codex)
 
-**1. Install plugins** (inside Claude Code):
+**1. Install the plugin** (inside Claude Code):
 ```
 /plugin marketplace add Axect/magi-researchers
 /plugin install magi-researchers@magi-researchers-marketplace
-/plugin marketplace add openai/codex-plugin-cc
-/plugin install codex@openai-codex
 ```
 
 **2. Set up MCP servers** (one-time):
 ```bash
 claude mcp add -s user gemini-cli -- npx -y gemini-mcp-tool
+claude mcp add -s user codex-cli -- npx -y @cexll/codex-mcp-server
 claude mcp add -s user context7 -- npx -y @upstash/context7-mcp@latest
 ```
 
-**3. Verify Codex plugin** (one-time):
-```
-/codex:setup
-```
-
-**4. Run your first research:**
+**3. Run your first research:**
 ```
 /magi-researchers:research "your research topic" --domain physics
 ```
@@ -165,7 +159,7 @@ uv add matplotlib SciencePlots numpy
 - **`research_plan.md` frontmatter** — Carries `languages`, `ecosystem`, `execution_cmd`, `dry_run_cmd`, `expected_outputs`, and `estimated_runtime` fields as machine-readable metadata for downstream phases.
 - **Cross-phase artifact contracts** — Each phase validates incoming artifacts before running (tool-based Glob/Read, not LLM guesswork)
 - **Depth-controlled token budget** — `--depth low` skips cross-review for fast/cheap runs; `--depth high` enables full adversarial debate
-- **Artifact references** — Gemini MCP tool calls use `@filepath` syntax; Codex (`/codex:rescue`) references file paths in the task prompt and reads them from the repo directly
+- **`@filepath` artifact references** — MCP tool calls use `@filepath` syntax instead of inline content, so large artifacts are read directly from disk with zero truncation
 
 </details>
 
@@ -333,7 +327,8 @@ Add to `.claude/settings.local.json`:
       "Bash(mkdir:*)",
       "mcp__gemini-cli__ask-gemini",
       "mcp__gemini-cli__brainstorm",
-      "Skill(codex:*)",
+      "mcp__codex-cli__ask-codex",
+      "mcp__codex-cli__brainstorm",
       "mcp__plugin_context7_context7__resolve-library-id",
       "mcp__plugin_context7_context7__query-docs"
     ]
@@ -345,7 +340,7 @@ Add to `.claude/settings.local.json`:
 
 ## Roadmap
 
-**Latest — v0.17.0:** Codex MCP → official `codex-plugin-cc` plugin — all Codex calls now use `/codex:rescue --wait` via the Skill tool, replacing the third-party MCP server. See [CHANGELOG.md](CHANGELOG.md) for full history.
+**Latest — v0.16.0:** Trust the top findings — Mechanism Depth Test catches tautological explanations, Type D convergence detects shared methodological blind spots, Decisive Experiment + tiered timeline overhauls action plans, MELCHIOR Comprehensive Self-Review adds holistic quality gate to synthesis. See [CHANGELOG.md](CHANGELOG.md) for full history.
 
 **Up next:**
 - [ ] Terminal demo GIF — one-command walkthrough

@@ -179,9 +179,9 @@ Before presenting to the user, execute a lightweight quality checkpoint:
 2. **Conditional MAGI mini-review** (if confidence is `Medium` or `Low`):
    - Send the implementation summary + source code to Codex for a focused review targeting the low-scoring checklist items:
    ```
-   Skill(
-     skill: "codex:rescue",
-     args: "--wait --model gpt-5.4 Review this research implementation for correctness, plan alignment, error handling, and dependency management. Focus on: {low_scoring_items}. Read and analyze the files at {output_dir}/plan/research_plan.md and all source files in {output_dir}/src/ matching the detected language (*.py, *.rs, *.jl, *.r, *.cpp, etc.)"
+   mcp__codex-cli__ask-codex(
+     prompt: "Review this research implementation for correctness, plan alignment, error handling, and dependency management. Focus on: {low_scoring_items}\n\n@{output_dir}/plan/research_plan.md\n@{output_dir}/src/ (all source files matching the detected language: *.py, *.rs, *.jl, *.r, *.cpp, etc.)",
+     model: "gpt-5.4"
    )
    ```
    > **If `--claude-only`**: Per §SubagentExec — **B** (AC, code reviewer): Read research plan + source files. Review correctness, plan alignment, error handling, dependency management focusing on {low_scoring_items}. Return structured text.

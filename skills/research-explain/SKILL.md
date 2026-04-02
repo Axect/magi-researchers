@@ -36,7 +36,7 @@ Generates high-quality explanations of concepts using Gemini and Codex in parall
 
 ### MCP Tool Rules
 See §MCP in shared rules. Additionally:
-- **Codex**: Use `/codex:rescue --wait --model gpt-5.4` for both ideation and analysis/review, invoked via `Skill(skill: "codex:rescue", args: "--wait --model gpt-5.4 {task prompt}")`. Reference file paths directly in the task prompt (no `@filepath` syntax for Codex; include web search instruction in the task prompt when needed).
+- **Codex**: Use `mcp__codex-cli__ask-codex` for analysis/review.
 - **Visualization** (if plots are generated): See §Visualization.
 - **When to search**: concept definitions, pedagogical resources, common misconceptions, recent breakthroughs, related concepts, fact-checking claims
 
@@ -252,11 +252,12 @@ Write for maximum clarity and understanding. Use the persona's communication sty
 
 **Agent B — Critic Analysis (Codex):**
 ```
-Skill(
-  skill: "codex:rescue",
-  args: "--wait --model gpt-5.4 [Persona: {critic_persona_name} — {critic_persona_expertise}]
+mcp__codex-cli__ask-codex(
+  prompt: "[Persona: {critic_persona_name} — {critic_persona_expertise}]
 Guiding question: {critic_guiding_question}
 Target audience: {audience}
+
+Domain context: @{domain_template_path}
 
 Concept to explain: {concept}
 
@@ -272,12 +273,13 @@ You are a pedagogical analyst and explanation critic. Generate a comprehensive c
    - This concept IS NOT [confused concept]
    - Key distinguishing feature
 4. **Precision-Accessibility Tradeoffs**: Where must an explanation sacrifice precision for accessibility at this audience level? What simplifications are acceptable vs. dangerous?
-5. **Calibration Questions** (5-10): Questions that test genuine understanding (not just recall). Include expected correct answers and common wrong answers with explanations of what each wrong answer reveals about the student's misunderstanding. Read and analyze the domain context file at {domain_template_path} if it exists."
+5. **Calibration Questions** (5-10): Questions that test genuine understanding (not just recall). Include expected correct answers and common wrong answers with explanations of what each wrong answer reveals about the student's misunderstanding.",
+  model: "gpt-5.4"
 )
 ```
-> Note: Omit the domain context file reference from the args when no domain template exists.
+> Note: Omit the `Domain context: @{domain_template_path}` line from the prompt when no domain template exists.
 
-> Note: If `/codex:rescue` is unavailable or fails, fall back to `mcp__gemini-cli__ask-gemini` with the Gemini fallback chain and critic-focused framing.
+> Note: If Codex MCP is unavailable, fall back to `mcp__gemini-cli__ask-gemini` with the Gemini fallback chain and critic-focused framing.
 
 > **If `--claude-only`**: Per §SubagentExec, spawn **simultaneously**:
 > - **A** (CD, Teacher): Draft explanation of {concept} for {audience} using persona. Read domain template. Deliverables: 1.Core Explanation (first principles, analogies, progressive complexity), 2.Key Intuitions (2-3), 3.Mathematical Formalism (LaTeX), 4.Concrete Examples (2-3 worked), 5.Connections to audience's existing knowledge. Use persona's communication style. Save to `explain/gemini_ideas.md`.
@@ -319,14 +321,13 @@ Also note: What aspects of the Critic's analysis should change your draft explan
 
 **Critic reviews Teacher's draft (Round 1):**
 ```
-Skill(
-  skill: "codex:rescue",
-  args: "--wait --model gpt-5.4 [Persona: {critic_persona_name} — {critic_persona_expertise}]
+mcp__codex-cli__ask-codex(
+  prompt: "[Persona: {critic_persona_name} — {critic_persona_expertise}]
 Target audience: {audience}
 
 Review the following draft explanation of: {concept}
 
-Read and analyze the file at {output_dir}/explain/gemini_ideas.md
+@{output_dir}/explain/gemini_ideas.md
 
 Evaluate the Teacher's explanation on these dimensions:
 1. **Accuracy**: Are there any incorrect statements, oversimplifications that cross into inaccuracy, or misleading analogies?
@@ -339,11 +340,12 @@ Evaluate the Teacher's explanation on these dimensions:
 For each issue found, provide:
 - The specific problematic passage
 - Why it's problematic
-- A suggested fix"
+- A suggested fix",
+  model: "gpt-5.4"
 )
 ```
 
-> Note: If `/codex:rescue` is unavailable or fails, fall back to `mcp__gemini-cli__ask-gemini` with the Gemini fallback chain.
+> Note: If Codex MCP is unavailable, fall back to `mcp__gemini-cli__ask-gemini` with the Gemini fallback chain.
 
 > **If `--claude-only`**: Per §SubagentExec, spawn **simultaneously**:
 > - **A** (CD, Teacher reviewing Critic): Read `codex_ideas.md`. Review all 5 sections: misconceptions (real at this level? missing?), prerequisites (ordering? over/underestimated?), confusion neighbors (additions/removals?), precision-accessibility tradeoffs (fair?), calibration questions (answerable from your explanation?). Also: what should change in your draft? Save to `explain/gemini_review_of_codex.md`.
@@ -394,23 +396,27 @@ Critic's review of your draft:
 
 **Critic Round 2 — Defend/Concede/Revise:**
 ```
-Skill(
-  skill: "codex:rescue",
-  args: "--wait --model gpt-5.4 [Persona: {critic_persona_name}]
+mcp__codex-cli__ask-codex(
+  prompt: "[Persona: {critic_persona_name}]
 Target audience: {audience}
 
 You (Critic) and the Teacher reviewed each other's work on explaining: {concept}
 
 Here are the top 3 points of disagreement:
 
-Read and analyze the file at {output_dir}/explain/disagreements.md
+@{output_dir}/explain/disagreements.md
 
 For each disagreement:
 1. **Defend** your objection if you believe the accuracy/misconception risk is genuine, providing specific examples of how learners are misled
 2. **Concede** if the Teacher's pedagogical choice genuinely aids understanding without significant accuracy cost, explaining why
 3. **Revise** your assessment to a new position that respects both rigor and accessibility if appropriate
 
-Read and analyze the files at {output_dir}/explain/codex_review_of_gemini.md and {output_dir}/explain/gemini_review_of_codex.md"
+Your original review:
+@{output_dir}/explain/codex_review_of_gemini.md
+
+Teacher's review of your analysis:
+@{output_dir}/explain/gemini_review_of_codex.md",
+  model: "gpt-5.4"
 )
 ```
 
@@ -435,7 +441,7 @@ Spawn **N Task subagents simultaneously** (one per persona, `subagent_type: gene
 
    **A. Gemini Explanation Draft** — Call `mcp__gemini-cli__ask-gemini` with the persona's viewpoint to generate an explanation draft from this persona's perspective. Save to `explain/persona_{i}/gemini_ideas.md`.
 
-   **B. Codex Critical Analysis** — Invoke `Skill(skill: "codex:rescue", args: "--wait --model gpt-5.4 {persona viewpoint + task prompt}")` to generate a critical analysis (prerequisites, misconceptions, confusion neighbors) from this perspective. Save to `explain/persona_{i}/codex_ideas.md`.
+   **B. Codex Critical Analysis** — Call `mcp__codex-cli__ask-codex` with the persona's viewpoint to generate a critical analysis (prerequisites, misconceptions, confusion neighbors) from this perspective. Save to `explain/persona_{i}/codex_ideas.md`.
 
    > **If `--claude-only`**: Per §SubagentExec, spawn **simultaneously** within each persona subagent:
    > - **A'** (Expansive Explorer): Explanation draft from persona's perspective. Same 5-section deliverables as Step 1a Agent A. Save to `explain/persona_{i}/gemini_ideas.md`.
@@ -508,18 +514,19 @@ Save to `explain/meta_review_gemini.md`.
 
 **Codex Meta-Review:**
 ```
-Skill(
-  skill: "codex:rescue",
-  args: "--wait --model gpt-5.4 You are reviewing the outputs of {N} explanation-specialist personas who independently analyzed how to explain: {concept} to audience: {audience}
+mcp__codex-cli__ask-codex(
+  prompt: "You are reviewing the outputs of {N} explanation-specialist personas who independently analyzed how to explain: {concept} to audience: {audience}
 
-Read and analyze the file at {output_dir}/explain/all_conclusions.md
+Here are all persona conclusions:
+@{output_dir}/explain/all_conclusions.md
 
 Provide a meta-review covering:
 1. **Coverage analysis** — Which aspects of the explanation space are well-covered vs. underexplored?
 2. **Quality assessment** — Rate each persona's explanation strategy (clarity, accuracy, audience calibration) on a 1-10 scale
 3. **Cross-persona synthesis** — What emerges when combining all perspectives that no single persona captured?
 4. **Top 3 disagreements** — Identify the 3 most significant points where personas contradict each other, with specific quotes
-5. **Recommended explanation strategy** — Your top approach considering all perspectives"
+5. **Recommended explanation strategy** — Your top approach considering all perspectives",
+  model: "gpt-5.4"
 )
 ```
 Save to `explain/meta_review_codex.md`.
@@ -559,19 +566,19 @@ For each disagreement:
 Save to `explain/meta_debate_gemini.md`.
 
 ```
-Skill(
-  skill: "codex:rescue",
-  args: "--wait --model gpt-5.4 [Meta-Reviewer]
+mcp__codex-cli__ask-codex(
+  prompt: "[Meta-Reviewer]
 Target audience: {audience}
 
 You reviewed {N} persona conclusions on explaining {concept} and identified top disagreements. Below is the disagreement summary followed by Gemini's meta-review for context:
 
-Read and analyze the file at {output_dir}/explain/debate_context_for_codex.md
+@{output_dir}/explain/debate_context_for_codex.md
 
 For each disagreement:
 1. **Defend** your position with pedagogical evidence or learning science reasoning
 2. **Concede** if the opposing argument better serves the audience's understanding
-3. **Revise** your assessment to a new synthesized position if appropriate"
+3. **Revise** your assessment to a new synthesized position if appropriate",
+  model: "gpt-5.4"
 )
 ```
 Save to `explain/meta_debate_codex.md`.

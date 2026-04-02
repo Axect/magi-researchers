@@ -36,7 +36,7 @@ Orchestrates multi-agent collaborative writing from upstream research artifacts.
 
 ### MCP Tool Rules
 See §MCP, §Visualization, §LaTeX in shared rules. Additionally:
-- **Codex**: Use `/codex:rescue --wait --model gpt-5.4` for both ideation and analysis/review, invoked via `Skill(skill: "codex:rescue", args: "--wait --model gpt-5.4 {task prompt}")`. Reference file paths directly in the task prompt (no `@filepath` syntax for Codex; include web search instruction in the task prompt when needed).
+- **Codex**: Use `mcp__codex-cli__ask-codex` for analysis/review.
 - **When to search**: citation verification, related work references, fact-checking claims, confirming state-of-the-art results, checking terminology conventions
 
 ### Claude-Only Mode
@@ -258,9 +258,8 @@ Save to `write/gemini_outline.md`.
 
 **Codex (CASPER) — Structural Outline:**
 ```
-Skill(
-  skill: "codex:rescue",
-  args: "--wait --model gpt-5.4 You are an expert academic writer creating a document outline. Your approach emphasizes logical structure, evidence coverage, and completeness.
+mcp__codex-cli__ask-codex(
+  prompt: "You are an expert academic writer creating a document outline. Your approach emphasizes logical structure, evidence coverage, and completeness.
 
 Given:
 - Mode: {mode} (see template for required sections)
@@ -285,7 +284,16 @@ Focus especially on:
 - No orphaned evidence: every evidence item should be referenced by at least one section
 - Structural completeness: all required sections are present with adequate depth
 
-Search the web for relevant information. Read and analyze the files at {source_dir}/write/mode_template_cache.md, {source_dir}/write/write_inputs.json, and {source_dir}/write/citation_ledger.json"
+Mode template:
+@{source_dir}/write/mode_template_cache.md
+
+Upstream intake:
+@{source_dir}/write/write_inputs.json
+
+Citation ledger:
+@{source_dir}/write/citation_ledger.json",
+  model: "gpt-5.4",
+  search: true
 )
 ```
 Save to `write/codex_outline.md`.
@@ -496,9 +504,8 @@ Save to `write/gemini_review.md`.
 
 **Codex (CASPER) — Structure & Evidence Review:**
 ```
-Skill(
-  skill: "codex:rescue",
-  args: "--wait --model gpt-5.4 You are a meticulous technical editor evaluating a {mode} draft. Review for structural integrity, evidence completeness, and formatting quality.
+mcp__codex-cli__ask-codex(
+  prompt: "You are a meticulous technical editor evaluating a {mode} draft. Review for structural integrity, evidence completeness, and formatting quality.
 
 Evaluate each section on:
 1. **Word budget compliance**: Is each section within ±10% of its allocated word budget?
@@ -516,7 +523,15 @@ For each issue found, specify:
 
 Also check for **orphaned evidence**: items in write_inputs.json that are never referenced in the draft.
 
-Read and analyze the files at {source_dir}/write/draft.md, {source_dir}/write/section_contracts.json, and {source_dir}/write/write_inputs.json"
+Draft:
+@{source_dir}/write/draft.md
+
+Section contracts:
+@{source_dir}/write/section_contracts.json
+
+Intake data:
+@{source_dir}/write/write_inputs.json",
+  model: "gpt-5.4"
 )
 ```
 Save to `write/codex_review.md`.
