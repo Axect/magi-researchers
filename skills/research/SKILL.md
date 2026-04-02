@@ -1,3 +1,8 @@
+---
+name: research
+description: "Runs the complete MAGI research pipeline (Brainstorm → Plan → Implement → Execute → Test → Report) with multi-model cross-verification using Claude, Gemini, and Codex. Orchestrates all six phases with user checkpoints, phase gates, resume support, and depth-controlled review thoroughness. Use when conducting end-to-end AI-assisted research with cross-model peer review, generating publication-ready artifacts, or running a full multi-phase research workflow from topic to report."
+---
+
 # Research Workflow — Full Pipeline
 
 ## Description

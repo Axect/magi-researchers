@@ -1,3 +1,8 @@
+---
+name: research-execute
+description: "Executes research code in src/ to generate result artifacts in results/. Reads execution commands deterministically from YAML frontmatter of the research plan — no heuristics or entry-point guessing. Supports dry-run verification, atomic results staging, staleness detection, timeout handling, and structured status reporting. Use when running research implementations after the planning and coding phases, executing deterministic research pipelines, or generating experimental result artifacts."
+---
+
 # Research Execute Skill
 
 ## Description

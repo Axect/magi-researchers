@@ -1,3 +1,8 @@
+---
+name: research-write
+description: "Orchestrates multi-agent collaborative writing from upstream research artifacts. Produces structured documents (papers, proposals) with evidence-grounded prose, MAGI cross-review, and automated quality validation. Supports paper and proposal modes, audience targeting, depth-controlled review, and resume from interrupted sessions. Use when transforming research artifacts into publication-ready papers or grant proposals with multi-model review and evidence traceability."
+---
+
 # Research Write Skill
 
 ## Description

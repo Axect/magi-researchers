@@ -1,3 +1,8 @@
+---
+name: research-explain
+description: "Generates high-quality explanations of concepts using Gemini and Codex in parallel for MAGI strategy exploration, then synthesizes a single-voice explanation with Claude. Supports audience targeting (general-public to expert), weighted quality scoring, depth-controlled review, and LaTeX formatting. Use when explaining complex concepts with multi-model cross-verification, generating audience-tailored educational content, or producing rigorous explanations that benefit from multiple AI perspectives."
+---
+
 # Research Explain Skill
 
 ## Description

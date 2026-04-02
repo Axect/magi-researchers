@@ -1,3 +1,8 @@
+---
+name: research-brainstorm
+description: "Generates and cross-validates research ideas using Gemini and Codex in parallel, then synthesizes results with Claude. Supports weighted scoring, adversarial debate, hierarchical MAGI-in-MAGI depth, dynamic persona casting, and claude-only mode. Use when brainstorming research directions, generating cross-verified hypotheses, or exploring a topic from multiple AI perspectives before committing to a research plan."
+---
+
 # Research Brainstorm Skill
 
 ## Description
