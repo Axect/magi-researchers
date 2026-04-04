@@ -113,7 +113,7 @@ Construct two parallel evidence-gathering queries for the research topic per §P
 
 1. **OpenAlex** (academic literature): Run `scripts/openalex_search.py` (bundled script):
    ```bash
-   uv run python ${CLAUDE_PLUGIN_ROOT}/skills/research-brainstorm/scripts/openalex_search.py "{topic}" --filter "publication_year:>2021,type:journal-article|proceedings-article" --limit 10 --format md
+   uv run python ${CLAUDE_PLUGIN_ROOT}/skills/research-brainstorm/scripts/openalex_search.py "{topic}" --filter "publication_year:>2021,type:article|review" --limit 10 --format md
    ```
    If the topic contains domain-specific jargon and results are sparse (< 3 papers), retry with broader keywords.
 

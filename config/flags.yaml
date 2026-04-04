@@ -69,3 +69,34 @@ flags:
     scope: ["research-write"]
     required: true
     description: "Path to upstream research output directory"
+
+  filter:
+    type: "string"
+    default: "publication_year:>2021,type:article|review"
+    scope: ["research-search"]
+    description: "OpenAlex filter string for literature search"
+
+  sort:
+    values: ["relevance_score:desc", "cited_by_count:desc", "publication_year:desc"]
+    default: "relevance_score:desc"
+    scope: ["research-search"]
+    description: "Sort order for OpenAlex results"
+
+  limit:
+    type: "integer"
+    default: 10
+    range: [1, 50]
+    scope: ["research-search"]
+    description: "Number of results to return"
+
+  web:
+    type: "boolean"
+    default: false
+    scope: ["research-search"]
+    description: "Include WebSearch results alongside OpenAlex"
+
+  save:
+    type: "path"
+    default: null
+    scope: ["research-search"]
+    description: "File path to save search results"

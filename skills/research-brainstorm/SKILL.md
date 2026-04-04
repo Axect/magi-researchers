@@ -331,10 +331,48 @@ Personas **complement** the domain template — they do not override it.
 3. Personas must be **complementary** — cover distinct dimensions with minimal overlap.
 4. Save to `brainstorm/personas.md`.
 
-### Step 0c: Question Refinement (`--depth max` only)
+### Step 0c: Adaptive Question Refinement
 
-> **Skip unless `--depth max`**. Read `references/depth_max.md` for the full step definition.
-> Gemini + Codex analyze the question with `search: true`, Claude synthesizes a refined question with measurable success criteria.
+> **Runs at all depths.** Tiered assessment: Tier 1 (Claude assessment) runs always. Tier 2 (user clarification) available at `--depth medium+`. Tier 3 (MAGI discussion) available only at `--depth max`.
+> Read `references/depth_max.md` for the Tier 3 MAGI pipeline definition.
+
+**Tier 1 — Main Agent Assessment** (all depths):
+
+Claude evaluates the research question on three criteria:
+
+| Criterion | Pass | Marginal | Fail |
+|-----------|------|----------|------|
+| **Specificity** | Topic is narrow enough for actionable research directions | Topic is broad but a reasonable scope can be inferred | Topic is so broad that brainstorming would scatter (e.g., "physics", "machine learning") |
+| **Clarity** | Key terms are unambiguous within the detected domain | Some terms have multiple interpretations but context disambiguates | Critical terms are ambiguous or the domain itself is unclear |
+| **Research-readiness** | Question implies measurable outcomes or testable hypotheses | Outcomes are implied but not explicit | No measurable criterion can be inferred |
+
+**Decision logic**:
+- **All Pass** → Proceed to Step 0d. Log: "Question assessment: Clear. Proceeding directly."
+- **Any Marginal, no Fail** → Tier 2 (if `--depth medium+`) or proceed with a narrowing note (if `--depth low`)
+- **Any Fail** → Tier 3 (if `--depth max`) or Tier 2 (if `--depth medium|high|auto`) or proceed with warning (if `--depth low`)
+
+**Tier 2 — User Clarification** (`--depth medium|high|max|auto`):
+
+Present the assessment to the user:
+```
+**Question Assessment**:
+- Specificity: {Pass/Marginal/Fail} — {1-sentence explanation}
+- Clarity: {Pass/Marginal/Fail} — {1-sentence explanation}
+- Research-readiness: {Pass/Marginal/Fail} — {1-sentence explanation}
+
+**Suggested refinements** (pick one or provide your own):
+1. {narrower/clearer version A}
+2. {narrower/clearer version B}
+3. Proceed as-is
+```
+
+If the user provides a refinement or selects an option, update the topic string and proceed to Step 0d. If "proceed" or option 3, continue with the original question.
+
+**Tier 3 — MAGI Discussion** (`--depth max` only):
+
+If any Tier 1 criterion is Fail and Tier 2 did not resolve the ambiguity (user chose "proceed as-is" despite Fail criteria), OR if the user explicitly requests deeper refinement:
+
+> Read `references/depth_max.md` Step 0c Tier 3 section for the full MAGI pipeline (parallel Gemini+Codex analysis, Claude synthesis, scope comparison).
 
 ### Step 0d: Pre-flight Context Gathering (`--depth medium|high|max|auto`)
 

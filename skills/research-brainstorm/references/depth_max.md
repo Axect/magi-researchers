@@ -3,9 +3,11 @@
 > This file contains the `--depth max`-specific steps. Read this file when `--depth max` is active.
 > These steps (0c, 1-max-a through 1-max-d) replace Steps 1a/1b/1b+/1c from the main SKILL.md.
 
-### Step 0c: Question Refinement (`--depth max` only)
+### Step 0c Tier 3: MAGI Question Refinement (`--depth max` only)
 
-> **Skip unless `--depth max`**: This step only runs for hierarchical MAGI-in-MAGI depth.
+> **This section defines Tier 3 of Adaptive Question Refinement.** Tiers 1 and 2 are defined in the main SKILL.md.
+> **Trigger**: Tier 3 runs when (a) `--depth max` is active AND (b) at least one Tier 1 criterion scored Fail and Tier 2 did not resolve it, OR the user explicitly requested deeper refinement in Tier 2.
+> **Skip if**: All Tier 1 criteria passed, or the user provided a satisfactory refinement in Tier 2.
 
 1. Execute Gemini and Codex calls simultaneously, each with `search: true`:
    - Prompt: "Analyze this research question: '{topic}'. Provide: (a) 3 alternative framings that make hidden assumptions explicit, (b) specific success criteria for each framing, (c) any recent developments (via web search) that affect the question's relevance."

@@ -5,6 +5,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.18.1] — 2026-04-04
+
+### Added
+- **`/research-search` skill** — Standalone literature search via OpenAlex + optional WebSearch. Supports `--filter`, `--sort`, `--limit`, `--web`, `--save` flags. 3-tier sparse-result fallback (simplify query → broaden filter → drop type filter)
+- **New flags in `config/flags.yaml`** — `filter`, `sort`, `limit`, `web`, `save` scoped to `research-search`
+
+### Changed
+- **Adaptive Question Refinement (Step 0c)** — Replaced `--depth max`-only MAGI discussion with 3-tier adaptive approach at all depths:
+  - Tier 1 (all depths): Claude evaluates Specificity/Clarity/Research-readiness — proceeds directly if all Pass
+  - Tier 2 (`--depth medium+`): Presents assessment + suggested refinements to user if Marginal/Fail
+  - Tier 3 (`--depth max` only): Full MAGI discussion only when Tier 2 cannot resolve Fail criteria
+
+### Fixed
+- **OpenAlex type filter** — Updated `type:journal-article|proceedings-article` → `type:article|review` across `templates.md` (T9), `shared/rules.md` (§PreFlight), and `openalex_search.py` help text. OpenAlex deprecated the old type taxonomy, causing all filtered searches to return 0 results
+- **`/research-search` default sort** — Changed from `cited_by_count:desc` to `relevance_score:desc` for more topic-relevant results
+
+---
+
 ## [0.18.0] — 2026-04-03
 
 ### Added

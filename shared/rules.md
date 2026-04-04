@@ -149,7 +149,7 @@ Pre-flight context gathering runs at `--depth medium`, `--depth high`, `--depth 
 1. **OpenAlex** (academic literature) — via WebFetch:
    ```
    WebFetch(
-     url: "https://api.openalex.org/works?search={url_encoded_topic}&sort=cited_by_count:desc&per-page=10&filter=publication_year:>2021,type:journal-article|proceedings-article&select=id,title,authorships,publication_year,cited_by_count,doi,abstract_inverted_index",
+     url: "https://api.openalex.org/works?search={url_encoded_topic}&sort=cited_by_count:desc&per-page=10&filter=publication_year:>2021,type:article|review&select=id,title,authorships,publication_year,cited_by_count,doi,abstract_inverted_index",
      prompt: "Extract for each paper: title, first author, year, citation count, DOI, and reconstruct the first 2 sentences of abstract from the inverted index."
    )
    ```

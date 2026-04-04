@@ -107,7 +107,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("query", help="Search query string")
     parser.add_argument("--filter", dest="filter_str", default="",
-                        help='OpenAlex filter string (e.g., "publication_year:>2021")')
+                        help='OpenAlex filter string (e.g., "publication_year:>2021,type:article|review"). '
+                             'Valid types: article, review, preprint, book-chapter, book, dataset, dissertation, report')
     parser.add_argument("--sort", default="cited_by_count:desc",
                         help="Sort field (default: cited_by_count:desc)")
     parser.add_argument("--limit", type=int, default=10,
