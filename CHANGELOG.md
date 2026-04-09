@@ -5,6 +5,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.18.2] — 2026-04-10
+
+### Changed
+- **Research Question Brainstorming (Step 0c)** — Replaced 3-tier automated question refinement with interactive brainstorming protocol:
+  - Runs at all depths unconditionally (no `--depth` branching)
+  - Phase 1: Internal assessment (Specificity/Clarity/Research-readiness) with skip option if all pass
+  - Phase 2: Human-in-the-loop dialogue loop — one question at a time, multiple choice preferred
+  - Phase 3: 2-3 research direction proposals with recommendation
+  - Phase 4: Scope level confirmation (Operational/Conceptual/Philosophical)
+  - Phase 5: Final question confirmation before proceeding
+  - Outputs `brainstorm/question_refinement.md` tracing the full refinement process
+
+### Removed
+- **Tier 3 MAGI Question Refinement** — Removed AI-only multi-model question discussion from `depth_max.md`. Research direction now always stays aligned with user intent via interactive dialogue.
+
+---
+
 ## [0.18.1] — 2026-04-04
 
 ### Added
