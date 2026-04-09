@@ -331,48 +331,113 @@ Personas **complement** the domain template — they do not override it.
 3. Personas must be **complementary** — cover distinct dimensions with minimal overlap.
 4. Save to `brainstorm/personas.md`.
 
-### Step 0c: Adaptive Question Refinement
+### Step 0c: Research Question Brainstorming
 
-> **Runs at all depths.** Tiered assessment: Tier 1 (Claude assessment) runs always. Tier 2 (user clarification) available at `--depth medium+`. Tier 3 (MAGI discussion) available only at `--depth max`.
-> Read `references/depth_max.md` for the Tier 3 MAGI pipeline definition.
+> **Runs at all depths, unconditionally.** No `--depth` branching. Human-in-the-loop dialogue ensures research direction stays aligned with user intent.
 
-**Tier 1 — Main Agent Assessment** (all depths):
+**Phase 1 — Internal Assessment** (not shown to user):
 
-Claude evaluates the research question on three criteria:
+Evaluate the research question on three criteria:
 
-| Criterion | Pass | Marginal | Fail |
-|-----------|------|----------|------|
-| **Specificity** | Topic is narrow enough for actionable research directions | Topic is broad but a reasonable scope can be inferred | Topic is so broad that brainstorming would scatter (e.g., "physics", "machine learning") |
-| **Clarity** | Key terms are unambiguous within the detected domain | Some terms have multiple interpretations but context disambiguates | Critical terms are ambiguous or the domain itself is unclear |
-| **Research-readiness** | Question implies measurable outcomes or testable hypotheses | Outcomes are implied but not explicit | No measurable criterion can be inferred |
+| Criterion | Pass | Marginal/Fail |
+|-----------|------|---------------|
+| **Specificity** | Narrow enough for actionable directions | Too broad or vague |
+| **Clarity** | Key terms unambiguous in domain | Ambiguous or unclear terms |
+| **Research-readiness** | Implies measurable outcomes or testable hypotheses | No measurable criteria inferable |
 
-**Decision logic**:
-- **All Pass** → Proceed to Step 0d. Log: "Question assessment: Clear. Proceeding directly."
-- **Any Marginal, no Fail** → Tier 2 (if `--depth medium+`) or proceed with a narrowing note (if `--depth low`)
-- **Any Fail** → Tier 3 (if `--depth max`) or Tier 2 (if `--depth medium|high|auto`) or proceed with warning (if `--depth low`)
+**Decision**:
+- **All Pass** → Present to user: "The research question is clear and specific. Proceed directly, or explore research directions further?" If user says proceed → write skip-case `brainstorm/question_refinement.md` (see output format below), go to Step 0d. If user says explore → enter Phase 2.
+- **Any Marginal or Fail** → Enter Phase 2.
 
-**Tier 2 — User Clarification** (`--depth medium|high|max|auto`):
+**Phase 2 — Dialogue Loop**:
 
-Present the assessment to the user:
+Refine the question through interactive dialogue. Rules:
+1. **One question per message.** Never ask multiple questions at once.
+2. **Multiple choice preferred.** Use open-ended only when the answer space is too wide for options.
+3. **Research-specific questions.** Focus on:
+   - What methodology scope is intended? (theoretical / computational / experimental / mixed)
+   - What would constitute a successful outcome? (measurable criteria)
+   - What prior work or approaches should be considered vs. excluded?
+   - What is the target audience or application context?
+   - What constraints exist? (time, data availability, compute, domain boundaries)
+4. **Exit condition**: User signals the question is sufficiently refined (e.g., "that's enough", "looks good", "proceed"). Do not over-question — 2-4 questions is typical. If the question was already Marginal (not Fail), 1-2 questions may suffice.
+
+**Phase 3 — Research Direction Proposals**:
+
+Based on the dialogue, propose **2-3 alternative research directions** for the (now-refined) question. For each direction:
+- **Direction name** — concise label
+- **Core question** — the specific research question this direction addresses
+- **Expected methodology** — how this would be investigated
+- **Anticipated outcome** — what results to expect if successful
+
+Present with a **recommendation** and reasoning. User selects one (or provides their own).
+
+**Phase 4 — Scope Level Confirmation**:
+
+Frame the selected direction at three scope levels:
+- **Operational** — concrete, mechanism-level
+- **Conceptual** — mid-level, framework-focused (default)
+- **Philosophical** — abstract, principle-level
+
+If the user already selected a scope level in Question Orientation (Step 0, item 9), use that as default. Present briefly: "Proceeding at Conceptual level. Reply 'operational' or 'philosophical' to adjust." Move on immediately unless user responds.
+
+**Phase 5 — Final Confirmation**:
+
+Present the refined research question as a single sentence. User approves → proceed to Step 0d.
+
+**Output**:
+
+Save `brainstorm/question_refinement.md` with the following format:
+
 ```
-**Question Assessment**:
-- Specificity: {Pass/Marginal/Fail} — {1-sentence explanation}
-- Clarity: {Pass/Marginal/Fail} — {1-sentence explanation}
-- Research-readiness: {Pass/Marginal/Fail} — {1-sentence explanation}
+# Research Question Refinement
 
-**Suggested refinements** (pick one or provide your own):
-1. {narrower/clearer version A}
-2. {narrower/clearer version B}
-3. Proceed as-is
+## Original Question
+{user's original input}
+
+## Refinement Dialogue
+### Q1: {Claude's question}
+**A**: {user's response}
+
+### Q2: {Claude's question}
+**A**: {user's response}
+...
+
+## Research Directions Proposed
+| # | Direction | Core Question | Methodology | Expected Outcome |
+|---|-----------|--------------|-------------|-----------------|
+| 1 | {name} | {question} | {method} | {outcome} |
+| 2 | ... | ... | ... | ... |
+| 3 | ... | ... | ... | ... |
+
+**Recommended**: #{N} — {reasoning}
+**Selected**: #{user's choice}
+
+## Scope Level
+{Operational / Conceptual / Philosophical} — {one-line explanation}
+
+## Final Research Question
+> {refined question}
+
+## Changes from Original
+- {summary of what changed and why}
 ```
 
-If the user provides a refinement or selects an option, update the topic string and proceed to Step 0d. If "proceed" or option 3, continue with the original question.
+**Skip case** (All Pass, user chose to proceed directly):
+```
+# Research Question Refinement
 
-**Tier 3 — MAGI Discussion** (`--depth max` only):
+## Original Question
+{original}
 
-If any Tier 1 criterion is Fail and Tier 2 did not resolve the ambiguity (user chose "proceed as-is" despite Fail criteria), OR if the user explicitly requests deeper refinement:
+## Assessment
+Question assessed as clear and specific. User confirmed to proceed without refinement.
 
-> Read `references/depth_max.md` Step 0c Tier 3 section for the full MAGI pipeline (parallel Gemini+Codex analysis, Claude synthesis, scope comparison).
+## Final Research Question
+> {original, unchanged}
+```
+
+Update `.workspace.json`: set `topic` to the final refined question. If different from original, preserve original as `original_topic`.
 
 ### Step 0d: Pre-flight Context Gathering (`--depth medium|high|max|auto`)
 

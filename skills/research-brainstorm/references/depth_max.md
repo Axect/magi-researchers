@@ -1,34 +1,7 @@
 # Depth Max: MAGI-in-MAGI Pipeline
 
 > This file contains the `--depth max`-specific steps. Read this file when `--depth max` is active.
-> These steps (0c, 1-max-a through 1-max-d) replace Steps 1a/1b/1b+/1c from the main SKILL.md.
-
-### Step 0c Tier 3: MAGI Question Refinement (`--depth max` only)
-
-> **This section defines Tier 3 of Adaptive Question Refinement.** Tiers 1 and 2 are defined in the main SKILL.md.
-> **Trigger**: Tier 3 runs when (a) `--depth max` is active AND (b) at least one Tier 1 criterion scored Fail and Tier 2 did not resolve it, OR the user explicitly requested deeper refinement in Tier 2.
-> **Skip if**: All Tier 1 criteria passed, or the user provided a satisfactory refinement in Tier 2.
-
-1. Execute Gemini and Codex calls simultaneously, each with `search: true`:
-   - Prompt: "Analyze this research question: '{topic}'. Provide: (a) 3 alternative framings that make hidden assumptions explicit, (b) specific success criteria for each framing, (c) any recent developments (via web search) that affect the question's relevance."
-
-> **If `--claude-only`**: Replace both calls with two Agent subagents (simultaneously), per **T6**:
-> - **Subagent A** (T1-CD): Analyze the research question with creative/divergent framing. The main agent should run WebSearch beforehand and include findings in the subagent prompt (subagents cannot use WebSearch). Save to `brainstorm/question_refinement_gemini.md` per **T5**.
-> - **Subagent B** (T1-AC): Analyze the research question with analytical/convergent framing. Include the same web search findings. Save to `brainstorm/question_refinement_codex.md` per **T5**.
-
-2. Claude synthesizes the model analyses into a **Refined Research Question** that:
-   - Makes the strongest hidden assumption explicit
-   - Specifies measurable success criteria
-   - Narrows or broadens scope based on model feedback
-3. Compare refined question to original:
-   - If scope change is minor: use refined question silently, preserve original in `.workspace.json` as `original_topic`
-   - If scope change is substantial (different domain, methodology, or success criteria): present to user and ask for confirmation before proceeding
-
-If the user rejects the refined scope, revert to the original topic string for all subsequent steps. If `original_topic` was stored in `.workspace.json`, remove it.
-
-4. Update the topic string used in Step 1-max-a onwards to use the refined question.
-
----
+> These steps (1-max-a through 1-max-d) replace Steps 1a/1b/1b+/1c from the main SKILL.md.
 
 ### Step 1-max-a: Layer 1 — Parallel Persona Subagents
 
