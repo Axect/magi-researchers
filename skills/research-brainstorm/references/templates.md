@@ -1,4 +1,4 @@
-# Reusable Templates (T1–T12)
+# Reusable Templates (T1–T13)
 
 > This file contains the full definitions of all reusable templates referenced by ID in SKILL.md.
 > Read this file when executing any step that references a template (e.g., "per **T2**", "apply **T3**").
@@ -234,3 +234,23 @@ After Step 1b cross-review, analyze T2 verdict distribution to determine if dept
    **Rationale**: {1-2 sentence explanation}
    **Top contested ideas**: {list top 3 by disagreement intensity}
    ```
+
+**T13: Research Direction Document**
+
+8-section structured document produced by Step 0a. Combines user input (Phase 1 Core Framing dialogue) with literature survey (Phase 2 OpenAlex + WebSearch). Used as the foundational artifact for the entire brainstorm pipeline.
+
+**Sections:**
+
+1. **Research Question** — single-sentence refined question (blockquote)
+2. **Motivation & Context** — why this matters, what gap it addresses (2-3 paragraphs)
+3. **Hypothesis** — falsifiable statement or expected pattern (blockquote)
+4. **Expected Results** — what confirms/refutes the hypothesis (specific metrics)
+5. **Prior Work** — 5-10 key references as table (Paper, Year, Cited, Relevance)
+   - **5a. Methodological Landscape** — dominant approaches, strengths, limitations (2-3 paragraphs)
+6. **Methodology Candidates** — 2-3 approaches as table (Approach, Description, Pros, Cons, Feasibility)
+7. **Success Criteria** — concrete, measurable evaluation criteria
+8. **Constraints & Scope** — In Scope / Out of Scope / Resource Constraints
+
+**Metadata footer**: Original prompt, domain, document version, Phase 2 source count.
+
+**Downstream consumers**: Step 0b (persona casting), Step 0c (weight signals), Step 0d (pre-flight baseline), Step 1a (brainstorm grounding), Step 1c/1-max-d (question fidelity check).

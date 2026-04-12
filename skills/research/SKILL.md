@@ -169,10 +169,27 @@ Before starting each phase (2 through 5), verify that the required predecessor a
 
 Execute the `/magi-researchers:research-brainstorm` workflow, **forwarding all flags**: `--domain`, `--weights`, `--depth`, `--personas` (only when `--depth max`), `--claude-only` (if active), and `--substitute` (if any).
 
-**Step 0 & 0b — Setup & Persona Casting:**
-- Brainstorm sub-skill parses weights and depth, assigns expert personas
-- Outputs: `brainstorm/weights.json`, `brainstorm/personas.md`
+**Step 0 — Setup:**
+- Brainstorm sub-skill parses weights and depth flags
+- Outputs: `brainstorm/weights.json`
+
+**Step 0a — Research Direction Document (Phase 1-4):**
+- Generates the research direction document including a broad literature survey (Phase 2: OpenAlex + WebSearch)
+- Outputs: `brainstorm/research_direction.md`
+
+**Step 0b — Persona Casting (informed by `research_direction.md`):**
+- Assigns expert personas based on the research direction established in Step 0a
+- Outputs: `brainstorm/personas.md`
 - Personas are used in all subsequent phases where MAGI models are invoked
+
+**Step 0c — Adaptive Weights (if `--weights adaptive`):**
+- Claude analyzes the prompt and `research_direction.md` to recommend scoring weights for user confirmation
+- Outputs: updated `brainstorm/weights.json`
+
+**Step 0d — Pre-flight (persona-targeted searches):**
+- Loads Phase 2 literature from `brainstorm/research_direction.md` (Sections 5 and 5a) as baseline context
+- Runs only persona-targeted supplemental searches (no broad re-query of Step 0a literature)
+- Outputs: `brainstorm/preflight_context.md`, per-persona briefing files
 
 **Step 1a — Parallel Brainstorming (with personas):**
 - Gemini and Codex brainstorm independently with assigned personas

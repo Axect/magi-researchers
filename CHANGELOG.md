@@ -5,6 +5,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.19.0] — 2026-04-12
+
+### Added
+- **Research Direction Document (Step 0a)** — New foundational step replacing Question Orientation and Research Question Brainstorming. Produces an 8-section structured document (`brainstorm/research_direction.md`) through 4 phases:
+  - Phase 1: Core Framing — user-driven dialogue extracting research question, motivation, hypothesis, expected results, methodology scope, and constraints (1-5 questions, skip logic for rich prompts)
+  - Phase 2: Literature & Landscape Survey — automated OpenAlex + WebSearch to populate prior work, methodology landscape, gaps, and hypothesis evidence
+  - Phase 3: Document Draft — AI synthesizes Phase 1 + Phase 2 into T13 template format
+  - Phase 4: Review & Refinement — user reviews and modifies via dialogue (max 3 rounds)
+- **T13 template** — Research Direction Document format definition added to `references/templates.md`
+
+### Changed
+- **Step reordering** — Pipeline initialization now flows: Step 0 (Setup) → Step 0a (Research Direction) → Step 0b (Persona) → Step 0c (Weights) → Step 0d (Pre-flight). Previously: Step 0a (Weights) → Step 0b (Persona) → Step 0c (Question Brainstorming) → Step 0d (Pre-flight)
+- **Persona Casting (Step 0b)** — Now reads `research_direction.md` to inform persona selection. Guiding questions target gaps and methodology challenges identified in the document
+- **Adaptive Weights (Step 0c, was Step 0a)** — Signal detection now analyzes the structured Research Direction Document sections instead of the raw topic string
+- **Pre-flight (Step 0d)** — No longer runs broad topic search (already done in Step 0a Phase 2). Loads Phase 2 literature as baseline, runs only persona-targeted supplemental searches
+- **Step 1a brainstorming** — Prompts now include `@research_direction.md` as grounding context
+- **Step 1c Question Fidelity** — Now compares against `research_direction.md` Sections 1, 3, 4 (Research Question, Hypothesis, Expected Results) instead of raw `.workspace.json` topic
+- **Retroactive Question Crystallization** — Compares crystallized question against Research Direction Document Section 1 instead of raw input
+
+### Removed
+- **Question Orientation** — 3-level framing table (Operational/Conceptual/Philosophical) removed from Step 0. Scope considerations are now addressed naturally during Phase 1 Core Framing dialogue
+- **Research Question Brainstorming (Step 0c)** — 5-phase AI assessment + dialogue system replaced by the more comprehensive Research Direction Document
+- **`brainstorm/question_refinement.md`** — Replaced by `brainstorm/research_direction.md`
+
+---
+
 ## [0.18.2] — 2026-04-10
 
 ### Changed

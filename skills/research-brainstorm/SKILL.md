@@ -78,7 +78,7 @@ When `--substitute` is used, only the specified agent's MCP calls are replaced w
 
 ### Reusable Templates
 
-Templates T1–T12 are defined in `references/templates.md`. **Read that file** when you need template definitions. Quick reference:
+Templates T1–T13 are defined in `references/templates.md`. **Read that file** when you need template definitions. Quick reference:
 
 | ID | Name | Purpose |
 |---|---|---|
@@ -94,6 +94,7 @@ Templates T1–T12 are defined in `references/templates.md`. **Read that file** 
 | T10 | Persona Briefing | Persona-specific filtered briefing format |
 | T11 | Evidence Anchoring | Disputed claim search + classification format |
 | T12 | Depth Escalation Criteria | Contention score calculation + decision matrix (uses `scripts/parse_verdicts.py`) |
+| T13 | Research Direction Document | 8-section structured research framing document (Step 0a output) |
 
 ### LaTeX Formatting Rules
 When writing mathematical expressions in any output document (brainstorm ideas, synthesis, etc.):
@@ -212,44 +213,236 @@ When this skill is invoked, follow these steps exactly:
    - If an explicit integer is given: Use that value directly.
 7. **Parse `--claude-only`**: Boolean flag (default: `false`). When present, all Gemini/Codex MCP calls are replaced with Claude Agent subagents. See the **Claude-Only Mode** section above for the replacement table and cognitive style definitions.
 8. **Parse `--substitute`**: Accept zero or more `--substitute "Agent -> Opus"` flags. Valid agent names: `Gemini`, `Codex`. Valid target: `Opus`. When specified, the named agent's MCP calls are replaced with Claude Agent subagents using the same cognitive style mappings as `--claude-only` mode (see **Agent Substitution** section). `--substitute` and `--claude-only` are mutually exclusive — if both are provided, `--claude-only` takes precedence. If both `"Gemini -> Opus"` and `"Codex -> Opus"` are specified, treat as equivalent to `--claude-only`.
-9. **Question Orientation** (always, all depths):
-   Before proceeding to brainstorming, present:
-   ```
-   **Question Orientation** *(no response needed — for scope anchoring only)*
+### Step 0a: Research Direction Document
 
-   | Level | Framing |
-   |-------|---------|
-   | Operational | [concrete, mechanism-level version] |
-   | Conceptual ← default | [mid-level, framework-focused version] |
-   | Philosophical | [abstract, principle-level version] |
+> **Runs at all depths, unconditionally.** This step produces a structured Research Direction Document through user-driven dialogue and AI-powered literature survey. The document serves as the foundation for all subsequent pipeline steps (persona casting, weight configuration, pre-flight, and brainstorming).
 
-   Reply "operational" or "philosophical" to shift depth. Otherwise, proceeding with Conceptual.
+**Phase 1 — Core Framing** (user-driven dialogue):
 
-   **Adjacent Questions**:
-   - Simpler: [question whose answer is a useful component]
-   - Broader: [research program that fully solving this would advance]
-   ```
-   If the user replies with a level shift, adjust the topic framing accordingly. Otherwise, proceed immediately.
+Extract the user's research intent through focused questions. These questions target the **document sections**, not abstract assessment criteria.
 
-### Step 0a: Adaptive Weight Recommendation
+**Pre-assessment**: Before asking questions, internally scan the user's original prompt for content that maps to document sections:
+
+| Document Section | Detection Signals | If Present |
+|-----------------|-------------------|------------|
+| Research Question | Clear interrogative, "I want to study X" | Pre-fill, confirm only |
+| Motivation | "because", "gap in", "problem is" | Pre-fill, confirm only |
+| Hypothesis | "I expect", "hypothesis is", "should show" | Pre-fill, skip |
+| Expected Results | Specific metrics, predictions | Pre-fill, skip |
+| Methodology | "using X method", "approach is" | Pre-fill, skip |
+| Constraints | "limited to", "within", "only consider" | Pre-fill, skip |
+
+**Question rules**:
+1. **One question per message.** Never ask multiple questions at once.
+2. **Multiple choice preferred** (3-4 options + open-ended fallback).
+3. **Skip** questions whose answers are already present in the initial prompt.
+4. **Minimum 1 question**: The Constraints question (item 5 below) is always asked — scope boundaries are rarely stated explicitly.
+5. **Maximum 5 questions.**
+
+**Question bank** (asked in order, skipping as needed):
+
+1. **Research Question** (if not detected): "어떤 것을 알고 싶으신가요? 다음 중 가장 가까운 것은?"
+   - (a)–(d) context-specific interpretations derived from the prompt + (e) 직접 작성
+
+2. **Motivation** (if not detected): "이 연구의 동기는 무엇인가요?"
+   - (a) 기존 이론/이해의 gap
+   - (b) 실용적 문제 해결
+   - (c) 기존 연구 확장/도전
+   - (d) 기타 (설명)
+
+3. **Hypothesis** (if not detected): "어떤 결과를 예상하시나요? 대략적인 추측도 좋습니다."
+   - Open-ended. Prompt with example: "예: 'X와 Y 사이에 상관관계가 있을 것이다' 또는 '방법 A가 B보다 우수할 것이다'"
+
+4. **Methodology Scope** (if not detected): "어떤 유형의 조사를 계획하시나요?"
+   - (a) 이론/분석적 (b) 계산/시뮬레이션 (c) 실험/데이터 기반 (d) 혼합
+
+5. **Constraints** (always ask): "중요한 경계 조건이 있나요? (포함/제외할 분야, 데이터셋, 계산 자원, 시간 제약 등)"
+   - Open-ended. User may answer "없음" or "특별한 제약 없음".
+
+**Phase 2 — Literature & Landscape Survey** (AI-driven):
+
+After Phase 1 dialogue completes, systematically search the existing literature using Phase 1 answers as query material.
+
+1. **Construct search queries** from Phase 1 answers: extract key terms from the research question, methodology scope, and any domain-specific concepts mentioned.
+
+2. **Execute searches in parallel**:
+
+   - **OpenAlex — primary topic search**:
+     ```bash
+     uv run python ${CLAUDE_PLUGIN_ROOT}/skills/research-brainstorm/scripts/openalex_search.py \
+       "{refined_research_question}" \
+       --filter "publication_year:>2021,type:article|review" \
+       --limit 10 --format md
+     ```
+
+   - **OpenAlex — methodology search** (if specific methodology was identified in Phase 1):
+     ```bash
+     uv run python ${CLAUDE_PLUGIN_ROOT}/skills/research-brainstorm/scripts/openalex_search.py \
+       "{methodology_terms} {domain_terms}" \
+       --filter "publication_year:>2020" --sort "relevance_score:desc" \
+       --limit 5 --format md
+     ```
+
+   - **WebSearch — recent developments**: `"{topic} recent advances 2024 2025 2026"`
+
+   - **WebSearch — methodology** (if specific methods identified): `"{method_name} {domain} limitations comparison"`
+
+3. **Source cap**: 15 OpenAlex papers (combined, deduplicated) + 5 web sources = 20 total max.
+
+4. **Sparse result fallback** (3-tier):
+   - If < 3 results: simplify query (drop domain-specific jargon, keep core concept)
+   - If still < 3: broaden filter (remove year filter)
+   - If still < 3: drop type filter
+
+5. **AI analysis** — from gathered results, extract:
+   - **Key papers** (5-10): each with 1-2 sentence relevance note
+   - **State of the art**: current best approaches/results
+   - **Methodology landscape**: dominant methods, strengths, limitations
+   - **Research gaps**: what hasn't been done or remains unresolved
+   - **Hypothesis evidence**: results that support or contradict the user's hypothesis
+
+**Phase 3 — Document Draft**:
+
+Synthesize Phase 1 user input with Phase 2 literature analysis into a structured Research Direction Document. Follow the **T13** template format.
+
+**Section population**:
+
+| Section | Source |
+|---------|--------|
+| 1. Research Question | Phase 1 (user-provided or refined) |
+| 2. Motivation & Context | Phase 1 + Phase 2 contextual grounding |
+| 3. Hypothesis | Phase 1 (user-provided), contextualized with Phase 2 literature |
+| 4. Expected Results | Phase 1 + Phase 2 (what similar work has found) |
+| 5. Prior Work | Phase 2 (literature search results, 5-10 papers) |
+| 5a. Methodological Landscape | Phase 2 (AI analysis of dominant approaches) |
+| 6. Methodology Candidates | Phase 2 (informed by Phase 1 methodology scope) |
+| 7. Success Criteria | Derived from sections 3+4 (Claude drafts, user validates in Phase 4) |
+| 8. Constraints & Scope | Phase 1 (user-provided) |
+
+**Draft principles**:
+- Sections 1-4 reflect **user intent** — write in the user's voice where possible.
+- Sections 5-6 are clearly **AI-contributed** with source citations.
+- Section 7 is a **synthesis proposal** that the user will validate.
+- Target length: 500-1500 words (excluding the Prior Work table).
+
+Save draft to `brainstorm/research_direction.md`.
+
+**Phase 4 — Review & Refinement** (user dialogue):
+
+1. Present the full document to the user.
+2. Ask: "검토해 주세요. 수정하고 싶은 부분이 있으면 알려주세요."
+3. Accept free-form feedback. No rigid question structure.
+4. After each round of modifications, re-display the changed sections (not the full document) and ask: "수정 완료. 다른 변경 사항이 있나요, 아니면 이대로 진행할까요?"
+5. **Maximum 3 revision rounds.** After round 3, present the document and ask for final approval.
+6. User approves → finalize.
+
+**Output**:
+
+Save `brainstorm/research_direction.md` with the following format (**T13**):
+
+```
+# Research Direction: {title}
+
+## 1. Research Question
+> {one-sentence refined research question}
+
+## 2. Motivation & Context
+{Why this question matters. What gap does it address? 2-3 paragraphs.}
+
+## 3. Hypothesis
+> {Falsifiable hypothesis or expected pattern/relationship.}
+
+## 4. Expected Results
+{What confirms the hypothesis? What refutes it?
+Specific metrics, phenomena, or qualitative outcomes.}
+
+## 5. Prior Work
+| # | Paper | Year | Cited | Relevance |
+|---|-------|------|-------|-----------|
+| 1 | {title} | {year} | {N} | {1-2 sentence relevance note} |
+| ... | ... | ... | ... | ... |
+
+### 5a. Methodological Landscape
+{Dominant approaches, strengths, limitations. 2-3 paragraphs.}
+
+## 6. Methodology Candidates
+| Approach | Description | Pros | Cons | Feasibility |
+|----------|-------------|------|------|-------------|
+| {name} | {2-3 sentences} | {advantages} | {limitations} | {High/Medium/Low} |
+| ... | ... | ... | ... | ... |
+
+## 7. Success Criteria
+{Concrete, measurable evaluation criteria.}
+
+## 8. Constraints & Scope
+### In Scope
+{...}
+### Out of Scope
+{...}
+### Resource Constraints
+{...}
+
+---
+## Metadata
+- **Original prompt**: {user's original input verbatim}
+- **Domain**: {detected or specified domain}
+- **Document version**: {1, incremented after Phase 4 revisions}
+- **Phase 2 sources**: {OpenAlex N papers + Web M sources}
+```
+
+Update `.workspace.json`: set `topic` to the Section 1 Research Question. If different from the original prompt, preserve the original as `original_topic`.
+
+### Step 0b: Dynamic Persona Casting
+
+After the Research Direction Document is finalized, Claude analyzes the document and domain to assign specialist personas.
+
+**Persona definition format** (all depth levels):
+- **Name/title** — Real historical figure (위인) whose work aligns with the persona's domain (e.g., "R. A. Fisher", "Emmy Noether", "John von Neumann"). The figure's intellectual legacy signals the persona's analytical style.
+- **Expertise areas** (3-5 bullet points)
+- **Guiding question** that shapes their perspective
+- **Primary lens** (one sentence; required for `--depth max`, optional for others)
+
+Personas **complement** the domain template — they do not override it.
+
+**If `--claude-only`**: Relabel personas — "Gemini persona" → "Subagent A (T1-CD)", "Codex persona" → "Subagent B (T1-AC)". For `--depth max` internal roles: "Gemini" → "Expansive Explorer (T1-EE)", "Codex" → "Grounded Builder (T1-GB)". Include cognitive style directives in the persona file.
+
+**For `--depth low|medium|high|auto` (2 personas):**
+
+1. Read `brainstorm/research_direction.md`. Analyze the document's methodology candidates (Section 6), research gaps (Section 5a), and constraints (Section 8) to identify the key tensions and perspectives needed.
+2. Assign a **Gemini persona** — domain expert for creative/theoretical ideation. The guiding question should target a gap or open question identified in the Research Direction Document.
+3. Assign a **Codex persona** — practitioner/builder for implementation-focused ideation. The guiding question should address feasibility or methodology challenges from the document.
+4. Save to `brainstorm/personas.md`.
+
+**For `--depth max` (N personas):**
+
+1. **Determine N** (if `--personas auto`): Use the Research Direction Document's methodology candidates and prior work breadth to inform the decision.
+   - **N=2**: Narrow topic, single sub-field, 1 methodology candidate. **N=3**: Theory + practice, or 2 methodology candidates. **N=4**: 2+ sub-fields, 3+ methodology candidates, or highly interdisciplinary.
+   - Announce chosen N and reasoning. If explicit integer given, use directly.
+2. Cast **N domain-specialist personas** (model-independent). Each persona's primary lens should map to a distinct angle on the research direction — e.g., one per methodology candidate, or one for theoretical foundations and one for empirical validation.
+   - **N=2**: Theory/Concepts, Computation/Implementation
+   - **N=3**: + Empirical/Validation. **N=4**: + Application/Interdisciplinary
+3. Personas must be **complementary** — cover distinct dimensions with minimal overlap.
+4. Save to `brainstorm/personas.md`.
+
+### Step 0c: Adaptive Weight Recommendation
 
 > **Skip unless `--weights adaptive`**: This step only runs when `--weights adaptive` is explicitly specified. If `--weights` is omitted (holistic mode) or a JSON object (explicit mode), weights are already saved in Step 0.
 
-When `--weights adaptive` is specified, Claude analyzes the research prompt to recommend topic-appropriate weights:
+When `--weights adaptive` is specified, Claude analyzes the Research Direction Document to recommend topic-appropriate weights:
 
-1. **Analyze the research prompt** for research-nature signals:
+1. **Analyze `brainstorm/research_direction.md`** for research-nature signals. The structured document provides stronger signals than the raw topic string:
 
-   | Signal | Example Keywords | Effect |
+   | Signal | Detection Source | Effect |
    |--------|-----------------|--------|
-   | Theoretical/Formal | proof, formal, theorem, analytical | rigor↑, feasibility↓ |
-   | Experimental/Empirical | experiment, data, empirical, measurement | feasibility↑, rigor↑ |
-   | Applied/Engineering | deploy, production, tool, system | feasibility↑, scalability↑ |
-   | Exploratory/Innovative | novel, first, unexplored, new paradigm | novelty↑, feasibility↓ |
-   | Practicality emphasis | practical, real-world, industry | feasibility↑, scalability↑ |
-   | Rigor emphasis | rigorous, convergence, guarantee | rigor↑ |
-   | Impact emphasis | breakthrough, paradigm, transformative | impact↑, novelty↑ |
-   | Narrow scope | specific algorithm, single method | rigor↑, feasibility↑ |
-   | Broad scope | interdisciplinary, broad, cross-domain | novelty↑, impact↑ |
+   | Theoretical/Formal | Section 3 (hypothesis mentions proof/theorem), Section 6 (analytical methods) | rigor↑, feasibility↓ |
+   | Experimental/Empirical | Section 4 (empirical metrics), Section 6 (experimental methods) | feasibility↑, rigor↑ |
+   | Applied/Engineering | Section 2 (practical motivation), Section 8 (deployment constraints) | feasibility↑, scalability↑ |
+   | Exploratory/Innovative | Section 5a (identified gaps), Section 3 (novel hypothesis) | novelty↑, feasibility↓ |
+   | Practicality emphasis | Section 7 (practical success criteria) | feasibility↑, scalability↑ |
+   | Rigor emphasis | Section 7 (formal verification criteria) | rigor↑ |
+   | Impact emphasis | Section 2 (transformative motivation) | impact↑, novelty↑ |
+   | Narrow scope | Section 8 (tight constraints, single method) | rigor↑, feasibility↑ |
+   | Broad scope | Section 6 (multiple methodology candidates), Section 5 (interdisciplinary papers) | novelty↑, impact↑ |
 
 2. **Generate recommended weights**: Starting from the domain baseline loaded in Step 0, apply adjustments based on detected signals:
    - Each signal adjusts relevant dimensions by ±0.05 to ±0.10
@@ -259,7 +452,7 @@ When `--weights adaptive` is specified, Claude analyzes the research prompt to r
 3. **Present a comparison table** to the user:
 
    ```
-   Detected signals: [list of signals found in the prompt]
+   Detected signals: [list of signals found in the research direction document]
 
    | Dimension     | Domain Default | Recommended | Adjustment Reason            |
    |---------------|---------------|-------------|------------------------------|
@@ -299,159 +492,28 @@ If the user provides custom weights: validate that (1) keys are exactly `{novelt
    - If "Use domain defaults": `method` = `"domain-default"`, `signals_detected` and `adjustments_applied` are still recorded for traceability
    - If custom JSON: `method` = `"custom"`
 
-### Step 0b: Dynamic Persona Casting
-
-After setup, Claude analyzes the topic and domain to assign specialist personas.
-
-**Persona definition format** (all depth levels):
-- **Name/title** — Real historical figure (위인) whose work aligns with the persona's domain (e.g., "R. A. Fisher", "Emmy Noether", "John von Neumann"). The figure's intellectual legacy signals the persona's analytical style.
-- **Expertise areas** (3-5 bullet points)
-- **Guiding question** that shapes their perspective
-- **Primary lens** (one sentence; required for `--depth max`, optional for others)
-
-Personas **complement** the domain template — they do not override it.
-
-**If `--claude-only`**: Relabel personas — "Gemini persona" → "Subagent A (T1-CD)", "Codex persona" → "Subagent B (T1-AC)". For `--depth max` internal roles: "Gemini" → "Expansive Explorer (T1-EE)", "Codex" → "Grounded Builder (T1-GB)". Include cognitive style directives in the persona file.
-
-**For `--depth low|medium|high|auto` (2 personas):**
-
-1. Analyze the topic's sub-disciplines, methodologies, and key challenges.
-2. Assign a **Gemini persona** — domain expert for creative/theoretical ideation.
-3. Assign a **Codex persona** — practitioner/builder for implementation-focused ideation.
-4. Save to `brainstorm/personas.md`.
-
-**For `--depth max` (N personas):**
-
-1. **Determine N** (if `--personas auto`):
-   - **N=2**: Narrow topic, single sub-field. **N=3**: Theory + practice. **N=4**: 2+ sub-fields or highly interdisciplinary.
-   - Announce chosen N and reasoning. If explicit integer given, use directly.
-2. Cast **N domain-specialist personas** (model-independent):
-   - **N=2**: Theory/Concepts, Computation/Implementation
-   - **N=3**: + Empirical/Validation. **N=4**: + Application/Interdisciplinary
-3. Personas must be **complementary** — cover distinct dimensions with minimal overlap.
-4. Save to `brainstorm/personas.md`.
-
-### Step 0c: Research Question Brainstorming
-
-> **Runs at all depths, unconditionally.** No `--depth` branching. Human-in-the-loop dialogue ensures research direction stays aligned with user intent.
-
-**Phase 1 — Internal Assessment** (not shown to user):
-
-Evaluate the research question on three criteria:
-
-| Criterion | Pass | Marginal/Fail |
-|-----------|------|---------------|
-| **Specificity** | Narrow enough for actionable directions | Too broad or vague |
-| **Clarity** | Key terms unambiguous in domain | Ambiguous or unclear terms |
-| **Research-readiness** | Implies measurable outcomes or testable hypotheses | No measurable criteria inferable |
-
-**Decision**:
-- **All Pass** → Present to user: "The research question is clear and specific. Proceed directly, or explore research directions further?" If user says proceed → write skip-case `brainstorm/question_refinement.md` (see output format below), go to Step 0d. If user says explore → enter Phase 2.
-- **Any Marginal or Fail** → Enter Phase 2.
-
-**Phase 2 — Dialogue Loop**:
-
-Refine the question through interactive dialogue. Rules:
-1. **One question per message.** Never ask multiple questions at once.
-2. **Multiple choice preferred.** Use open-ended only when the answer space is too wide for options.
-3. **Research-specific questions.** Focus on:
-   - What methodology scope is intended? (theoretical / computational / experimental / mixed)
-   - What would constitute a successful outcome? (measurable criteria)
-   - What prior work or approaches should be considered vs. excluded?
-   - What is the target audience or application context?
-   - What constraints exist? (time, data availability, compute, domain boundaries)
-4. **Exit condition**: User signals the question is sufficiently refined (e.g., "that's enough", "looks good", "proceed"). Do not over-question — 2-4 questions is typical. If the question was already Marginal (not Fail), 1-2 questions may suffice.
-
-**Phase 3 — Research Direction Proposals**:
-
-Based on the dialogue, propose **2-3 alternative research directions** for the (now-refined) question. For each direction:
-- **Direction name** — concise label
-- **Core question** — the specific research question this direction addresses
-- **Expected methodology** — how this would be investigated
-- **Anticipated outcome** — what results to expect if successful
-
-Present with a **recommendation** and reasoning. User selects one (or provides their own).
-
-**Phase 4 — Scope Level Confirmation**:
-
-Frame the selected direction at three scope levels:
-- **Operational** — concrete, mechanism-level
-- **Conceptual** — mid-level, framework-focused (default)
-- **Philosophical** — abstract, principle-level
-
-If the user already selected a scope level in Question Orientation (Step 0, item 9), use that as default. Present briefly: "Proceeding at Conceptual level. Reply 'operational' or 'philosophical' to adjust." Move on immediately unless user responds.
-
-**Phase 5 — Final Confirmation**:
-
-Present the refined research question as a single sentence. User approves → proceed to Step 0d.
-
-**Output**:
-
-Save `brainstorm/question_refinement.md` with the following format:
-
-```
-# Research Question Refinement
-
-## Original Question
-{user's original input}
-
-## Refinement Dialogue
-### Q1: {Claude's question}
-**A**: {user's response}
-
-### Q2: {Claude's question}
-**A**: {user's response}
-...
-
-## Research Directions Proposed
-| # | Direction | Core Question | Methodology | Expected Outcome |
-|---|-----------|--------------|-------------|-----------------|
-| 1 | {name} | {question} | {method} | {outcome} |
-| 2 | ... | ... | ... | ... |
-| 3 | ... | ... | ... | ... |
-
-**Recommended**: #{N} — {reasoning}
-**Selected**: #{user's choice}
-
-## Scope Level
-{Operational / Conceptual / Philosophical} — {one-line explanation}
-
-## Final Research Question
-> {refined question}
-
-## Changes from Original
-- {summary of what changed and why}
-```
-
-**Skip case** (All Pass, user chose to proceed directly):
-```
-# Research Question Refinement
-
-## Original Question
-{original}
-
-## Assessment
-Question assessed as clear and specific. User confirmed to proceed without refinement.
-
-## Final Research Question
-> {original, unchanged}
-```
-
-Update `.workspace.json`: set `topic` to the final refined question. If different from original, preserve original as `original_topic`.
-
 ### Step 0d: Pre-flight Context Gathering (`--depth medium|high|max|auto`)
 
 > **Skip if `--depth low`**: Pre-flight only runs at medium depth or above.
 
-Gather grounded evidence before brainstorming, per §PreFlight and **T9**/**T10**.
+Create persona-specific briefings by combining the Research Direction Document's literature (Step 0a Phase 2) with targeted persona-specific searches. **Do not re-run the same broad topic search that Phase 2 already executed** — Pre-flight supplements, not duplicates.
 
-1. **Parallel evidence gathering** — execute simultaneously:
-   - **OpenAlex query** (via WebFetch, per **T9**): Search for the research topic in academic literature. URL-encode the topic string. If results are sparse (< 3 papers), retry with broader keywords (drop domain-specific jargon, keep core concept).
-   - **WebSearch** (per **T9**): Search for recent advances related to the topic.
+1. **Load baseline literature** from `brainstorm/research_direction.md` (Sections 5 and 5a). This provides the general literature context already gathered in Step 0a Phase 2.
 
-2. **Save raw context** to `brainstorm/preflight_context.md` following the **T9** format (Academic Literature + Recent Developments + Methodological Landscape sections).
+2. **Persona-targeted searches** — for each persona in `brainstorm/personas.md`, construct 1-2 search queries from the intersection of:
+   - The persona's expertise areas and guiding question
+   - The Research Direction Document's methodology candidates (Section 6) and identified gaps (Section 5a)
 
-3. **Create persona-specific briefings** per **T10**:
+   Execute in parallel:
+   - **OpenAlex**: 1 query per persona, 5 papers each, per **T9** format. Use persona-specific terms (e.g., for a theoretical persona: `"{theory_term} {domain} formal analysis"`; for an empirical persona: `"{method} benchmark comparison experimental"`).
+   - **WebSearch**: 1 query per persona, focusing on the persona's angle.
+
+3. **Save combined context** to `brainstorm/preflight_context.md` following the **T9** format:
+   - **Academic Literature**: Phase 2 papers (from `research_direction.md` Section 5) + persona-targeted new papers (deduplicated, clearly labeled).
+   - **Recent Developments**: Phase 2 web results + persona-targeted new web results.
+   - **Methodological Landscape**: Updated summary incorporating any new information from persona-targeted searches.
+
+4. **Create persona-specific briefings** per **T10**:
    - For `--depth medium|high|auto`: Create `brainstorm/briefing_gemini.md` and `brainstorm/briefing_codex.md`, each filtered by the persona's reasoning mandate and guiding question from `brainstorm/personas.md`.
    - For `--depth max`: Create `brainstorm/briefing_persona_{i}.md` for each of the N personas, filtered by each persona's expertise areas and guiding question.
 
@@ -459,13 +521,13 @@ Gather grounded evidence before brainstorming, per §PreFlight and **T9**/**T10*
    > - For `--depth medium|high|auto` (2-model): Create `brainstorm/briefing_subagent_a.md` (Creative-Divergent focus) and `brainstorm/briefing_subagent_b.md` (Analytical-Convergent focus) with the same filtering logic.
    > - For `--depth max` (N-persona): Create `brainstorm/briefing_persona_{i}.md` for each persona (same as non-claude-only mode — briefing is filtered by persona expertise, not by model cognitive style).
 
-4. **Validation**: Verify `preflight_context.md` contains at least 3 academic references. If OpenAlex returned 0 results but WebSearch returned results, create briefings from web results only (reduced quality is acceptable — note "Pre-flight: Literature briefing based on web sources only, no academic papers found"). If both OpenAlex and WebSearch returned no useful results, note "Pre-flight: No relevant context found — brainstorm will proceed without literature grounding" and skip briefing creation.
+5. **Validation**: Verify `preflight_context.md` contains at least 3 academic references (combining Phase 2 and persona-targeted results). If the combined results are still sparse, note "Pre-flight: Limited literature context" but proceed. If no academic references exist at all, note "Pre-flight: No relevant context found — brainstorm will proceed without literature grounding" and skip briefing creation.
 
 ### Step 1a: Parallel Independent Brainstorming
 
 Execute these two calls **simultaneously** (in the same message). **Prepend the assigned persona** from `brainstorm/personas.md` to each prompt:
 
-Each call includes: persona context, guiding question, domain template (if exists, via `@{domain_template_path}`), **persona-specific briefing** (if Step 0d ran, via `@{output_dir}/brainstorm/briefing_{persona}.md`), and **T4** mechanism requirement. Use `ideaCount: 12, includeAnalysis: true, methodology: "auto"`.
+Each call includes: persona context, guiding question, domain template (if exists, via `@{domain_template_path}`), **Research Direction Document** (via `@{output_dir}/brainstorm/research_direction.md`), **persona-specific briefing** (if Step 0d ran, via `@{output_dir}/brainstorm/briefing_{persona}.md`), and **T4** mechanism requirement. Use `ideaCount: 12, includeAnalysis: true, methodology: "auto"`. Add to each prompt: "Read the Research Direction Document for the full research framing, hypothesis, and constraints. Generate ideas that are responsive to this research direction."
 
 Each brainstorm prompt must begin with: "Before listing ideas, state in one sentence: 'Scope: [how you interpret this question's boundary and focus].'" This scope declaration is collected for divergence checking in synthesis.
 
@@ -620,7 +682,7 @@ For each finding that appears in both models' outputs, classify as:
 You MUST add at least one perspective, connection, or counter-argument from your own knowledge that no model raised. Mark with **[MELCHIOR]**. This is NOT derived from model outputs — it is your independent intellectual contribution as the third MAGI personality.
 
 1. Read all available documents:
-   - Always: `gemini_ideas.md`, `codex_ideas.md`
+   - Always: `gemini_ideas.md`, `codex_ideas.md`, `research_direction.md`
    - If `--depth medium` or `high` (or escalated from `auto`): `gemini_review_of_codex.md`, `codex_review_of_gemini.md`
    - If `--depth high` (or escalated from `auto`): `debate_round2_gemini.md`, `debate_round2_codex.md`
    - If evidence anchoring ran: `claim_evidence.md`
@@ -679,7 +741,7 @@ Compare scope declarations from Step 1a model outputs. If models interpreted the
 
    Evaluate the synthesis on these five axes. For each axis, write 2-4 sentences of assessment and a **verdict** (PASS / REVISE):
 
-   **(a) Question Fidelity** — Do the top findings actually answer the original research question? Or has the synthesis drifted to an easier adjacent question? Compare the original topic (from `.workspace.json`) against what the top 3 findings collectively address. If there is drift, name it: "The original question asked X, but findings 1-3 address Y instead."
+   **(a) Question Fidelity** — Do the top findings actually answer the original research question? Or has the synthesis drifted to an easier adjacent question? Compare the research question, hypothesis, and expected results (from `brainstorm/research_direction.md`, Sections 1, 3, and 4) against what the top 3 findings collectively address. Use `.workspace.json` `original_topic` as the root reference for drift detection. If there is drift, name it: "The original question asked X, but findings 1-3 address Y instead."
 
    **(b) Inter-Finding Coherence** — Do the Top 5 findings form a coherent research narrative, or do they contradict each other? If contradictions exist, are they explicitly acknowledged as productive tensions (acceptable) or unintentional inconsistencies (must fix)?
 
@@ -706,7 +768,7 @@ Compare scope declarations from Step 1a model outputs. If models interpreted the
 6. Save to `brainstorm/synthesis.md`.
 
 **Retroactive Question Crystallization** (always, all depths):
-After completing the ranked synthesis, examine the top 5 findings and identify the research question they collectively answer. If this crystallized question differs substantively from the original input:
+After completing the ranked synthesis, examine the top 5 findings and identify the research question they collectively answer. If this crystallized question differs substantively from the Research Direction Document's Section 1 (Research Question):
 - Append a "**Note on Question Scope**" section: "The brainstorm converged around: *'[crystallized question]'*. This is [narrower/broader/differently-framed] than your original question. If you intended the original framing, consider re-running with scope: [adjusted scope]."
 - If the crystallized question matches the original: omit this section entirely.
 

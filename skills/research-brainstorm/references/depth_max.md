@@ -153,7 +153,7 @@ For each finding that appears in both models' outputs, classify as:
 You MUST add at least one perspective, connection, or counter-argument from your own knowledge that no model raised. Mark with **[MELCHIOR]**. This is NOT derived from model outputs — it is your independent intellectual contribution as the third MAGI personality.
 
 1. Read all available documents:
-   - `weights.json`, `personas.md`
+   - `weights.json`, `personas.md`, `research_direction.md`
    - All N `persona_{i}/conclusion.md` files
    - `meta_review_gemini.md`, `meta_review_codex.md`
    - `meta_debate_gemini.md`, `meta_debate_codex.md`
@@ -194,7 +194,7 @@ Compare scope declarations from Step 1-max-a model outputs. If personas interpre
 
    Evaluate the synthesis on five axes (2-4 sentences + verdict PASS/REVISE each):
 
-   **(a) Question Fidelity** — Do top findings answer the original question? Drift detection.
+   **(a) Question Fidelity** — Do top findings answer the research question, hypothesis, and expected results from `brainstorm/research_direction.md` (Sections 1, 3, 4)? Use `.workspace.json` `original_topic` for root drift detection.
    **(b) Inter-Finding Coherence** — Contradictions acknowledged or unintentional?
    **(c) Aggregate Mechanism Audit** — N/5 novel mechanisms vs. restatements. Flag if N < 2.
    **(d) Causal vs. Diagnostic Balance** — Count Intervention/Ablation/Null vs. Empirical/Design/Review steps. Mandatory REVISE if no causal steps.
@@ -217,6 +217,6 @@ Compare scope declarations from Step 1-max-a model outputs. If personas interpre
 6. Save to `brainstorm/synthesis.md`.
 
 **Retroactive Question Crystallization** (always, all depths):
-After completing the ranked synthesis, examine the top 5 findings and identify the research question they collectively answer. If this crystallized question differs substantively from the original input:
+After completing the ranked synthesis, examine the top 5 findings and identify the research question they collectively answer. If this crystallized question differs substantively from the Research Direction Document's Section 1 (Research Question):
 - Append a "**Note on Question Scope**" section: "The brainstorm converged around: *'[crystallized question]'*. This is [narrower/broader/differently-framed] than your original question. If you intended the original framing, consider re-running with scope: [adjusted scope]."
 - If the crystallized question matches the original: omit this section entirely.

@@ -172,6 +172,8 @@ Pre-flight context gathering runs at `--depth medium`, `--depth high`, `--depth 
 
 For `--depth max` with N personas: create per-persona briefings (`briefing_persona_{i}.md`) filtered by each persona's declared expertise and guiding question. For `--claude-only` with 2-model pipeline: use `briefing_subagent_a.md` / `briefing_subagent_b.md`.
 
+> **Phase 2 deduplication**: Step 0a (Research Direction Document) Phase 2 already runs a broad literature survey (OpenAlex + WebSearch). Pre-flight (Step 0d) must NOT re-run the same broad queries. Instead, Pre-flight loads the Phase 2 literature from `brainstorm/research_direction.md` (Sections 5 and 5a) as baseline context, then runs only persona-targeted searches to supplement. `preflight_context.md` combines both sources.
+
 ---
 
 ## §EvidenceAnchoring
