@@ -14,7 +14,7 @@ Generates and cross-validates research ideas using Gemini and Codex in parallel,
   - `--weights` — Scoring mode for finding ranking:
     - **Omitted (default — holistic mode)**: Claude ranks findings based on its own expert judgment, with detailed rationale for each ranking position. No numeric dimension weights are used.
     - **JSON object** (e.g., `'{"novelty":0.4,"feasibility":0.2,"impact":0.2,"rigor":0.1,"scalability":0.1}'`): Weighted scoring — dimensions `novelty`, `feasibility`, `impact`, `rigor`, `scalability` with values summing to 1.0.
-    - **`adaptive`**: Claude analyzes the prompt, adjusts domain defaults, and asks for user confirmation before scoring (see Step 0a).
+    - **`adaptive`**: Claude analyzes the prompt, adjusts domain defaults, and asks for user confirmation before scoring (see Step 0c).
   - `--depth` — Controls review depth (default: `medium`):
     - `low` — Skip cross-review, go directly to synthesis
     - `medium` — Standard one-shot cross-review (current behavior)
@@ -183,8 +183,8 @@ When this skill is invoked, follow these steps exactly:
        }
      }
      ```
-     Skip Step 0a entirely.
-   - **If `--weights adaptive`**: Load domain defaults as a **baseline reference only** (do not save yet — Step 0a will handle saving after user confirmation):
+     Skip Step 0c entirely.
+   - **If `--weights adaptive`**: Load domain defaults as a **baseline reference only** (do not save yet — Step 0c will handle saving after user confirmation):
      - `physics`: `{"novelty": 0.30, "feasibility": 0.15, "impact": 0.25, "rigor": 0.20, "scalability": 0.10}`
      - `ai_ml`: `{"novelty": 0.25, "feasibility": 0.25, "impact": 0.25, "rigor": 0.10, "scalability": 0.15}`
      - `statistics`: `{"novelty": 0.25, "feasibility": 0.20, "impact": 0.20, "rigor": 0.25, "scalability": 0.10}`
@@ -201,7 +201,7 @@ When this skill is invoked, follow these steps exactly:
      }
      ```
      **Holistic format is exactly the above — `weights` is `null` (not an empty object, not omitted), `_meta` contains only `method` and `domain`.** No other keys or variations.
-     Skip Step 0a entirely. In Step 1c / Step 1-max-d, Claude will rank findings using holistic expert judgment instead of numeric weighted scoring.
+     Skip Step 0c entirely. In Step 1c / Step 1-max-d, Claude will rank findings using holistic expert judgment instead of numeric weighted scoring.
 5. **Parse `--depth`**: Accept `low`, `medium`, `high`, `max`, or `auto` (default: `medium`).
    - `low` — Skip Step 1b (cross-review), go directly to Step 1c (synthesis)
    - `medium` — Standard one-shot cross-review (current default behavior)
